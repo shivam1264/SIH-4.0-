@@ -97,6 +97,22 @@ export function classifyVoiceCommand(raw: string): VoiceCommandMatch | null {
   }
 
   // ═══════════════════════════════════════════════════════════════
+  // ── MATH & DIAGRAM VERBALIZATION ───────────────────────────────
+  // ═══════════════════════════════════════════════════════════════
+  if (/\b(verbalize(\s+formula)?|math(\s+formula)?|read\s+formula|formula(\s+padho|\s+bolo|\s+sunao)?|equation)\b/i.test(t)) {
+    return { action: 'MATH', label: 'Verbalize Formula' };
+  }
+  if (/\b(describe\s+diagram|diagram(\s+samjhao|\s+padho|\s+bolo)?|chart(\s+padho|\s+samjhao)?|table(\s+padho)?|graph)\b/i.test(t)) {
+    return { action: 'DIAGRAM', label: 'Describe Diagram' };
+  }
+  if (/\b(explain(\s+question|\s+karo)?|simplify(\s+question)?|samjhao|sawal\s+samjhao|ai\s+explain|summary)\b/i.test(t)) {
+    return { action: 'EXPLAIN', label: 'Explain Question' };
+  }
+  if (/\b(shortcuts|keyboard\s+shortcuts|cheat\s+sheet|keys|help|madad)\b/i.test(t)) {
+    return { action: 'SHORTCUTS', label: 'Keyboard Shortcuts' };
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // ── MODAL CONFIRMATION (Yes / No) ─────────────────────────────
   // ═══════════════════════════════════════════════════════════════
   if (

@@ -63,17 +63,58 @@ router.post('/bulk', (req, res) => {
       return res.status(400).json({ error: 'Array of questions required' });
     }
 
-    const created: Question[] = questions.map(q => ({
-      id: `qb-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      text: String(q.text || '').trim(),
-      options: (q.options || ['', '', '', '']) as [string, string, string, string],
-      correctAnswer: Number(q.correctAnswer) || 0,
-      explanation: String(q.explanation || ''),
-      topic: q.topic || 'General',
-      difficulty: q.difficulty || 'Medium',
-      phoneticAudioText: q.phoneticAudioText || q.text,
-      approved: true,
-    }));
+    const created: Question[] = questions.map((q: any) => {
+      // Handle options as array of strings, or array of objects, or separate optA..optD fields
+      let opts: [string, string, string, string] = ['', '', '', ''];
+      if (Array.isArray(q.options)) {
+        opts = [
+          typeof q.options[0] === 'object' ? q.options[0]?.text || '' : String(q.options[0] || ''),
+          typeof q.options[1] === 'object' ? q.options[1]?.text || '' : String(q.options[1] || ''),
+          typeof q.options[2] === 'object' ? q.options[2]?.text || '' : String(q.options[2] || ''),
+          typeof q.options[3] === 'object' ? q.options[3]?.text || '' : String(q.options[3] || ''),
+        ];
+      } else if (q.optA || q.optionA) {
+        opts = [
+          String(q.optA || q.optionA || ''),
+          String(q.optB || q.optionB || ''),
+          String(q.optC || q.optionC || ''),
+          String(q.optD || q.optionD || ''),
+        ];
+      }
+
+      // Handle correct answer as 0..3 index, or 'A'..'D', or 1..4
+      let correct = 0;
+      const rawAns = q.correctAnswer ?? q.correct ?? q.answer ?? q.ans;
+      if (typeof rawAns === 'string') {
+        const letter = rawAns.trim().toUpperCase();
+        if (letter === 'A' || letter === '0' || letter === '1') correct = 0;
+        else if (letter === 'B' || letter === '2') correct = 1;
+        else if (letter === 'C' || letter === '3') correct = 2;
+        else if (letter === 'D' || letter === '4') correct = 3;
+        else {
+          const matchIdx = opts.findIndex(o => o.toLowerCase() === rawAns.trim().toLowerCase());
+          if (matchIdx >= 0) correct = matchIdx;
+        }
+      } else if (typeof rawAns === 'number') {
+        correct = rawAns >= 1 && rawAns <= 4 ? rawAns - 1 : Math.max(0, Math.min(3, rawAns));
+      }
+
+      const qText = String(q.text || q.q || q.question || '').trim();
+      const phonetic = q.phoneticAudioText || q.phoneticAudioPreview || q.phoneticText ||
+        `Question: ${qText}. Option A: ${opts[0]}. Option B: ${opts[1]}. Option C: ${opts[2]}. Option D: ${opts[3]}. Correct is Option ${String.fromCharCode(65 + correct)}.`;
+
+      return {
+        id: `qb-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        text: qText,
+        options: opts,
+        correctAnswer: correct,
+        explanation: String(q.explanation || q.solution || 'Standard curriculum explanation.'),
+        topic: q.topic || q.subject || 'General',
+        difficulty: (['Easy', 'Medium', 'Hard'].includes(q.difficulty) ? q.difficulty : 'Medium') as 'Easy' | 'Medium' | 'Hard',
+        phoneticAudioText: phonetic,
+        approved: true,
+      };
+    });
 
     db.update(data => {
       data.questionBank.unshift(...created);

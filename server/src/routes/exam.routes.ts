@@ -31,36 +31,73 @@ router.get('/:id', (req, res) => {
 // Create exam
 router.post('/', (req, res) => {
   try {
-    const { title, category, subject, durationMinutes, totalMarks, passingMarks, scheduledDate, difficulty, questions } = req.body;
-    if (!title || !subject) {
-      return res.status(400).json({ error: 'Title and Subject are required' });
+    const {
+      title,
+      category,
+      subject,
+      subjects,
+      durationMinutes,
+      totalMarks,
+      passingMarks,
+      scheduledDate,
+      difficulty,
+      questions,
+      instructions,
+      description,
+      totalQuestions,
+    } = req.body;
+
+    if (!title || !String(title).trim()) {
+      return res.status(400).json({ error: 'Title is required' });
     }
 
-    const newExam: Exam = {
-      id: `exam-${Date.now()}`,
+    const resolvedSubject =
+      subject ||
+      (Array.isArray(subjects) && subjects.length ? subjects[0] : null) ||
+      category ||
+      'General Studies';
+
+    const qArray = Array.isArray(questions) ? questions : [];
+
+    const newExam: any = {
+      id: req.body.id || `exam-custom-${Date.now()}`,
       title: String(title).trim(),
       category: category || 'General Competitive',
-      subject: String(subject).trim(),
-      durationMinutes: Number(durationMinutes) || 60,
-      totalMarks: Number(totalMarks) || 100,
-      passingMarks: Number(passingMarks) || 40,
+      subject: resolvedSubject,
+      subjects: Array.isArray(subjects) && subjects.length ? subjects : [resolvedSubject],
+      durationMinutes: Number(durationMinutes) || 30,
+      totalQuestions: qArray.length || Number(totalQuestions) || 20,
+      totalMarks: Number(totalMarks) || (qArray.length ? qArray.length * 2 : 20),
+      passingMarks: Number(passingMarks) || (qArray.length ? Math.round(qArray.length * 0.7 * 2) : 14),
       scheduledDate: scheduledDate || new Date().toISOString().split('T')[0],
       status: 'active',
       difficulty: difficulty || 'Medium',
-      questions: Array.isArray(questions) ? questions : [],
-      instructions: [
-        'Voice Guidance and screen reader support are enabled for this exam.',
-        'Use voice commands like "Option A", "Next question", or press number keys 1 to 4.',
-      ],
+      description:
+        description ||
+        `${category || 'General'} practice mock test with ${qArray.length || 20} questions.`,
+      questions: qArray,
+      instructions:
+        typeof instructions === 'string'
+          ? instructions
+          : Array.isArray(instructions)
+          ? instructions.join(' ')
+          : 'Accessible mock test with audio narration enabled. Time multiplier 1.5x applied for PwD candidates.',
       accessibilitySettings: {
         screenReaderOptimized: true,
         extraTimeApproved: true,
         voiceNavigationAllowed: true,
       },
+      published: true,
+      createdAt: new Date().toISOString().split('T')[0],
     };
 
     db.update(data => {
-      data.exams.unshift(newExam);
+      const existingIdx = data.exams.findIndex(e => e.id === newExam.id);
+      if (existingIdx >= 0) {
+        data.exams[existingIdx] = newExam;
+      } else {
+        data.exams.unshift(newExam);
+      }
     });
 
     return res.status(201).json({ success: true, exam: newExam });

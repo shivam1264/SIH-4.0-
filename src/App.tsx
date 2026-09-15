@@ -16,6 +16,9 @@ const ExamInterface = lazy(() => import('./pages/ExamInterface'));
 const Results       = lazy(() => import('./pages/Results'));
 const Practice      = lazy(() => import('./pages/Practice'));
 const Performance   = lazy(() => import('./pages/Performance'));
+const StudyMaterials = lazy(() => import('./pages/StudyMaterials'));
+const PreviousYearPapers = lazy(() => import('./pages/PreviousYearPapers'));
+const ExamHistory   = lazy(() => import('./pages/ExamHistory'));
 const Profile       = lazy(() => import('./pages/Profile'));
 const Settings      = lazy(() => import('./pages/Settings'));
 const AdminDashboard= lazy(() => import('./pages/AdminDashboard'));
@@ -62,7 +65,10 @@ function AppRoutes() {
         <Route path="/exam/:examId"    element={<ProtectedRoute><ExamInterface /></ProtectedRoute>} />
         <Route path="/results/:attemptId" element={<ProtectedRoute><Results /></ProtectedRoute>} />
         <Route path="/practice"        element={<ProtectedRoute><Practice /></ProtectedRoute>} />
+        <Route path="/study-materials" element={<ProtectedRoute><StudyMaterials /></ProtectedRoute>} />
+        <Route path="/pyqs"            element={<ProtectedRoute><PreviousYearPapers /></ProtectedRoute>} />
         <Route path="/performance"     element={<ProtectedRoute><Performance /></ProtectedRoute>} />
+        <Route path="/history"         element={<ProtectedRoute><ExamHistory /></ProtectedRoute>} />
         <Route path="/profile"         element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/settings"        element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 

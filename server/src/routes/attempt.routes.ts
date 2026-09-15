@@ -18,13 +18,50 @@ router.get('/', (req, res) => {
   return res.json({ count: attempts.length, attempts });
 });
 
-// Single attempt
-router.get('/:id', (req, res) => {
-  const attempt = db.get().attemptLogs.find(a => a.id === req.params.id);
-  if (!attempt) {
-    return res.status(404).json({ error: 'Attempt record not found' });
-  }
-  return res.json({ attempt });
+// Record new attempt
+router.post('/', (req, res) => {
+  const {
+    candidateName = 'Rahul Sharma',
+    rollNo = 'PWD-2026-081',
+    examTitle = 'Mock Examination',
+    examId = 'exam-1',
+    score = 0,
+    totalMarks = 100,
+    percentage,
+    passed = true,
+    timeTakenMinutes = 20,
+    speechCommandsUsed = 0,
+    audioIntegrityStatus = 'Clean',
+  } = req.body;
+
+  const calculatedPercentage = percentage ?? Math.round((Number(score) / Number(totalMarks)) * 100);
+
+  const newLog = {
+    id: `att_${Date.now()}`,
+    candidateName,
+    rollNo,
+    examTitle,
+    examId,
+    score: Number(score),
+    totalMarks: Number(totalMarks),
+    percentage: calculatedPercentage,
+    passed: passed ?? calculatedPercentage >= 40,
+    completedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+    timeTakenMinutes: Number(timeTakenMinutes),
+    speechCommandsUsed: Number(speechCommandsUsed),
+    audioIntegrityStatus: audioIntegrityStatus || 'Clean',
+  };
+
+  db.update(data => {
+    if (!data.attemptLogs) data.attemptLogs = [];
+    data.attemptLogs.unshift(newLog);
+  });
+
+  return res.status(201).json({
+    success: true,
+    message: 'Attempt logged successfully',
+    attempt: newLog,
+  });
 });
 
 export default router;

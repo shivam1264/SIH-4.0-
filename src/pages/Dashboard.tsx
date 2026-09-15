@@ -16,6 +16,8 @@ import {
   Calculator,
   Landmark,
   TrendingUp,
+  Volume2,
+  HelpCircle,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import { useAuth } from '../context/AuthContext';
@@ -166,6 +168,7 @@ interface StatCardProps {
   value: string | number;
   label: string;
   chartGraphic?: React.ReactNode;
+  fadeClass?: string;
 }
 
 function StatCard({
@@ -178,15 +181,14 @@ function StatCard({
   value,
   label,
   chartGraphic,
+  fadeClass = '',
 }: StatCardProps) {
   return (
     <div
-      className="card card-interactive fade-in"
+      className={`card card-interactive fade-in ${fadeClass}`}
       style={{
         padding: '1.15rem 1.25rem',
         borderRadius: '0.85rem',
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
@@ -322,7 +324,7 @@ export default function Dashboard() {
 
   // Announce Dashboard briefing on mount
   useEffect(() => {
-    document.title = 'Dashboard — SIGHT-EXAM AI';
+    document.title = 'Dashboard — DrishtiX';
     const timer = setTimeout(() => {
       speechService.speak(briefingText, { priority: true });
     }, 500);
@@ -443,7 +445,7 @@ export default function Dashboard() {
 
         {/* ── 2. Speech Guidance Banner ── */}
         <div
-          className="card fade-in"
+          className="card fade-in card-fade-aurora"
           style={{
             marginBottom: '1.25rem',
             padding: '0.85rem 1.4rem',
@@ -452,8 +454,6 @@ export default function Dashboard() {
             justifyContent: 'space-between',
             flexWrap: 'wrap',
             gap: '0.75rem',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border)',
             borderRadius: '0.85rem',
           }}
           role="region"
@@ -525,6 +525,7 @@ export default function Dashboard() {
             badgeColor="#16A34A"
             value={attempts.length || 4}
             label="Tests Attempted"
+            fadeClass="card-fade-blue"
           />
 
           {/* Card 2: Average Score */}
@@ -537,6 +538,7 @@ export default function Dashboard() {
             badgeColor="#7C3AED"
             value={`${avgScore}%`}
             label="Average Score"
+            fadeClass="card-fade-purple"
             chartGraphic={
               <svg width="60" height="24" viewBox="0 0 60 24" fill="none">
                 <path
@@ -566,6 +568,7 @@ export default function Dashboard() {
             badgeColor="#16A34A"
             value={`${bestScore}%`}
             label="Best Score"
+            fadeClass="card-fade-emerald"
             chartGraphic={
               <svg width="48" height="24" viewBox="0 0 48 24" fill="none">
                 <path
@@ -596,6 +599,7 @@ export default function Dashboard() {
             badgeColor="#EA580C"
             value="4"
             label="Focus Areas Detected"
+            fadeClass="card-fade-orange"
             chartGraphic={
               <svg width="32" height="24" viewBox="0 0 32 24" fill="none">
                 <rect x="4" y="14" width="4" height="10" rx="2" fill="#F97316" fillOpacity="0.4" />
@@ -641,260 +645,640 @@ export default function Dashboard() {
             </div>
 
             {/* 2x2 Grid of Exams */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
               {/* Card 1: SSC CGL */}
               <div
-                className="card card-interactive fade-in"
+                className="card card-interactive fade-in card-fade-blue"
                 style={{
-                  padding: '1.1rem',
-                  borderRadius: '0.85rem',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border)',
+                  padding: '1.25rem',
+                  borderRadius: '1rem',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  gap: '0.85rem',
+                  gap: '1rem',
                   cursor: 'pointer',
                 }}
                 onClick={() => navigate('/exam/ssc-reasoning-01')}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {/* Top Badges & Icon */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
                       <span
                         style={{
-                          fontSize: '0.68rem',
-                          fontWeight: 700,
-                          padding: '0.15rem 0.5rem',
+                          background: 'rgba(37, 99, 235, 0.09)',
+                          color: '#1D4ED8',
+                          border: '1px solid rgba(37, 99, 235, 0.28)',
+                          fontWeight: 800,
+                          fontSize: '0.74rem',
+                          padding: '0.2rem 0.6rem',
                           borderRadius: '999px',
-                          background: '#FEF3C7',
-                          color: '#D97706',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
                         }}
                       >
-                        Medium
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#2563EB', boxShadow: '0 0 6px #2563EB' }} />
+                        SSC
                       </span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                        <Clock size={12} /> 12m
+                      <span
+                        style={{
+                          background: 'rgba(245, 158, 11, 0.09)',
+                          color: '#B45309',
+                          border: '1px solid rgba(245, 158, 11, 0.28)',
+                          fontWeight: 700,
+                          fontSize: '0.72rem',
+                          padding: '0.2rem 0.55rem',
+                          borderRadius: '999px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                        }}
+                      >
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#F59E0B' }} />
+                        Medium
                       </span>
                     </div>
 
                     <div
                       style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: '0.5rem',
-                        background: '#EFF6FF',
+                        width: 38,
+                        height: 38,
+                        borderRadius: '0.65rem',
+                        background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
+                        border: '1.5px solid rgba(37, 99, 235, 0.25)',
+                        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.16)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        flexShrink: 0,
                       }}
                     >
-                      <FileText size={18} color="#3B82F6" />
+                      <FileText size={18} color="#2563EB" />
                     </div>
                   </div>
 
-                  <h3 style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text)', lineHeight: 1.35 }}>
+                  {/* Title */}
+                  <h3 style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text)', lineHeight: 1.35, marginBottom: '0.4rem' }}>
                     SSC CGL — General Intelligence & Reasoning
                   </h3>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: '0.85rem' }}>
+                    Comprehensive mock test covering syllogism, number series, directions, and analogies.
+                  </p>
+
+                  {/* Metadata Frosted Shelf */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'rgba(255, 255, 255, 0.78)',
+                      backdropFilter: 'blur(8px)',
+                      padding: '0.55rem 0.75rem',
+                      borderRadius: '0.65rem',
+                      border: '1px solid rgba(37, 99, 235, 0.16)',
+                      fontSize: '0.78rem',
+                      marginBottom: '0.85rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
+                      <HelpCircle size={14} color="#2563EB" />
+                      <span><strong>10</strong> Questions</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
+                      <Clock size={14} color="#059669" />
+                      <span><strong>12</strong> Minutes</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem' }}>
-                  <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>10 Questions</span>
-                  <span style={{ color: '#2563EB', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                    Start <ArrowRight size={12} />
-                  </span>
+                {/* Button Row */}
+                <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigate('/exam/ssc-reasoning-01'); }}
+                    style={{
+                      flex: 1,
+                      padding: '0.72rem 1rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      fontWeight: 800,
+                      fontSize: '0.86rem',
+                      background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '0.65rem',
+                      cursor: 'pointer',
+                      boxShadow: '0 6px 16px -2px rgba(37, 99, 235, 0.45)',
+                    }}
+                  >
+                    <span style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Play size={10} fill="#ffffff" color="#ffffff" style={{ marginLeft: 1 }} />
+                    </span>
+                    <span>Start Mock Examination</span>
+                    <ArrowRight size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      speechService.speak('SSC CGL General Intelligence & Reasoning. 10 questions. 12 minutes.');
+                    }}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '0.65rem',
+                      background: 'rgba(255, 255, 255, 0.85)',
+                      border: '1.5px solid rgba(59, 130, 246, 0.32)',
+                      color: '#2563EB',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
+                    title="Listen aloud"
+                  >
+                    <Volume2 size={16} />
+                  </button>
                 </div>
               </div>
 
               {/* Card 2: Banking PO */}
               <div
-                className="card card-interactive fade-in"
+                className="card card-interactive fade-in card-fade-orange"
                 style={{
-                  padding: '1.1rem',
-                  borderRadius: '0.85rem',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border)',
+                  padding: '1.25rem',
+                  borderRadius: '1rem',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  gap: '0.85rem',
+                  gap: '1rem',
                   cursor: 'pointer',
                 }}
                 onClick={() => navigate('/exam/banking-quant-01')}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {/* Top Badges & Icon */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
                       <span
                         style={{
-                          fontSize: '0.68rem',
-                          fontWeight: 700,
-                          padding: '0.15rem 0.5rem',
+                          background: 'rgba(234, 88, 12, 0.09)',
+                          color: '#C2410C',
+                          border: '1px solid rgba(234, 88, 12, 0.28)',
+                          fontWeight: 800,
+                          fontSize: '0.74rem',
+                          padding: '0.2rem 0.6rem',
                           borderRadius: '999px',
-                          background: '#FEE2E2',
-                          color: '#DC2626',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
                         }}
                       >
-                        Hard
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#EA580C', boxShadow: '0 0 6px #EA580C' }} />
+                        Banking
                       </span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                        <Clock size={12} /> 15m
+                      <span
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.09)',
+                          color: '#B91C1C',
+                          border: '1px solid rgba(239, 68, 68, 0.28)',
+                          fontWeight: 700,
+                          fontSize: '0.72rem',
+                          padding: '0.2rem 0.55rem',
+                          borderRadius: '999px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                        }}
+                      >
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#EF4444' }} />
+                        Hard
                       </span>
                     </div>
 
                     <div
                       style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: '0.5rem',
-                        background: '#FFF7ED',
+                        width: 38,
+                        height: 38,
+                        borderRadius: '0.65rem',
+                        background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)',
+                        border: '1.5px solid rgba(234, 88, 12, 0.25)',
+                        boxShadow: '0 4px 12px rgba(234, 88, 12, 0.16)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        flexShrink: 0,
                       }}
                     >
                       <Calculator size={18} color="#EA580C" />
                     </div>
                   </div>
 
-                  <h3 style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text)', lineHeight: 1.35 }}>
+                  {/* Title */}
+                  <h3 style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text)', lineHeight: 1.35, marginBottom: '0.4rem' }}>
                     Banking PO — Quantitative Aptitude
                   </h3>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: '0.85rem' }}>
+                    High-speed quantitative mock covering number series, data interpretation, and profit-loss.
+                  </p>
+
+                  {/* Metadata Frosted Shelf */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'rgba(255, 255, 255, 0.78)',
+                      backdropFilter: 'blur(8px)',
+                      padding: '0.55rem 0.75rem',
+                      borderRadius: '0.65rem',
+                      border: '1px solid rgba(234, 88, 12, 0.16)',
+                      fontSize: '0.78rem',
+                      marginBottom: '0.85rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
+                      <HelpCircle size={14} color="#EA580C" />
+                      <span><strong>8</strong> Questions</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
+                      <Clock size={14} color="#059669" />
+                      <span><strong>15</strong> Minutes</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem' }}>
-                  <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>8 Questions</span>
-                  <span style={{ color: '#2563EB', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                    Start <ArrowRight size={12} />
-                  </span>
+                {/* Button Row */}
+                <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigate('/exam/banking-quant-01'); }}
+                    style={{
+                      flex: 1,
+                      padding: '0.72rem 1rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      fontWeight: 800,
+                      fontSize: '0.86rem',
+                      background: 'linear-gradient(135deg, #EA580C 0%, #C2410C 100%)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '0.65rem',
+                      cursor: 'pointer',
+                      boxShadow: '0 6px 16px -2px rgba(234, 88, 12, 0.45)',
+                    }}
+                  >
+                    <span style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Play size={10} fill="#ffffff" color="#ffffff" style={{ marginLeft: 1 }} />
+                    </span>
+                    <span>Start Mock Examination</span>
+                    <ArrowRight size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      speechService.speak('Banking PO Quantitative Aptitude. 8 questions. 15 minutes.');
+                    }}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '0.65rem',
+                      background: 'rgba(255, 255, 255, 0.85)',
+                      border: '1.5px solid rgba(249, 115, 22, 0.32)',
+                      color: '#EA580C',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
+                    title="Listen aloud"
+                  >
+                    <Volume2 size={16} />
+                  </button>
                 </div>
               </div>
 
               {/* Card 3: UPSC Prelims */}
               <div
-                className="card card-interactive fade-in"
+                className="card card-interactive fade-in card-fade-amber"
                 style={{
-                  padding: '1.1rem',
-                  borderRadius: '0.85rem',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border)',
+                  padding: '1.25rem',
+                  borderRadius: '1rem',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  gap: '0.85rem',
+                  gap: '1rem',
                   cursor: 'pointer',
                 }}
                 onClick={() => navigate('/exam/upsc-gs1-01')}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {/* Top Badges & Icon */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
                       <span
                         style={{
-                          fontSize: '0.68rem',
-                          fontWeight: 700,
-                          padding: '0.15rem 0.5rem',
+                          background: 'rgba(217, 119, 6, 0.09)',
+                          color: '#B45309',
+                          border: '1px solid rgba(217, 119, 6, 0.28)',
+                          fontWeight: 800,
+                          fontSize: '0.74rem',
+                          padding: '0.2rem 0.6rem',
                           borderRadius: '999px',
-                          background: '#FEE2E2',
-                          color: '#DC2626',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
                         }}
                       >
-                        Hard
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#D97706', boxShadow: '0 0 6px #D97706' }} />
+                        UPSC
                       </span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                        <Clock size={12} /> 16m
+                      <span
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.09)',
+                          color: '#B91C1C',
+                          border: '1px solid rgba(239, 68, 68, 0.28)',
+                          fontWeight: 700,
+                          fontSize: '0.72rem',
+                          padding: '0.2rem 0.55rem',
+                          borderRadius: '999px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                        }}
+                      >
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#EF4444' }} />
+                        Hard
                       </span>
                     </div>
 
                     <div
                       style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: '0.5rem',
-                        background: '#FEF3C7',
+                        width: 38,
+                        height: 38,
+                        borderRadius: '0.65rem',
+                        background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
+                        border: '1.5px solid rgba(217, 119, 6, 0.25)',
+                        boxShadow: '0 4px 12px rgba(217, 119, 6, 0.16)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        flexShrink: 0,
                       }}
                     >
-                      <Landmark size={18} color="#D97706" />
+                      <Landmark size={18} color="#B45309" />
                     </div>
                   </div>
 
-                  <h3 style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text)', lineHeight: 1.35 }}>
+                  {/* Title */}
+                  <h3 style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text)', lineHeight: 1.35, marginBottom: '0.4rem' }}>
                     UPSC Prelims — General Studies (History & Polity)
                   </h3>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: '0.85rem' }}>
+                    Analytical questions on Modern Indian History, Constitutional Law, and Polity.
+                  </p>
+
+                  {/* Metadata Frosted Shelf */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'rgba(255, 255, 255, 0.78)',
+                      backdropFilter: 'blur(8px)',
+                      padding: '0.55rem 0.75rem',
+                      borderRadius: '0.65rem',
+                      border: '1px solid rgba(217, 119, 6, 0.16)',
+                      fontSize: '0.78rem',
+                      marginBottom: '0.85rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
+                      <HelpCircle size={14} color="#D97706" />
+                      <span><strong>8</strong> Questions</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
+                      <Clock size={14} color="#059669" />
+                      <span><strong>16</strong> Minutes</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem' }}>
-                  <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>10 Questions</span>
-                  <span style={{ color: '#2563EB', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                    Start <ArrowRight size={12} />
-                  </span>
+                {/* Button Row */}
+                <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigate('/exam/upsc-gs1-01'); }}
+                    style={{
+                      flex: 1,
+                      padding: '0.72rem 1rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      fontWeight: 800,
+                      fontSize: '0.86rem',
+                      background: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '0.65rem',
+                      cursor: 'pointer',
+                      boxShadow: '0 6px 16px -2px rgba(217, 119, 6, 0.45)',
+                    }}
+                  >
+                    <span style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Play size={10} fill="#ffffff" color="#ffffff" style={{ marginLeft: 1 }} />
+                    </span>
+                    <span>Start Mock Examination</span>
+                    <ArrowRight size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      speechService.speak('UPSC Prelims General Studies. 8 questions. 16 minutes.');
+                    }}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '0.65rem',
+                      background: 'rgba(255, 255, 255, 0.85)',
+                      border: '1.5px solid rgba(217, 119, 6, 0.32)',
+                      color: '#D97706',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
+                    title="Listen aloud"
+                  >
+                    <Volume2 size={16} />
+                  </button>
                 </div>
               </div>
 
               {/* Card 4: Railway RRB */}
               <div
-                className="card card-interactive fade-in"
+                className="card card-interactive fade-in card-fade-emerald"
                 style={{
-                  padding: '1.1rem',
-                  borderRadius: '0.85rem',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border)',
+                  padding: '1.25rem',
+                  borderRadius: '1rem',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'space-between',
-                  gap: '0.85rem',
+                  gap: '1rem',
                   cursor: 'pointer',
                 }}
                 onClick={() => navigate('/exam/railway-gk-01')}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {/* Top Badges & Icon */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
                       <span
                         style={{
-                          fontSize: '0.68rem',
-                          fontWeight: 700,
-                          padding: '0.15rem 0.5rem',
+                          background: 'rgba(5, 150, 105, 0.09)',
+                          color: '#047857',
+                          border: '1px solid rgba(5, 150, 105, 0.28)',
+                          fontWeight: 800,
+                          fontSize: '0.74rem',
+                          padding: '0.2rem 0.6rem',
                           borderRadius: '999px',
-                          background: '#DCFCE7',
-                          color: '#16A34A',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
                         }}
                       >
-                        Easy
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#059669', boxShadow: '0 0 6px #059669' }} />
+                        Railway
                       </span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                        <Clock size={12} /> 10m
+                      <span
+                        style={{
+                          background: 'rgba(16, 185, 129, 0.09)',
+                          color: '#047857',
+                          border: '1px solid rgba(16, 185, 129, 0.28)',
+                          fontWeight: 700,
+                          fontSize: '0.72rem',
+                          padding: '0.2rem 0.55rem',
+                          borderRadius: '999px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                        }}
+                      >
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#10B981' }} />
+                        Easy
                       </span>
                     </div>
 
                     <div
                       style={{
-                        width: 34,
-                        height: 34,
-                        borderRadius: '0.5rem',
-                        background: '#ECFDF5',
+                        width: 38,
+                        height: 38,
+                        borderRadius: '0.65rem',
+                        background: 'linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)',
+                        border: '1.5px solid rgba(5, 150, 105, 0.25)',
+                        boxShadow: '0 4px 12px rgba(5, 150, 105, 0.16)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        flexShrink: 0,
                       }}
                     >
                       <BookOpen size={18} color="#059669" />
                     </div>
                   </div>
 
-                  <h3 style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--text)', lineHeight: 1.35 }}>
-                    Railway RRB — General Knowledge & Current Affairs
+                  {/* Title */}
+                  <h3 style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text)', lineHeight: 1.35, marginBottom: '0.4rem' }}>
+                    Railway RRB — General Knowledge & Science
                   </h3>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: '0.85rem' }}>
+                    Topic-wise practice covering Physics, Chemistry, Biology, and Current Affairs.
+                  </p>
+
+                  {/* Metadata Frosted Shelf */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'rgba(255, 255, 255, 0.78)',
+                      backdropFilter: 'blur(8px)',
+                      padding: '0.55rem 0.75rem',
+                      borderRadius: '0.65rem',
+                      border: '1px solid rgba(5, 150, 105, 0.16)',
+                      fontSize: '0.78rem',
+                      marginBottom: '0.85rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
+                      <HelpCircle size={14} color="#059669" />
+                      <span><strong>10</strong> Questions</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
+                      <Clock size={14} color="#059669" />
+                      <span><strong>10</strong> Minutes</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem' }}>
-                  <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>8 Questions</span>
-                  <span style={{ color: '#2563EB', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                    Start <ArrowRight size={12} />
-                  </span>
+                {/* Button Row */}
+                <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigate('/exam/railway-gk-01'); }}
+                    style={{
+                      flex: 1,
+                      padding: '0.72rem 1rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.5rem',
+                      fontWeight: 800,
+                      fontSize: '0.86rem',
+                      background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '0.65rem',
+                      cursor: 'pointer',
+                      boxShadow: '0 6px 16px -2px rgba(5, 150, 105, 0.45)',
+                    }}
+                  >
+                    <span style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Play size={10} fill="#ffffff" color="#ffffff" style={{ marginLeft: 1 }} />
+                    </span>
+                    <span>Start Mock Examination</span>
+                    <ArrowRight size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      speechService.speak('Railway RRB General Knowledge & Science. 10 questions. 10 minutes.');
+                    }}
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: '0.65rem',
+                      background: 'rgba(255, 255, 255, 0.85)',
+                      border: '1.5px solid rgba(16, 185, 129, 0.32)',
+                      color: '#059669',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
+                    title="Listen aloud"
+                  >
+                    <Volume2 size={16} />
+                  </button>
                 </div>
               </div>
             </div>
@@ -927,12 +1311,10 @@ export default function Dashboard() {
 
             {/* AI Recommendation Card */}
             <div
-              className="card card-interactive fade-in"
+              className="card card-interactive fade-in card-fade-rose"
               style={{
                 padding: '1.5rem',
                 borderRadius: '0.85rem',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '1rem',

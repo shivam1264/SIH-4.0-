@@ -42,6 +42,9 @@ import {
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import { DraggableQuickActions } from '../components/DraggableQuickActions';
+import ComplianceTestingDashboard from '../components/ComplianceTestingDashboard';
+import ExcelQuestionImportModal from '../components/ExcelQuestionImportModal';
+import { downloadSampleExcelTemplate, type ParsedQuestionRow } from '../utils/excelQuestionParser';
 import {
   EXAMS as INITIAL_EXAMS,
   MOCK_ATTEMPTS,
@@ -51,6 +54,8 @@ import {
   MOCK_PRONUNCIATION_RULES,
   MOCK_ADMIN_ANNOUNCEMENTS,
   MOCK_COMPLIANCE_REPORTS,
+  MOCK_STUDY_MATERIALS,
+  MOCK_PYQS,
 } from '../data/mockData';
 import { speechService } from '../services/speechService';
 import { useAuth } from '../context/AuthContext';
@@ -64,9 +69,13 @@ import {
   attemptsApi,
   notificationsApi,
   accessibilityApi,
+  studyMaterialsApi,
+  pyqsApi,
 } from '../services/api';
 import type {
   Exam,
+  Question,
+  Subject,
   AdminStudent,
   CurriculumSubject,
   CandidateAttemptLog,
@@ -74,6 +83,8 @@ import type {
   AdminAnnouncement,
   ComplianceReport,
   ImpairmentTier,
+  StudyMaterial,
+  PYQPaper,
 } from '../types';
 
 interface AIQuestionDraft {
@@ -86,6 +97,8 @@ interface AIQuestionDraft {
   difficulty: 'Easy' | 'Medium' | 'Hard';
   approved: boolean;
   phoneticAudioPreview?: string;
+  source?: string;
+  createdAt?: string;
 }
 
 export interface PopularExamItem {
@@ -159,10 +172,13 @@ export type AdminTab =
   | 'exams'
   | 'questions'
   | 'ai-generator'
+  | 'study-materials'
+  | 'pyqs'
   | 'subjects'
   | 'attempts'
   | 'analytics'
   | 'accessibility'
+  | 'compliance'
   | 'notifications'
   | 'reports'
   | 'settings'
@@ -189,7 +205,7 @@ export default function AdminDashboard() {
   }, [tabParam]);
 
   useEffect(() => {
-    document.title = `Admin ${activeTab.toUpperCase()} — SIGHT-EXAM AI`;
+    document.title = `Admin ${activeTab.toUpperCase()} — DrishtiX`;
   }, [activeTab]);
 
   // Synchronize with Node.js + Express backend on mount
@@ -200,6 +216,8 @@ export default function AdminDashboard() {
     attemptsApi.getAll().then(res => { if (res && res.length) setAttemptLogs(res); }).catch(() => { });
     notificationsApi.getAll().then(res => { if (res && res.length) setAnnouncements(res); }).catch(() => { });
     accessibilityApi.getPronunciationRules().then(res => { if (res && res.length) setPronunciationRules(res); }).catch(() => { });
+    studyMaterialsApi.getAll().then(res => { if (res && res.length) setStudyMaterials(res); }).catch(() => { });
+    pyqsApi.getAll().then(res => { if (res && res.length) setPyqs(res); }).catch(() => { });
   }, []);
 
   // ─────────────────────────────────────────────
@@ -223,10 +241,24 @@ export default function AdminDashboard() {
   const [showAddExamModal, setShowAddExamModal] = useState(false);
   const [newExamTitle, setNewExamTitle] = useState('');
   const [newExamCategory, setNewExamCategory] = useState('SSC');
+  const [newExamSubject, setNewExamSubject] = useState('General Awareness');
   const [newExamDuration, setNewExamDuration] = useState('30');
   const [newExamDifficulty, setNewExamDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
   const [newExamQuestionsCount, setNewExamQuestionsCount] = useState('20');
   const [newExamInstructions, setNewExamInstructions] = useState('Accessible mock test with audio narration enabled. Time multiplier 1.5x applied for PwD candidates.');
+
+  // Exam Questions Builder State
+  const [examQuestions, setExamQuestions] = useState<Question[]>([]);
+  const [isGeneratingExamQuestions, setIsGeneratingExamQuestions] = useState(false);
+  const [builderTab, setBuilderTab] = useState<'manual' | 'bank' | 'ai'>('manual');
+  const [builderQText, setBuilderQText] = useState('');
+  const [builderOptA, setBuilderOptA] = useState('');
+  const [builderOptB, setBuilderOptB] = useState('');
+  const [builderOptC, setBuilderOptC] = useState('');
+  const [builderOptD, setBuilderOptD] = useState('');
+  const [builderCorrect, setBuilderCorrect] = useState<'A' | 'B' | 'C' | 'D'>('A');
+  const [builderTopic, setBuilderTopic] = useState('General Studies');
+  const [builderExplanation, setBuilderExplanation] = useState('');
 
   // ─────────────────────────────────────────────
   //  State: Students
@@ -277,6 +309,7 @@ export default function AdminDashboard() {
 
   const [questionSearch, setQuestionSearch] = useState('');
   const [showAddQuestionModal, setShowAddQuestionModal] = useState(false);
+  const [showExcelImportModal, setShowExcelImportModal] = useState(false);
   const [qText, setQText] = useState('');
   const [optA, setOptA] = useState('');
   const [optB, setOptB] = useState('');
@@ -298,6 +331,10 @@ export default function AdminDashboard() {
     model: 'gemini-1.5-flash',
     mode: 'checking',
   });
+  const [customApiKey, setCustomApiKey] = useState<string>(() => {
+    return localStorage.getItem('sight_gemini_api_key') || '';
+  });
+  const [showApiKeyConfig, setShowApiKeyConfig] = useState(false);
   const [generatedDrafts, setGeneratedDrafts] = useState<AIQuestionDraft[]>([
     {
       id: 'ai-draft-1',
@@ -322,6 +359,35 @@ export default function AdminDashboard() {
       phoneticAudioPreview: 'Which constitutional amendment lowered the voting age in India from 21 to 18 years? The 61st Amendment.',
     },
   ]);
+
+  // ─────────────────────────────────────────────
+  //  State: Study Materials Management
+  // ─────────────────────────────────────────────
+  const [studyMaterials, setStudyMaterials] = useState<StudyMaterial[]>(MOCK_STUDY_MATERIALS);
+  const [showAddMaterialModal, setShowAddMaterialModal] = useState(false);
+  const [newMaterialTitle, setNewMaterialTitle] = useState('');
+  const [newMaterialSubject, setNewMaterialSubject] = useState('General Awareness');
+  const [newMaterialCategory, setNewMaterialCategory] = useState('Indian Polity');
+  const [newMaterialReadTime, setNewMaterialReadTime] = useState('8');
+  const [newMaterialSummary, setNewMaterialSummary] = useState('');
+  const [newMaterialContent, setNewMaterialContent] = useState('');
+  const [newMaterialKeyPoints, setNewMaterialKeyPoints] = useState('');
+  const [newMaterialAudioNarration, setNewMaterialAudioNarration] = useState('');
+
+  // ─────────────────────────────────────────────
+  //  State: Previous Year Papers (PYQs)
+  // ─────────────────────────────────────────────
+  const [pyqs, setPyqs] = useState<PYQPaper[]>(MOCK_PYQS);
+  const [showAddPyqModal, setShowAddPyqModal] = useState(false);
+  const [newPyqTitle, setNewPyqTitle] = useState('');
+  const [newPyqExamName, setNewPyqExamName] = useState('SSC CGL');
+  const [newPyqYear, setNewPyqYear] = useState('2024');
+  const [newPyqShift, setNewPyqShift] = useState('Shift 1 (Morning)');
+  const [newPyqCategory, setNewPyqCategory] = useState('SSC');
+  const [newPyqTotalQ, setNewPyqTotalQ] = useState('25');
+  const [newPyqDuration, setNewPyqDuration] = useState('30');
+  const [newPyqDifficulty, setNewPyqDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
+  const [newPyqTopics, setNewPyqTopics] = useState('Polity, Reasoning, General Awareness');
 
   // ─────────────────────────────────────────────
   //  State: Subjects & Topics
@@ -390,10 +456,353 @@ export default function AdminDashboard() {
     speechService.speak(text, true);
   };
 
-  // Handlers
-  const handleCreateExam = (e: React.FormEvent) => {
+  // Available Subjects
+  const AVAILABLE_SUBJECTS: Subject[] = [
+    'General Awareness',
+    'Reasoning',
+    'Mathematics',
+    'English',
+    'General Science',
+    'History',
+    'Geography',
+    'Polity',
+    'Economics',
+    'Computer',
+  ];
+
+  // Helper: Curated Questions Generator for offline/one-click fallback
+  const generateDefaultQuestionsForSubject = (
+    subject: Subject,
+    category: string,
+    diff: 'Easy' | 'Medium' | 'Hard',
+    count: number = 5
+  ): Question[] => {
+    const templates: Record<string, Array<{ q: string; opts: [string, string, string, string]; correct: 'A' | 'B' | 'C' | 'D'; exp: string; topic: string }>> = {
+      'General Awareness': [
+        {
+          q: 'Which Article of the Indian Constitution guarantees the Right to Constitutional Remedies?',
+          opts: ['Article 19', 'Article 21', 'Article 32', 'Article 44'],
+          correct: 'C',
+          exp: 'Article 32 was termed the Heart and Soul of the Constitution by Dr. B.R. Ambedkar.',
+          topic: 'Indian Constitution',
+        },
+        {
+          q: 'Who was appointed as the first Chief Election Commissioner of Independent India?',
+          opts: ['Sukumar Sen', 'K.V.K. Sundaram', 'T.N. Seshan', 'Nagendra Singh'],
+          correct: 'A',
+          exp: 'Sukumar Sen was the first Chief Election Commissioner of India.',
+          topic: 'Indian Polity',
+        },
+        {
+          q: 'The Tropic of Cancer does NOT pass through which of the following Indian states?',
+          opts: ['Rajasthan', 'Tripura', 'Odisha', 'Chhattisgarh'],
+          correct: 'C',
+          exp: 'Tropic of Cancer passes through 8 Indian states; it does not pass through Odisha.',
+          topic: 'Indian Geography',
+        },
+        {
+          q: 'In which year was the Reserve Bank of India (RBI) nationalized?',
+          opts: ['1935', '1947', '1949', '1955'],
+          correct: 'C',
+          exp: 'The RBI was nationalized on 1st January 1949.',
+          topic: 'Indian Economy',
+        },
+        {
+          q: 'What is the SI unit of electric potential difference (voltage)?',
+          opts: ['Ampere', 'Volt', 'Ohm', 'Joule'],
+          correct: 'B',
+          exp: 'The SI unit of electric potential difference is Volt (V).',
+          topic: 'General Science',
+        },
+      ],
+      'Reasoning': [
+        {
+          q: 'If CAT is coded as 24 and DOG is coded as 26, what is the numerical code for PIG?',
+          opts: ['32', '35', '30', '28'],
+          correct: 'A',
+          exp: 'Sum of alphabetical positions: P(16) + I(9) + G(7) = 32.',
+          topic: 'Coding-Decoding',
+        },
+        {
+          q: 'Point A is 5 meters North of Point B. Point C is 12 meters East of Point A. What is the shortest distance between B and C?',
+          opts: ['13 meters', '17 meters', '15 meters', '11 meters'],
+          correct: 'A',
+          exp: 'By Pythagoras theorem: sqrt(5^2 + 12^2) = sqrt(25 + 144) = 13 meters.',
+          topic: 'Directions & Distances',
+        },
+        {
+          q: 'Look at this series: 7, 10, 8, 11, 9, 12, ... What number should come next?',
+          opts: ['7', '10', '12', '13'],
+          correct: 'B',
+          exp: 'Alternating pattern of +3, -2: 12 - 2 = 10.',
+          topic: 'Number Series',
+        },
+        {
+          q: 'Select the related pair: Book : Author :: Painting : ?',
+          opts: ['Brush', 'Canvas', 'Artist', 'Gallery'],
+          correct: 'C',
+          exp: 'An author writes a book; an artist creates a painting.',
+          topic: 'Analogies',
+        },
+        {
+          q: 'Statements: All mangoes are fruits. All fruits are delicious. Conclusion: All mangoes are delicious.',
+          opts: ['Definitely True', 'Definitely False', 'Cannot be determined', 'Partially True'],
+          correct: 'A',
+          exp: 'Universal affirmative premises link transitively.',
+          topic: 'Syllogism',
+        },
+      ],
+      'Mathematics': [
+        {
+          q: 'A train 180 meters long runs at 54 km/h. How much time does it take to cross an electric pole?',
+          opts: ['10 seconds', '12 seconds', '15 seconds', '18 seconds'],
+          correct: 'B',
+          exp: 'Speed in m/s = 54 * (5/18) = 15 m/s. Time = 180 / 15 = 12 seconds.',
+          topic: 'Speed, Time & Distance',
+        },
+        {
+          q: 'If the simple interest on a principal for 3 years at 10% per annum is ₹300, find the principal.',
+          opts: ['₹800', '₹1,000', '₹1,200', '₹1,500'],
+          correct: 'B',
+          exp: 'Principal = (SI * 100) / (R * T) = (300 * 100) / (10 * 3) = ₹1,000.',
+          topic: 'Simple Interest',
+        },
+        {
+          q: 'What is the compound interest on ₹10,000 at 10% per annum for 2 years compounded annually?',
+          opts: ['₹2,000', '₹2,100', '₹2,200', '₹2,500'],
+          correct: 'B',
+          exp: 'Amount = 10,000 * (1.1)^2 = ₹12,100. CI = ₹2,100.',
+          topic: 'Compound Interest',
+        },
+        {
+          q: 'If 12 persons can complete a task in 8 days, how many days will 16 persons take?',
+          opts: ['4 days', '6 days', '8 days', '10 days'],
+          correct: 'B',
+          exp: 'M1 * D1 = M2 * D2 => 12 * 8 = 16 * D2 => D2 = 6 days.',
+          topic: 'Time and Work',
+        },
+        {
+          q: 'The average of 5 consecutive even integers is 34. Find the largest integer.',
+          opts: ['36', '38', '40', '34'],
+          correct: 'B',
+          exp: 'The integers are 30, 32, 34, 36, 38. The largest is 38.',
+          topic: 'Averages',
+        },
+      ],
+      'English': [
+        {
+          q: 'Choose the correct synonym for the word "CANDID":',
+          opts: ['Deceptive', 'Frank', 'Secretive', 'Cruel'],
+          correct: 'B',
+          exp: 'Candid means truthful and straightforward; frank.',
+          topic: 'Vocabulary',
+        },
+        {
+          q: 'Select the correctly spelled word:',
+          opts: ['Accomodate', 'Acommodate', 'Accommodate', 'Acomodate'],
+          correct: 'C',
+          exp: 'The correct spelling is Accommodate.',
+          topic: 'Spelling',
+        },
+        {
+          q: 'Identify the antonym of "AFFLUENT":',
+          opts: ['Wealthy', 'Prosperous', 'Impoverished', 'Generous'],
+          correct: 'C',
+          exp: 'Affluent means wealthy; its opposite is impoverished.',
+          topic: 'Antonyms',
+        },
+        {
+          q: 'Fill in the blank: She has been living in Delhi ______ 2015.',
+          opts: ['for', 'since', 'from', 'in'],
+          correct: 'B',
+          exp: 'Since is used with a specific point in time.',
+          topic: 'Prepositions',
+        },
+        {
+          q: 'Choose the idiom meaning: "To face the music":',
+          opts: ['To enjoy music', 'To accept unpleasant consequences', 'To argue loudly', 'To compose songs'],
+          correct: 'B',
+          exp: 'To face the music means to accept the unpleasant consequences of one\'s actions.',
+          topic: 'Idioms & Phrases',
+        },
+      ],
+    };
+
+    const pool = templates[subject] || templates['General Awareness'];
+    return pool.slice(0, count).map((item, idx) => ({
+      id: `q-gen-${Date.now()}-${idx + 1}`,
+      subject,
+      topic: item.topic,
+      text: item.q,
+      phoneticText: `Question: ${item.q}. Option A: ${item.opts[0]}. Option B: ${item.opts[1]}. Option C: ${item.opts[2]}. Option D: ${item.opts[3]}. Correct is Option ${item.correct}.`,
+      options: [
+        { id: 'A', text: item.opts[0] },
+        { id: 'B', text: item.opts[1] },
+        { id: 'C', text: item.opts[2] },
+        { id: 'D', text: item.opts[3] },
+      ],
+      correct: item.correct,
+      explanation: item.exp,
+      difficulty: diff,
+      tags: [category, subject, item.topic],
+    }));
+  };
+
+  // Exam Questions Builder Handlers
+  const handleAddQuestionToExam = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newExamTitle.trim()) return;
+    if (!builderQText.trim()) {
+      toast.error('Please enter question statement');
+      return;
+    }
+    if (!builderOptA.trim() || !builderOptB.trim()) {
+      toast.error('Please provide at least Option A and Option B');
+      return;
+    }
+
+    const optC = builderOptC.trim() || 'None of the above';
+    const optD = builderOptD.trim() || 'All of the above';
+
+    const newQ: Question = {
+      id: `q-custom-${Date.now()}-${examQuestions.length + 1}`,
+      subject: newExamSubject as Subject,
+      topic: builderTopic.trim() || 'General Curriculum',
+      text: builderQText.trim(),
+      phoneticText: `Question: ${builderQText.trim()}. Option A: ${builderOptA.trim()}. Option B: ${builderOptB.trim()}. Option C: ${optC}. Option D: ${optD}. Correct is Option ${builderCorrect}.`,
+      options: [
+        { id: 'A', text: builderOptA.trim() },
+        { id: 'B', text: builderOptB.trim() },
+        { id: 'C', text: optC },
+        { id: 'D', text: optD },
+      ],
+      correct: builderCorrect,
+      explanation: builderExplanation.trim() || 'Verified syllabus explanation.',
+      difficulty: newExamDifficulty,
+      tags: [newExamCategory, newExamSubject, builderTopic.trim() || 'Exam Question'],
+    };
+
+    const updated = [...examQuestions, newQ];
+    setExamQuestions(updated);
+    setNewExamQuestionsCount(String(updated.length));
+    setBuilderQText('');
+    setBuilderOptA('');
+    setBuilderOptB('');
+    setBuilderOptC('');
+    setBuilderOptD('');
+    setBuilderExplanation('');
+    toast.success(`Question added! Total questions in exam: ${updated.length}`, 'Question Added');
+  };
+
+  const handleRemoveQuestionFromExam = (index: number) => {
+    const updated = examQuestions.filter((_, i) => i !== index);
+    setExamQuestions(updated);
+    setNewExamQuestionsCount(String(updated.length));
+    toast.info('Question removed from this exam.', 'Question Removed');
+  };
+
+  const handleImportBankQuestionToExam = (draft: AIQuestionDraft) => {
+    const correctLetter: 'A' | 'B' | 'C' | 'D' = (['A', 'B', 'C', 'D'][draft.correct] || 'A') as any;
+    const newQ: Question = {
+      id: `q-bank-import-${draft.id}-${Date.now()}`,
+      subject: newExamSubject as Subject,
+      topic: draft.topic || 'General Practice',
+      text: draft.q,
+      phoneticText: draft.phoneticAudioPreview || `Question: ${draft.q}`,
+      options: [
+        { id: 'A', text: draft.options[0] || 'Option A' },
+        { id: 'B', text: draft.options[1] || 'Option B' },
+        { id: 'C', text: draft.options[2] || 'Option C' },
+        { id: 'D', text: draft.options[3] || 'Option D' },
+      ],
+      correct: correctLetter,
+      explanation: draft.explanation || 'Verified Question Bank item.',
+      difficulty: draft.difficulty || newExamDifficulty,
+      tags: [newExamCategory, newExamSubject, draft.topic || 'Question Bank'],
+    };
+
+    const updated = [...examQuestions, newQ];
+    setExamQuestions(updated);
+    setNewExamQuestionsCount(String(updated.length));
+    toast.success(`Imported question "${draft.q.slice(0, 32)}..." into exam!`, 'Imported from Bank');
+  };
+
+  const handleAutoGenerateExamQuestions = async () => {
+    setIsGeneratingExamQuestions(true);
+    try {
+      const targetTopic = `${newExamCategory} - ${newExamSubject}`;
+      const generated = await aiApi.generateQuestions({
+        topic: targetTopic,
+        difficulty: newExamDifficulty,
+        count: 5,
+      });
+
+      if (generated && generated.length > 0) {
+        const mapped: Question[] = generated.map((g: any, i: number) => {
+          let optA = 'Option A', optB = 'Option B', optC = 'Option C', optD = 'Option D';
+          if (Array.isArray(g.options)) {
+            if (typeof g.options[0] === 'object' && g.options[0]?.text) {
+              optA = g.options[0].text;
+              optB = g.options[1]?.text || optB;
+              optC = g.options[2]?.text || optC;
+              optD = g.options[3]?.text || optD;
+            } else if (typeof g.options[0] === 'string') {
+              optA = g.options[0];
+              optB = g.options[1] || optB;
+              optC = g.options[2] || optC;
+              optD = g.options[3] || optD;
+            }
+          }
+          let correctLetter: 'A' | 'B' | 'C' | 'D' = 'A';
+          if (typeof g.correct === 'number') {
+            correctLetter = (['A', 'B', 'C', 'D'][g.correct] || 'A') as any;
+          } else if (typeof g.correct === 'string' && ['A', 'B', 'C', 'D'].includes(g.correct.toUpperCase())) {
+            correctLetter = g.correct.toUpperCase() as any;
+          }
+
+          const qText = g.q || g.text || 'Practice question';
+          return {
+            id: `q-ai-${Date.now()}-${i + 1}`,
+            subject: newExamSubject as Subject,
+            topic: g.topic || `${newExamCategory} Core`,
+            text: qText,
+            phoneticText: `Question: ${qText}. Option A: ${optA}. Option B: ${optB}. Option C: ${optC}. Option D: ${optD}. Correct answer is Option ${correctLetter}.`,
+            options: [
+              { id: 'A', text: optA },
+              { id: 'B', text: optB },
+              { id: 'C', text: optC },
+              { id: 'D', text: optD },
+            ],
+            correct: correctLetter,
+            explanation: g.explanation || 'Curriculum standard verified solution.',
+            difficulty: newExamDifficulty,
+            tags: [newExamCategory, newExamSubject, 'AI Generated'],
+          };
+        });
+
+        setExamQuestions(prev => [...prev, ...mapped]);
+        setNewExamQuestionsCount(String(examQuestions.length + mapped.length));
+        toast.success(`Generated ${mapped.length} high-yield questions for ${newExamSubject}!`, 'AI Questions Added');
+        setIsGeneratingExamQuestions(false);
+        return;
+      }
+    } catch {
+      // fallback to curated pool
+    }
+
+    const fallbackQuestions = generateDefaultQuestionsForSubject(newExamSubject as Subject, newExamCategory, newExamDifficulty, 5);
+    setExamQuestions(prev => [...prev, ...fallbackQuestions]);
+    setNewExamQuestionsCount(String(examQuestions.length + fallbackQuestions.length));
+    toast.success(`Added 5 verified curriculum questions for ${newExamSubject}!`, 'Questions Added');
+    setIsGeneratingExamQuestions(false);
+  };
+
+  // Handlers
+  const handleCreateExam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newExamTitle.trim()) {
+      toast.error('Please provide an exam title');
+      return;
+    }
 
     let finalCategory = newExamCategory;
     if (isAddingCustomCategory && customCategoryInput.trim()) {
@@ -405,26 +814,60 @@ export default function AdminDashboard() {
       }
     }
 
+    // If no questions were manually built, auto-generate high-quality questions
+    let finalQuestions = [...examQuestions];
+    if (finalQuestions.length === 0) {
+      finalQuestions = generateDefaultQuestionsForSubject(newExamSubject as Subject, finalCategory, newExamDifficulty, 5);
+    }
+
     const created: Exam = {
       id: `exam-custom-${Date.now()}`,
       title: newExamTitle.trim(),
       category: finalCategory,
       durationMinutes: parseInt(newExamDuration) || 30,
-      totalQuestions: parseInt(newExamQuestionsCount) || 20,
+      totalQuestions: finalQuestions.length,
       difficulty: newExamDifficulty,
-      description: `${finalCategory} full practice exam. ${newExamQuestionsCount} questions in ${newExamDuration} minutes.`,
+      description: `${finalCategory} comprehensive practice exam. ${finalQuestions.length} questions in ${newExamDuration} minutes with screen reader voice prompts.`,
       instructions: newExamInstructions,
-      subjects: ['General Awareness', 'Reasoning'],
-      questions: [],
+      subjects: [newExamSubject as Subject],
+      questions: finalQuestions,
       published: true,
       createdAt: new Date().toISOString().split('T')[0],
     };
-    setExams([created, ...exams]);
-    setShowAddExamModal(false);
-    setNewExamTitle('');
-    setIsAddingCustomCategory(false);
-    setCustomCategoryInput('');
-    toast.success(`Exam "${created.title}" (${finalCategory}) successfully created and scheduled!`, 'Exam Created');
+
+    try {
+      // 1. Persist to Backend API & Local Storage
+      await examsApi.create(created);
+
+      // 2. Update local state
+      setExams(prev => [created, ...prev.filter(x => x.id !== created.id)]);
+
+      // 3. Reset form
+      setShowAddExamModal(false);
+      setNewExamTitle('');
+      setExamQuestions([]);
+      setNewExamQuestionsCount('20');
+      setIsAddingCustomCategory(false);
+      setCustomCategoryInput('');
+
+      toast.success(
+        `Exam "${created.title}" (${finalCategory}) with ${finalQuestions.length} questions successfully created and published for students!`,
+        'Exam Live'
+      );
+    } catch (err: any) {
+      toast.error('Failed to create exam: ' + (err?.message || 'Error occurred'));
+    }
+  };
+
+  const handleDeleteExam = async (examId: string, examTitle: string) => {
+    if (!window.confirm(`Are you sure you want to remove exam "${examTitle}"?`)) return;
+    try {
+      await examsApi.delete(examId);
+      setExams(prev => prev.filter(x => x.id !== examId));
+      toast.success(`Exam "${examTitle}" removed successfully.`, 'Exam Deleted');
+    } catch (err: any) {
+      toast.error('Failed to delete exam: ' + (err?.message || 'Error'));
+    }
   };
 
   const handleAddQuestionToBank = (e: React.FormEvent) => {
@@ -452,6 +895,44 @@ export default function AdminDashboard() {
     toast.success('Question successfully saved into official Question Bank!', 'Question Saved');
   };
 
+  const handleImportExcelQuestions = async (importedQuestions: ParsedQuestionRow[]) => {
+    const drafts: AIQuestionDraft[] = importedQuestions.map(q => ({
+      id: `qb-xl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      q: q.q,
+      options: q.options,
+      correct: q.correct,
+      explanation: q.explanation,
+      topic: q.topic,
+      difficulty: q.difficulty,
+      approved: true,
+      phoneticAudioPreview: q.phoneticAudioPreview,
+    }));
+
+    setQuestionBank(prev => [...drafts, ...prev]);
+
+    try {
+      await questionsApi.bulkImport(drafts);
+    } catch (err) {
+      console.warn('Backend bulk import sync fallback:', err);
+    }
+  };
+
+  const handleSaveApiKey = () => {
+    const trimmed = customApiKey.trim();
+    if (trimmed) {
+      localStorage.setItem('sight_gemini_api_key', trimmed);
+      toast.success('Gemini API key saved! Live Google Generative AI is now active.', 'Key Saved');
+    } else {
+      localStorage.removeItem('sight_gemini_api_key');
+      toast.info('Gemini API key removed. Using built-in Dynamic Curriculum AI engine.', 'Key Cleared');
+    }
+  };
+
+  const handleClearDrafts = () => {
+    setGeneratedDrafts([]);
+    toast.info('Drafts workspace cleared.', 'Drafts Cleared');
+  };
+
   const handleGenerateAIQuestions = async () => {
     setIsGenerating(true);
     const targetTopic = aiPrompt.trim() || 'Indian Constitution & Articles';
@@ -462,7 +943,13 @@ export default function AdminDashboard() {
         difficulty: aiDifficulty,
         count: targetCount,
       });
-      const drafts: AIQuestionDraft[] = generated.map((q: any) => {
+
+      if (!generated || generated.length === 0) {
+        toast.error('No questions were generated for this topic. Please try again.', 'Generation Empty');
+        return;
+      }
+
+      const drafts: AIQuestionDraft[] = generated.map((q: any, i: number) => {
         let optStrings: [string, string, string, string];
         if (Array.isArray(q.options) && typeof q.options[0] === 'object' && q.options[0]?.text) {
           optStrings = [
@@ -488,36 +975,32 @@ export default function AdminDashboard() {
           correctIndex = q.correctAnswer;
         }
         return {
-          id: q.id,
+          id: q.id || `ai-gen-${Date.now()}-${i + 1}`,
           q: q.text,
           options: optStrings,
           correct: correctIndex,
-          explanation: q.explanation || '',
+          explanation: q.explanation || `Core curriculum explanation for ${targetTopic}.`,
           topic: q.topic || targetTopic,
-          difficulty: q.difficulty || 'Medium',
+          difficulty: q.difficulty || aiDifficulty,
           approved: false,
-          phoneticAudioPreview: q.phoneticText || q.phoneticAudioText,
+          phoneticAudioPreview: q.phoneticText || q.phoneticAudioText || q.text,
+          source: (q as any).tags?.[0] || (localStorage.getItem('sight_gemini_api_key') ? 'Google Gemini Live' : 'AI Curriculum Engine'),
+          createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
       });
-      setGeneratedDrafts([...drafts, ...generatedDrafts]);
+
+      // Newly generated questions placed right at the top
+      setGeneratedDrafts(prev => [...drafts, ...prev]);
       toast.success(
-        `Generated ${drafts.length} accessible AI question drafts on "${targetTopic}".`,
+        `Generated ${drafts.length} accessible questions on "${targetTopic}".`,
         'AI Generation Complete'
       );
-    } catch (err) {
-      console.warn('Backend AI generation error, using fallback:', err);
-      const newAIQ: AIQuestionDraft = {
-        id: `ai-gen-${Date.now()}`,
-        q: 'Under the PwD Act 2016, how much compensatory time is guaranteed per hour of examination for benchmark disability candidates?',
-        options: ['10 minutes per hour', '15 minutes per hour', '20 minutes per hour', '30 minutes per hour'],
-        correct: 2,
-        explanation: 'The Ministry of Social Justice & Empowerment guidelines specify compensatory time of not less than 20 minutes per hour of examination for persons with benchmark disabilities.',
-        topic: targetTopic,
-        difficulty: 'Medium',
-        approved: false,
-        phoneticAudioPreview: 'Under the PwD Act 2016, how much compensatory time is guaranteed per hour of examination for benchmark disability candidates? Correct answer is Option C: 20 minutes per hour.',
-      };
-      setGeneratedDrafts([newAIQ, ...generatedDrafts]);
+    } catch (err: any) {
+      console.warn('AI question generation error:', err);
+      toast.error(
+        'AI generation encountered an issue: ' + (err.message || 'Please check your topic and retry.'),
+        'AI Generation Error'
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -616,16 +1099,109 @@ export default function AdminDashboard() {
     toast.success(`Topic "${newTopic.name}" added to ${selectedSubject.name}!`, 'Topic Added');
   };
 
+  const handleCreateStudyMaterial = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMaterialTitle.trim() || !newMaterialContent.trim()) {
+      toast.error('Title and Content are required for Study Material.', 'Validation Error');
+      return;
+    }
+    const points = newMaterialKeyPoints
+      .split('\n')
+      .map(p => p.trim())
+      .filter(Boolean);
+    const newMat: Partial<StudyMaterial> = {
+      title: newMaterialTitle.trim(),
+      subject: newMaterialSubject as any,
+      category: newMaterialCategory.trim() || 'General Studies',
+      readTimeMinutes: Number(newMaterialReadTime) || 8,
+      summary: newMaterialSummary.trim() || newMaterialTitle.trim(),
+      content: newMaterialContent.trim(),
+      keyPoints: points.length ? points : [newMaterialSummary.trim() || newMaterialTitle.trim()],
+      audioNarrationText: newMaterialAudioNarration.trim() || newMaterialSummary.trim() || newMaterialTitle.trim(),
+      author: 'Admin Faculty Cell',
+      tags: [newMaterialSubject, newMaterialCategory],
+    };
+    studyMaterialsApi.create(newMat).then(created => {
+      setStudyMaterials([created, ...studyMaterials]);
+      toast.success(`Study material "${created.title}" published!`, 'Content Created');
+      setShowAddMaterialModal(false);
+      setNewMaterialTitle('');
+      setNewMaterialSummary('');
+      setNewMaterialContent('');
+      setNewMaterialKeyPoints('');
+      setNewMaterialAudioNarration('');
+    }).catch(err => {
+      toast.error('Failed to create study material: ' + err.message, 'Error');
+    });
+  };
+
+  const handleDeleteStudyMaterial = (id: string, title: string) => {
+    if (!confirm(`Delete study material "${title}"?`)) return;
+    studyMaterialsApi.delete(id).then(() => {
+      setStudyMaterials(studyMaterials.filter(m => m.id !== id));
+      toast.success(`Deleted "${title}".`, 'Material Deleted');
+    }).catch(err => {
+      toast.error('Delete failed: ' + err.message, 'Error');
+    });
+  };
+
+  const handleCreatePyq = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPyqTitle.trim() || !newPyqExamName.trim()) {
+      toast.error('Title and Exam Name are required.', 'Validation Error');
+      return;
+    }
+    const topics = newPyqTopics
+      .split(',')
+      .map(t => t.trim())
+      .filter(Boolean);
+    const newP: Partial<PYQPaper> = {
+      title: newPyqTitle.trim(),
+      examName: newPyqExamName.trim(),
+      year: Number(newPyqYear) || new Date().getFullYear(),
+      shift: newPyqShift.trim(),
+      category: newPyqCategory,
+      totalQuestions: Number(newPyqTotalQ) || 25,
+      durationMinutes: Number(newPyqDuration) || 30,
+      difficulty: newPyqDifficulty,
+      topicsCovered: topics.length ? topics : ['General Studies'],
+      audioSummaryText: `${newPyqExamName} ${newPyqYear} previous year question paper covering ${topics.join(', ')}.`,
+      linkedExamId: 'ssc-reasoning-01',
+    };
+    pyqsApi.create(newP).then(created => {
+      setPyqs([created, ...pyqs]);
+      toast.success(`Previous Year Paper "${created.title}" published!`, 'PYQ Published');
+      setShowAddPyqModal(false);
+      setNewPyqTitle('');
+      setNewPyqTopics('');
+    }).catch(err => {
+      toast.error('Failed to create PYQ: ' + err.message, 'Error');
+    });
+  };
+
+  const handleDeletePyq = (id: string, title: string) => {
+    if (!confirm(`Delete PYQ paper "${title}"?`)) return;
+    pyqsApi.delete(id).then(() => {
+      setPyqs(pyqs.filter(p => p.id !== id));
+      toast.success(`Deleted "${title}".`, 'PYQ Deleted');
+    }).catch(err => {
+      toast.error('Delete failed: ' + err.message, 'Error');
+    });
+  };
+
   const tabTitles: Record<string, string> = {
     dashboard: 'Dashboard',
     students: 'Students',
     exams: 'Examinations',
     questions: 'Question Bank',
     'ai-generator': 'AI Generator',
+    'study-materials': 'Study Materials Management',
+    pyqs: 'Previous Year Papers (PYQs)',
     subjects: 'Subjects & Topics',
     attempts: 'Attempts & Logs',
     analytics: 'Analytics',
     accessibility: 'Accessibility',
+    compliance: 'Compliance Testing & WCAG Audit',
     notifications: 'Notifications',
     reports: 'Reports',
     settings: 'Settings',
@@ -654,11 +1230,14 @@ export default function AdminDashboard() {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                 <div>
-                  <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.75rem', fontWeight: 900, marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <ShieldCheck size={28} color="#fff" /> SIGHT-EXAM AI Admin Control Center
+                  <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.75rem', fontWeight: 900, marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '0.55rem', background: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '2px', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
+                      <img src="/drishtix-icon.png" alt="DrishtiX Emblem" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    </div>
+                    <span>Drishti</span><span style={{ color: '#FCD34D' }}>X</span> Admin Control Center
                   </h1>
                   <p style={{ opacity: 0.9, fontSize: '0.86rem' }}>
-                    Accessible Examination Platform for the Visually Impaired • Manage Students, Exams, AI Generation & Audits
+                    Beyond Barriers, Brighter Futures • Accessible Examination Platform for the Visually Impaired • Manage Students, Exams, AI Generation & Audits
                   </p>
                 </div>
 
@@ -684,26 +1263,24 @@ export default function AdminDashboard() {
             {/* Live Monitoring & Clean KPI Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: '1rem', marginBottom: '1.75rem' }}>
               {[
-                { label: 'Students', value: students.length, icon: Users, color: '#2563EB', bg: 'rgba(37, 99, 235, 0.1)' },
-                { label: 'Live Exams', value: exams.length, icon: FileText, color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.1)' },
-                { label: 'Questions', value: questionBank.length, icon: BookOpen, color: '#059669', bg: 'rgba(5, 150, 105, 0.1)' },
-                { label: 'Avg Score', value: '74.2%', icon: Target, color: '#D97706', bg: 'rgba(217, 119, 6, 0.1)' },
-                { label: 'Accessibility', value: '99.4%', icon: Accessibility, color: '#0891B2', bg: 'rgba(8, 145, 178, 0.1)' },
-                { label: 'Completion', value: '94.8%', icon: CheckCircle2, color: '#16A34A', bg: 'rgba(22, 163, 74, 0.1)' },
+                { label: 'Students', value: students.length, icon: Users, color: '#2563EB', bg: 'rgba(37, 99, 235, 0.1)', fade: 'card-fade-blue' },
+                { label: 'Live Exams', value: exams.length, icon: FileText, color: '#7C3AED', bg: 'rgba(124, 58, 237, 0.1)', fade: 'card-fade-purple' },
+                { label: 'Questions', value: questionBank.length, icon: BookOpen, color: '#059669', bg: 'rgba(5, 150, 105, 0.1)', fade: 'card-fade-emerald' },
+                { label: 'Avg Score', value: '74.2%', icon: Target, color: '#D97706', bg: 'rgba(217, 119, 6, 0.1)', fade: 'card-fade-amber' },
+                { label: 'Accessibility', value: '99.4%', icon: Accessibility, color: '#0891B2', bg: 'rgba(8, 145, 178, 0.1)', fade: 'card-fade-indigo' },
+                { label: 'Completion', value: '94.8%', icon: CheckCircle2, color: '#16A34A', bg: 'rgba(22, 163, 74, 0.1)', fade: 'card-fade-emerald' },
               ].map(card => {
                 const CardIcon = card.icon;
                 return (
                   <div
                     key={card.label}
-                    className="card fade-in"
+                    className={`card card-interactive fade-in ${card.fade}`}
                     style={{
                       padding: '1.1rem 1.15rem',
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '0.65rem',
                       borderRadius: '0.85rem',
-                      border: '1px solid var(--border)',
-                      transition: 'transform 0.15s ease, box-shadow 0.15s ease',
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1544,15 +2121,50 @@ export default function AdminDashboard() {
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><Clock size={13} /> {e.durationMinutes} Mins</span>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}><HelpCircle size={13} /> {e.totalQuestions} Questions</span>
                     </div>
-                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span className="badge badge-green" style={{ fontSize: '0.7rem' }}>Live & Published</span>
-                      <button
-                        className="btn-ghost"
-                        onClick={() => testSpeech(`Exam: ${e.title}. Category ${e.category}. Duration ${e.durationMinutes} minutes. Total questions ${e.totalQuestions}.`)}
-                        style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', color: 'var(--primary)' }}
-                      >
-                        <Volume2 size={13} /> Voice Briefing
-                      </button>
+                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span className="badge badge-green" style={{ fontSize: '0.7rem' }}>Live & Published</span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          {e.questions && e.questions.length > 0 ? `${e.questions.length} Qs` : `${e.totalQuestions} Qs`}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          onClick={() => testSpeech(`Exam: ${e.title}. Category ${e.category}. Duration ${e.durationMinutes} minutes. Total questions ${e.totalQuestions}.`)}
+                          style={{ fontSize: '0.74rem', padding: '0.25rem 0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: 'var(--primary)' }}
+                        >
+                          <Volume2 size={13} /> Voice
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          onClick={() => window.open(`/exam/${e.id}`, '_blank')}
+                          style={{ fontSize: '0.74rem', padding: '0.25rem 0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                          title="Open student test view"
+                        >
+                          <Eye size={13} /> Test View
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteExam(e.id, e.title)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#EF4444',
+                            cursor: 'pointer',
+                            padding: '0.25rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            borderRadius: '0.3rem'
+                          }}
+                          title="Delete Exam"
+                          aria-label={`Delete ${e.title}`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1582,6 +2194,40 @@ export default function AdminDashboard() {
                   onChange={e => setQuestionSearch(e.target.value)}
                   style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', width: 220 }}
                 />
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={downloadSampleExcelTemplate}
+                  title="Download pre-filled Excel template (.xlsx)"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    fontSize: '0.8rem',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text)',
+                  }}
+                >
+                  <Download size={14} /> Excel Template
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowExcelImportModal(true)}
+                  title="Upload questions in bulk via Excel or CSV"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    fontSize: '0.8rem',
+                    backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                    color: '#059669',
+                    borderColor: '#059669',
+                    fontWeight: 600,
+                  }}
+                >
+                  <FileSpreadsheet size={15} /> Import Excel / CSV
+                </button>
                 <button className="btn-primary" onClick={() => setShowAddQuestionModal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem' }}>
                   <Plus size={15} /> Add Question
                 </button>
@@ -1650,24 +2296,125 @@ export default function AdminDashboard() {
         {activeTab === 'ai-generator' && (
           <div className="fade-in">
             <div className="card fade-in" style={{ padding: '1.75rem', marginBottom: '2rem', border: '2px solid var(--secondary)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                <div style={{ color: 'var(--secondary)' }}>
-                  <Bot size={32} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ color: 'var(--secondary)' }}>
+                    <Bot size={32} />
+                  </div>
+                  <div>
+                    <h2 style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--text)', margin: 0 }}>
+                      AI Curriculum & Question Generator
+                    </h2>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
+                      Generate syllabus-aligned, screen-reader optimized questions with phonetic text for any topic
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h2 style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--text)' }}>
-                    AI Curriculum & Question Generator
-                  </h2>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <button
+                    className="btn-ghost"
+                    onClick={() => setShowApiKeyConfig(!showApiKeyConfig)}
+                    style={{ fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', border: '1px solid var(--border)' }}
+                  >
+                    <Key size={13} />
+                    {customApiKey ? 'Gemini Key Configured ✓' : 'Add Gemini API Key (Optional)'}
+                  </button>
+                  <span className="badge badge-blue" style={{ fontSize: '0.72rem' }}>
+                    {customApiKey ? 'Google Gemini 1.5/2.0 Live' : 'Built-in Dynamic AI Engine'}
+                  </span>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(240px, 1fr) auto auto auto', gap: '0.6rem', marginTop: '1rem', alignItems: 'center' }}>
+              {/* API Key Configuration Collapsible Drawer */}
+              {showApiKeyConfig && (
+                <div style={{ marginBottom: '1.25rem', padding: '1rem', background: 'var(--bg-surface)', borderRadius: '0.65rem', border: '1px dashed var(--border)' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text)', marginBottom: '0.35rem' }}>
+                    Google Gemini API Key Integration (Free)
+                  </div>
+                  <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '0.65rem' }}>
+                    Optionally use your free API key from Google AI Studio (starts with <code style={{ color: 'var(--primary)' }}>AIzaSy...</code>) to enable live multi-modal generative AI. Leave empty to use the platform's high-speed offline curriculum synthesizer.
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      type="password"
+                      className="input-field"
+                      placeholder="Paste Gemini API Key (AIzaSy...)"
+                      value={customApiKey}
+                      onChange={e => setCustomApiKey(e.target.value)}
+                      style={{ flex: 1, minWidth: 260, fontSize: '0.82rem', padding: '0.5rem 0.75rem' }}
+                    />
+                    <button
+                      className="btn-primary"
+                      onClick={handleSaveApiKey}
+                      style={{ fontSize: '0.78rem', padding: '0.5rem 0.9rem' }}
+                    >
+                      Save Key
+                    </button>
+                    {customApiKey && (
+                      <button
+                        className="btn-ghost"
+                        onClick={() => {
+                          setCustomApiKey('');
+                          localStorage.removeItem('sight_gemini_api_key');
+                          toast.info('API Key cleared.', 'Key Removed');
+                        }}
+                        style={{ fontSize: '0.78rem', color: '#DC2626' }}
+                      >
+                        Remove Key
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Quick Topic Shortcut Pills */}
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Quick Popular Topics:
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  {[
+                    'Percentages & Profit/Loss',
+                    'Syllogisms & Logical Reasoning',
+                    'Human Biology & Sound Waves',
+                    'Indian Freedom Struggle 1857-1947',
+                    'Fundamental Rights & Writs',
+                    'RBI Monetary Policy & Inflation',
+                    'Computer Networking & Memory',
+                    'Ramsar Sites & Environment',
+                    'RPwD Act 2016 Accommodations',
+                  ].map(quickTopic => (
+                    <button
+                      key={quickTopic}
+                      type="button"
+                      onClick={() => setAiPrompt(quickTopic)}
+                      style={{
+                        padding: '0.25rem 0.55rem',
+                        fontSize: '0.74rem',
+                        borderRadius: '9999px',
+                        border: aiPrompt === quickTopic ? '1.5px solid var(--primary)' : '1px solid var(--border)',
+                        background: aiPrompt === quickTopic ? 'rgba(37,99,235,0.1)' : 'var(--bg-surface)',
+                        color: aiPrompt === quickTopic ? 'var(--primary)' : 'var(--text)',
+                        fontWeight: aiPrompt === quickTopic ? 700 : 500,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {quickTopic}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Generation Controls */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(240px, 1fr) auto auto auto', gap: '0.6rem', alignItems: 'center' }}>
                 <input
                   type="text"
                   className="input-field"
                   value={aiPrompt}
                   onChange={e => setAiPrompt(e.target.value)}
-                  placeholder="Topic: e.g. Fundamental Rights, Economics, General Science..."
+                  placeholder="Enter any topic: e.g. Quantum Physics, Number Systems, Ancient India..."
                   style={{ padding: '0.7rem 1rem', fontSize: '0.85rem' }}
                 />
                 <select
@@ -1733,36 +2480,68 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <h3 style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text)', marginBottom: '1rem' }}>
-              Candidate Drafts Awaiting Admin Approval
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                <h3 style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text)', margin: 0 }}>
+                  Candidate Drafts Awaiting Admin Approval
+                </h3>
+                <span className="badge badge-blue" style={{ fontSize: '0.72rem' }}>
+                  {generatedDrafts.length} Drafts
+                </span>
+              </div>
+              {generatedDrafts.length > 0 && (
+                <button
+                  className="btn-ghost"
+                  onClick={handleClearDrafts}
+                  style={{ fontSize: '0.75rem', color: '#DC2626', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                >
+                  <Trash2 size={13} /> Clear All Drafts
+                </button>
+              )}
+            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {generatedDrafts.map((draft, idx) => (
-                <div key={draft.id} className="card fade-in" style={{ padding: '1.25rem', borderLeft: '4px solid var(--warning)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <span className="badge badge-blue">{draft.topic}</span>
-                      <span className="badge badge-amber">{draft.difficulty}</span>
-                      <span className="badge badge-green">AI Model Generated</span>
+            {generatedDrafts.length === 0 ? (
+              <div className="card fade-in" style={{ padding: '2.5rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <Bot size={40} style={{ margin: '0 auto 0.75rem auto', opacity: 0.5 }} />
+                <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text)', marginBottom: '0.35rem' }}>
+                  No Draft Questions in Workspace
+                </div>
+                <p style={{ fontSize: '0.84rem', maxWidth: 450, margin: '0 auto' }}>
+                  Enter any topic or select a quick topic above and click <strong>"Generate with AI"</strong> to create freshly minted accessible questions.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {generatedDrafts.map((draft, idx) => (
+                  <div key={draft.id} className="card fade-in" style={{ padding: '1.25rem', borderLeft: '4px solid var(--warning)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span className="badge badge-blue">{draft.topic}</span>
+                        <span className="badge badge-amber">{draft.difficulty}</span>
+                        <span className="badge badge-green">{draft.source || 'AI Model Generated'}</span>
+                        {draft.createdAt && (
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                            Generated at {draft.createdAt}
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                          className="btn-ghost"
+                          onClick={() => testSpeech(draft.phoneticAudioPreview || draft.q)}
+                          style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                        >
+                          <Volume2 size={13} /> Listen Preview
+                        </button>
+                        <button
+                          className="btn-primary"
+                          onClick={() => approveDraftToBank(draft.id)}
+                          style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                        >
+                          <CheckCircle2 size={13} /> Approve to Question Bank
+                        </button>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button
-                        className="btn-ghost"
-                        onClick={() => testSpeech(draft.phoneticAudioPreview || draft.q)}
-                        style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-                      >
-                        <Volume2 size={13} /> Listen Preview
-                      </button>
-                      <button
-                        className="btn-primary"
-                        onClick={() => approveDraftToBank(draft.id)}
-                        style={{ fontSize: '0.75rem', padding: '0.3rem 0.65rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
-                      >
-                        <CheckCircle2 size={13} /> Approve to Question Bank
-                      </button>
-                    </div>
-                  </div>
 
                   <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text)', marginBottom: '0.75rem' }}>
                     Q{idx + 1}. {draft.q}
@@ -1798,6 +2577,612 @@ export default function AdminDashboard() {
                 </div>
               ))}
             </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════
+            MODULE: 📚 STUDY MATERIALS MANAGEMENT
+           ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'study-materials' && (
+          <div className="fade-in">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h2 style={{ fontWeight: 800, fontSize: '1.25rem', color: 'var(--text)', margin: 0 }}>
+                  Accessible Study Materials & Notes Management
+                </h2>
+                <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
+                  Manage audio-narrated reading notes, key highlights, and subject guides accessible to PwD candidates.
+                </p>
+              </div>
+              <button
+                className="btn-primary"
+                onClick={() => setShowAddMaterialModal(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+              >
+                <Plus size={16} /> Add Study Material
+              </button>
+            </div>
+
+            <div className="card fade-in" style={{ padding: '1rem', borderRadius: '0.85rem' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left', color: 'var(--text-muted)' }}>
+                      <th style={{ padding: '0.75rem' }}>Title & Summary</th>
+                      <th style={{ padding: '0.75rem' }}>Subject & Category</th>
+                      <th style={{ padding: '0.75rem' }}>Read Time</th>
+                      <th style={{ padding: '0.75rem' }}>Key Highlights</th>
+                      <th style={{ padding: '0.75rem' }}>Published</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {studyMaterials.map(mat => (
+                      <tr key={mat.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '0.75rem', maxWidth: 300 }}>
+                          <div style={{ fontWeight: 700, color: 'var(--text)' }}>{mat.title}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {mat.summary}
+                          </div>
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>
+                          <span className="badge badge-blue" style={{ fontSize: '0.72rem', display: 'inline-block', marginBottom: '0.2rem' }}>
+                            {mat.subject}
+                          </span>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{mat.category}</div>
+                        </td>
+                        <td style={{ padding: '0.75rem', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{mat.readTimeMinutes} mins</span>
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{mat.keyPoints?.length || 0} points</span>
+                        </td>
+                        <td style={{ padding: '0.75rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                          {mat.createdAt}
+                        </td>
+                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                          <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
+                            <button
+                              onClick={() => speechService.speak(mat.audioNarrationText || mat.summary)}
+                              style={{
+                                border: '1px solid var(--border)',
+                                background: 'transparent',
+                                color: 'var(--primary)',
+                                padding: '0.35rem 0.6rem',
+                                borderRadius: '0.4rem',
+                                cursor: 'pointer',
+                                fontSize: '0.78rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                              }}
+                              title="Test Audio Narration"
+                            >
+                              <Volume2 size={14} /> Voice
+                            </button>
+                            <button
+                              onClick={() => handleDeleteStudyMaterial(mat.id, mat.title)}
+                              style={{
+                                border: '1px solid #FEE2E2',
+                                background: '#FEF2F2',
+                                color: '#EF4444',
+                                padding: '0.35rem 0.6rem',
+                                borderRadius: '0.4rem',
+                                cursor: 'pointer',
+                                fontSize: '0.78rem',
+                              }}
+                              title="Delete Material"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Modal: Add Study Material */}
+            {showAddMaterialModal && (
+              <div
+                role="dialog"
+                aria-modal="true"
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'rgba(0,0,0,0.65)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 100,
+                  padding: '1rem',
+                  backdropFilter: 'blur(3px)',
+                }}
+              >
+                <div
+                  className="card fade-in"
+                  style={{
+                    width: '100%',
+                    maxWidth: 680,
+                    maxHeight: '90vh',
+                    overflowY: 'auto',
+                    borderRadius: '1rem',
+                    padding: '1.5rem',
+                    background: 'var(--card-bg)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                    <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem', color: 'var(--text)' }}>
+                      Create New Study Material
+                    </h3>
+                    <button
+                      onClick={() => setShowAddMaterialModal(false)}
+                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleCreateStudyMaterial} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                        Lesson Title *
+                      </label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder="e.g. Fundamental Duties & Directive Principles (Part IV)"
+                        value={newMaterialTitle}
+                        onChange={e => setNewMaterialTitle(e.target.value)}
+                        required
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          Subject
+                        </label>
+                        <select
+                          className="input-field"
+                          value={newMaterialSubject}
+                          onChange={e => setNewMaterialSubject(e.target.value)}
+                          style={{ width: '100%' }}
+                        >
+                          <option value="General Awareness">General Awareness</option>
+                          <option value="Mathematics">Mathematics</option>
+                          <option value="Reasoning">Reasoning</option>
+                          <option value="History">History</option>
+                          <option value="General Science">General Science</option>
+                          <option value="Computer">Computer</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          Category / Topic
+                        </label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="e.g. Indian Polity"
+                          value={newMaterialCategory}
+                          onChange={e => setNewMaterialCategory(e.target.value)}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          Read Time (Mins)
+                        </label>
+                        <input
+                          type="number"
+                          className="input-field"
+                          min="1"
+                          max="60"
+                          value={newMaterialReadTime}
+                          onChange={e => setNewMaterialReadTime(e.target.value)}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                        Short Summary (1-2 sentences)
+                      </label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder="Concise overview for preview cards..."
+                        value={newMaterialSummary}
+                        onChange={e => setNewMaterialSummary(e.target.value)}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                        Key Highlights / Bullet Points (One per line)
+                      </label>
+                      <textarea
+                        className="input-field"
+                        rows={3}
+                        placeholder="Article 51A contains 11 fundamental duties&#10;Added by 42nd Amendment Act 1976 on Swaran Singh Committee recommendation"
+                        value={newMaterialKeyPoints}
+                        onChange={e => setNewMaterialKeyPoints(e.target.value)}
+                        style={{ width: '100%', fontFamily: 'inherit' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                        Full Lesson Content *
+                      </label>
+                      <textarea
+                        className="input-field"
+                        rows={5}
+                        placeholder="Enter full formatted revision lesson..."
+                        value={newMaterialContent}
+                        onChange={e => setNewMaterialContent(e.target.value)}
+                        required
+                        style={{ width: '100%', fontFamily: 'inherit' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                        Audio Narration Verbalization (Optional - Screen reader voice text)
+                      </label>
+                      <textarea
+                        className="input-field"
+                        rows={2}
+                        placeholder="Phonetic text for text-to-speech engine..."
+                        value={newMaterialAudioNarration}
+                        onChange={e => setNewMaterialAudioNarration(e.target.value)}
+                        style={{ width: '100%', fontFamily: 'inherit' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                      <button type="button" className="btn-secondary" onClick={() => setShowAddMaterialModal(false)}>
+                        Cancel
+                      </button>
+                      <button type="submit" className="btn-primary">
+                        Publish Study Material
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════
+            MODULE: 📝 PREVIOUS YEAR PAPERS (PYQs)
+           ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'pyqs' && (
+          <div className="fade-in">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h2 style={{ fontWeight: 800, fontSize: '1.25rem', color: 'var(--text)', margin: 0 }}>
+                  Previous Year Papers (PYQs) Management
+                </h2>
+                <p style={{ fontSize: '0.84rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
+                  Manage verified historical question papers, exam categories, and accessible test links for student practice.
+                </p>
+              </div>
+              <button
+                className="btn-primary"
+                onClick={() => setShowAddPyqModal(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', background: '#EA580C', borderColor: '#EA580C' }}
+              >
+                <Plus size={16} /> Add PYQ Paper
+              </button>
+            </div>
+
+            <div className="card fade-in" style={{ padding: '1rem', borderRadius: '0.85rem' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid var(--border)', textAlign: 'left', color: 'var(--text-muted)' }}>
+                      <th style={{ padding: '0.75rem' }}>Exam & Paper Title</th>
+                      <th style={{ padding: '0.75rem' }}>Category & Year</th>
+                      <th style={{ padding: '0.75rem' }}>Questions & Duration</th>
+                      <th style={{ padding: '0.75rem' }}>Shift / Session</th>
+                      <th style={{ padding: '0.75rem' }}>Topics Covered</th>
+                      <th style={{ padding: '0.75rem', textAlign: 'right' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pyqs.map(p => (
+                      <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '0.75rem', maxWidth: 300 }}>
+                          <div style={{ fontWeight: 700, color: 'var(--text)' }}>{p.title}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{p.examName}</div>
+                        </td>
+                        <td style={{ padding: '0.75rem' }}>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.15rem 0.45rem', borderRadius: '0.25rem', background: 'rgba(234, 88, 12, 0.1)', color: '#EA580C', display: 'inline-block', marginBottom: '0.2rem' }}>
+                            {p.category}
+                          </span>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>{p.year}</div>
+                        </td>
+                        <td style={{ padding: '0.75rem', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontWeight: 600 }}>{p.totalQuestions} Questions</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{p.durationMinutes} mins</div>
+                        </td>
+                        <td style={{ padding: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          {p.shift || 'Regular'}
+                        </td>
+                        <td style={{ padding: '0.75rem', maxWidth: 220 }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                            {p.topicsCovered.slice(0, 3).map((t, idx) => (
+                              <span key={idx} style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem', borderRadius: '0.25rem', background: 'rgba(0,0,0,0.04)', color: 'var(--text)' }}>
+                                {t}
+                              </span>
+                            ))}
+                            {p.topicsCovered.length > 3 && (
+                              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>+{p.topicsCovered.length - 3}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ padding: '0.75rem', textAlign: 'right' }}>
+                          <div style={{ display: 'inline-flex', gap: '0.4rem' }}>
+                            <button
+                              onClick={() => speechService.speak(p.audioSummaryText)}
+                              style={{
+                                border: '1px solid var(--border)',
+                                background: 'transparent',
+                                color: '#EA580C',
+                                padding: '0.35rem 0.6rem',
+                                borderRadius: '0.4rem',
+                                cursor: 'pointer',
+                                fontSize: '0.78rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                              }}
+                              title="Voice Preview"
+                            >
+                              <Volume2 size={14} /> Voice
+                            </button>
+                            <button
+                              onClick={() => handleDeletePyq(p.id, p.title)}
+                              style={{
+                                border: '1px solid #FEE2E2',
+                                background: '#FEF2F2',
+                                color: '#EF4444',
+                                padding: '0.35rem 0.6rem',
+                                borderRadius: '0.4rem',
+                                cursor: 'pointer',
+                                fontSize: '0.78rem',
+                              }}
+                              title="Delete PYQ"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Modal: Add PYQ */}
+            {showAddPyqModal && (
+              <div
+                role="dialog"
+                aria-modal="true"
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: 'rgba(0,0,0,0.65)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 100,
+                  padding: '1rem',
+                  backdropFilter: 'blur(3px)',
+                }}
+              >
+                <div
+                  className="card fade-in"
+                  style={{
+                    width: '100%',
+                    maxWidth: 620,
+                    maxHeight: '90vh',
+                    overflowY: 'auto',
+                    borderRadius: '1rem',
+                    padding: '1.5rem',
+                    background: 'var(--card-bg)',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                    <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.2rem', color: 'var(--text)' }}>
+                      Add Previous Year Question Paper
+                    </h3>
+                    <button
+                      onClick={() => setShowAddPyqModal(false)}
+                      style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)' }}
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleCreatePyq} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                        Paper Title *
+                      </label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder="e.g. SSC CGL Tier-1 2024 (Shift 2) — General Studies & Math"
+                        value={newPyqTitle}
+                        onChange={e => setNewPyqTitle(e.target.value)}
+                        required
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          Exam Name *
+                        </label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="e.g. SSC CGL, UPSC Prelims"
+                          value={newPyqExamName}
+                          onChange={e => setNewPyqExamName(e.target.value)}
+                          required
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          Category
+                        </label>
+                        <select
+                          className="input-field"
+                          value={newPyqCategory}
+                          onChange={e => setNewPyqCategory(e.target.value)}
+                          style={{ width: '100%' }}
+                        >
+                          <option value="SSC">SSC</option>
+                          <option value="UPSC">UPSC</option>
+                          <option value="Banking">Banking</option>
+                          <option value="Railway">Railway</option>
+                          <option value="State PSC">State PSC</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          Year
+                        </label>
+                        <input
+                          type="number"
+                          className="input-field"
+                          min="2015"
+                          max="2030"
+                          value={newPyqYear}
+                          onChange={e => setNewPyqYear(e.target.value)}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          Shift / Session
+                        </label>
+                        <input
+                          type="text"
+                          className="input-field"
+                          placeholder="e.g. Shift 1 (Morning)"
+                          value={newPyqShift}
+                          onChange={e => setNewPyqShift(e.target.value)}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          Difficulty
+                        </label>
+                        <select
+                          className="input-field"
+                          value={newPyqDifficulty}
+                          onChange={e => setNewPyqDifficulty(e.target.value as any)}
+                          style={{ width: '100%' }}
+                        >
+                          <option value="Easy">Easy</option>
+                          <option value="Medium">Medium</option>
+                          <option value="Hard">Hard</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          Total Questions
+                        </label>
+                        <input
+                          type="number"
+                          className="input-field"
+                          min="5"
+                          max="200"
+                          value={newPyqTotalQ}
+                          onChange={e => setNewPyqTotalQ(e.target.value)}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                          Duration (Minutes)
+                        </label>
+                        <input
+                          type="number"
+                          className="input-field"
+                          min="10"
+                          max="180"
+                          value={newPyqDuration}
+                          onChange={e => setNewPyqDuration(e.target.value)}
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                        Topics Covered (Comma separated)
+                      </label>
+                      <input
+                        type="text"
+                        className="input-field"
+                        placeholder="e.g. Indian Polity, Freedom Struggle, Syllogisms"
+                        value={newPyqTopics}
+                        onChange={e => setNewPyqTopics(e.target.value)}
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                      <button type="button" className="btn-secondary" onClick={() => setShowAddPyqModal(false)}>
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn-primary"
+                        style={{ background: '#EA580C', borderColor: '#EA580C' }}
+                      >
+                        Publish PYQ Paper
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -2162,7 +3547,14 @@ export default function AdminDashboard() {
                   Phonetic pronunciation dictionary for screen readers & national PwD compliance rules
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <button
+                  className="btn-primary"
+                  onClick={() => setActiveTab('compliance')}
+                  style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <ShieldCheck size={14} /> Open Live Compliance Auditor
+                </button>
                 <span className="badge badge-green" style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}>
                   WCAG 2.1 Level AA: 100% Pass
                 </span>
@@ -2257,6 +3649,15 @@ export default function AdminDashboard() {
                 </table>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════
+            MODULE 9.5: 🛡️ COMPLIANCE TESTING DASHBOARD
+           ══════════════════════════════════════════════════════════ */}
+        {activeTab === 'compliance' && (
+          <div className="fade-in">
+            <ComplianceTestingDashboard />
           </div>
         )}
 
@@ -2588,10 +3989,10 @@ export default function AdminDashboard() {
            ══════════════════════════════════════════════════════════ */}
         {showAddExamModal && (
           <div className="modal-overlay" role="dialog" aria-modal="true">
-            <div className="modal-box" style={{ maxWidth: 520 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
-                <h3 style={{ fontWeight: 800, fontSize: '1.2rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                  <FileText size={20} color="var(--primary)" />
+            <div className="modal-box" style={{ maxWidth: 760, maxHeight: '92vh', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.75rem' }}>
+                <h3 style={{ fontWeight: 800, fontSize: '1.25rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileText size={22} color="var(--primary)" />
                   Create New Competitive Exam
                 </h3>
                 <button className="btn-ghost" onClick={() => setShowAddExamModal(false)}><X size={18} /></button>
@@ -2599,14 +4000,23 @@ export default function AdminDashboard() {
 
               <form onSubmit={handleCreateExam} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>Exam Title</label>
-                  <input className="input-field" required value={newExamTitle} onChange={e => setNewExamTitle(e.target.value)} placeholder="e.g. SSC General Awareness Tier 1 Mock" />
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>
+                    Exam Title *
+                  </label>
+                  <input
+                    className="input-field"
+                    required
+                    value={newExamTitle}
+                    onChange={e => setNewExamTitle(e.target.value)}
+                    placeholder="e.g. SSC CGL General Awareness Tier 1 Full Mock"
+                  />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 0.8fr', gap: '0.75rem' }}>
+                  {/* Category Column */}
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.3rem' }}>
-                      <label style={{ fontSize: '0.82rem', fontWeight: 600 }}>Category</label>
+                      <label style={{ fontSize: '0.82rem', fontWeight: 600 }}>Category *</label>
                       <button
                         type="button"
                         onClick={() => {
@@ -2626,7 +4036,7 @@ export default function AdminDashboard() {
                           padding: 0,
                         }}
                       >
-                        <Plus size={12} /> {isAddingCustomCategory ? 'Choose from list' : '+ New Category'}
+                        <Plus size={12} /> {isAddingCustomCategory ? 'From list' : '+ Custom'}
                       </button>
                     </div>
 
@@ -2649,11 +4059,11 @@ export default function AdminDashboard() {
                       </select>
                     ) : (
                       <div style={{ position: 'relative' }}>
-                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        <div style={{ display: 'flex', gap: '0.3rem' }}>
                           <input
                             className="input-field"
                             autoFocus
-                            placeholder="Type exam (e.g. NEET, GATE, CTET, CLAT)..."
+                            placeholder="Type exam (e.g. NEET, GATE)..."
                             value={customCategoryInput}
                             onChange={e => {
                               setCustomCategoryInput(e.target.value);
@@ -2670,28 +4080,26 @@ export default function AdminDashboard() {
                               setIsAddingCustomCategory(false);
                               setShowCategorySuggestions(false);
                             }}
-                            style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', flexShrink: 0 }}
+                            style={{ fontSize: '0.72rem', padding: '0.3rem 0.5rem', flexShrink: 0 }}
                           >
                             List
                           </button>
                         </div>
 
-                        {/* Interactive Autocomplete Suggestions Dropdown */}
                         {showCategorySuggestions && (
                           <div
                             style={{
                               position: 'absolute',
                               top: 'calc(100% + 4px)',
                               left: 0,
-                              width: '380px',
-                              minWidth: '320px',
+                              width: '320px',
                               maxWidth: 'calc(100vw - 40px)',
                               background: 'var(--bg-surface, #ffffff)',
                               borderRadius: '0.6rem',
                               border: '1.5px solid var(--primary, #4338CA)',
                               boxShadow: '0 16px 36px rgba(0,0,0,0.25)',
                               zIndex: 2000,
-                              maxHeight: '280px',
+                              maxHeight: '240px',
                               overflowY: 'auto',
                               padding: '0.4rem',
                             }}
@@ -2703,67 +4111,45 @@ export default function AdminDashboard() {
                                   item.name.toLowerCase().includes(query) ||
                                   item.short.toLowerCase().includes(query) ||
                                   item.category.toLowerCase().includes(query)
-                                ).slice(0, 8)
-                                : POPULAR_EXAMS_DATABASE.slice(0, 8);
+                                ).slice(0, 6)
+                                : POPULAR_EXAMS_DATABASE.slice(0, 6);
 
                               return (
                                 <div>
-                                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', padding: '0.25rem 0.4rem', borderBottom: '1px solid var(--border)', marginBottom: '0.3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span>{query ? `Matching Exams (${matches.length})` : 'Popular Competitive Exams to Pick:'}</span>
-                                    <span
-                                      onClick={e => {
-                                        e.stopPropagation();
-                                        setShowCategorySuggestions(false);
-                                      }}
-                                      style={{ cursor: 'pointer', color: 'var(--text-muted)', padding: '0 0.3rem', fontSize: '0.85rem' }}
-                                    >
-                                      ✕
-                                    </span>
+                                  <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', padding: '0.2rem 0.3rem', borderBottom: '1px solid var(--border)', marginBottom: '0.25rem', display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>{query ? `Matching (${matches.length})` : 'Popular Exams:'}</span>
+                                    <span onClick={() => setShowCategorySuggestions(false)} style={{ cursor: 'pointer' }}>✕</span>
                                   </div>
 
-                                  {matches.length > 0 ? (
-                                    matches.map((item, idx) => (
-                                      <div
-                                        key={idx}
-                                        onClick={() => {
-                                          setCustomCategoryInput(item.short);
-                                          setShowCategorySuggestions(false);
-                                          if (!newExamTitle.trim()) {
-                                            setNewExamTitle(`${item.short} Full Practice Mock Test`);
-                                          }
-                                        }}
-                                        style={{
-                                          padding: '0.55rem 0.65rem',
-                                          borderRadius: '0.45rem',
-                                          cursor: 'pointer',
-                                          display: 'flex',
-                                          flexDirection: 'column',
-                                          gap: '0.25rem',
-                                          transition: 'background 0.12s ease',
-                                          borderBottom: idx !== matches.length - 1 ? '1px solid var(--border)' : 'none',
-                                        }}
-                                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(67, 56, 202, 0.08)')}
-                                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                                      >
-                                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.6rem' }}>
-                                          <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: '0.84rem', lineHeight: 1.35 }}>
-                                            {item.name}
-                                          </span>
-                                          <span className="badge badge-blue" style={{ fontSize: '0.65rem', flexShrink: 0 }}>
-                                            {item.category}
-                                          </span>
-                                        </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                          <span>Category Tag: <strong style={{ color: 'var(--primary)' }}>{item.short}</strong></span>
-                                          <span style={{ color: 'var(--primary)', fontWeight: 600 }}>Click to Select ✓</span>
-                                        </div>
+                                  {matches.map((item, idx) => (
+                                    <div
+                                      key={idx}
+                                      onClick={() => {
+                                        setCustomCategoryInput(item.short);
+                                        setShowCategorySuggestions(false);
+                                        if (!newExamTitle.trim()) {
+                                          setNewExamTitle(`${item.short} Full Practice Mock Test`);
+                                        }
+                                      }}
+                                      style={{
+                                        padding: '0.4rem 0.5rem',
+                                        borderRadius: '0.35rem',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '0.15rem',
+                                        borderBottom: idx !== matches.length - 1 ? '1px solid var(--border)' : 'none',
+                                      }}
+                                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(67, 56, 202, 0.08)')}
+                                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: '0.78rem' }}>{item.short}</span>
+                                        <span className="badge badge-blue" style={{ fontSize: '0.62rem' }}>{item.category}</span>
                                       </div>
-                                    ))
-                                  ) : (
-                                    <div style={{ padding: '0.6rem', fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                                      Custom exam category "{customCategoryInput}" will be created.
+                                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{item.name}</div>
                                     </div>
-                                  )}
+                                  ))}
                                 </div>
                               );
                             })()}
@@ -2772,8 +4158,28 @@ export default function AdminDashboard() {
                       </div>
                     )}
                   </div>
+
+                  {/* Subject Column */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>Difficulty</label>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>
+                      Subject Area *
+                    </label>
+                    <select
+                      className="input-field"
+                      value={newExamSubject}
+                      onChange={e => setNewExamSubject(e.target.value)}
+                    >
+                      {AVAILABLE_SUBJECTS.map(subj => (
+                        <option key={subj} value={subj}>{subj}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Difficulty Column */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>
+                      Difficulty
+                    </label>
                     <select className="input-field" value={newExamDifficulty} onChange={e => setNewExamDifficulty(e.target.value as any)}>
                       <option value="Easy">Easy</option>
                       <option value="Medium">Medium</option>
@@ -2784,23 +4190,324 @@ export default function AdminDashboard() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>Base Duration (Mins)</label>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>
+                      Base Duration (Mins)
+                    </label>
                     <input className="input-field" type="number" required value={newExamDuration} onChange={e => setNewExamDuration(e.target.value)} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>Questions Count</label>
+                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>
+                      Questions Count ({examQuestions.length} added)
+                    </label>
                     <input className="input-field" type="number" required value={newExamQuestionsCount} onChange={e => setNewExamQuestionsCount(e.target.value)} />
                   </div>
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>Spoken Instructions for Screen Readers</label>
-                  <textarea className="input-field" rows={3} value={newExamInstructions} onChange={e => setNewExamInstructions(e.target.value)} />
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.3rem' }}>
+                    Spoken Instructions for Screen Readers
+                  </label>
+                  <textarea className="input-field" rows={2} value={newExamInstructions} onChange={e => setNewExamInstructions(e.target.value)} />
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+                {/* ─────────────────────────────────────────────────────────────
+                    EXAM QUESTIONS BUILDER & MANAGER
+                   ───────────────────────────────────────────────────────────── */}
+                <div
+                  style={{
+                    padding: '0.9rem',
+                    borderRadius: '0.75rem',
+                    border: '1.5px solid var(--border)',
+                    background: 'var(--bg-surface-secondary, rgba(0,0,0,0.02))',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div>
+                      <h4 style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
+                        <span>📝 Exam Questions Builder</span>
+                        <span className="badge badge-blue" style={{ fontSize: '0.72rem' }}>
+                          {examQuestions.length} Added
+                        </span>
+                      </h4>
+                      <p style={{ fontSize: '0.74rem', color: 'var(--text-muted)', margin: '0.15rem 0 0' }}>
+                        Add manual questions, import from Question Bank, or 1-click generate with AI.
+                      </p>
+                    </div>
+
+                    {/* Builder Navigation Tabs */}
+                    <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--bg-surface)', padding: '0.2rem', borderRadius: '0.5rem', border: '1px solid var(--border)' }}>
+                      <button
+                        type="button"
+                        onClick={() => setBuilderTab('manual')}
+                        style={{
+                          padding: '0.25rem 0.6rem',
+                          fontSize: '0.75rem',
+                          fontWeight: builderTab === 'manual' ? 700 : 500,
+                          borderRadius: '0.35rem',
+                          border: 'none',
+                          background: builderTab === 'manual' ? 'var(--primary)' : 'transparent',
+                          color: builderTab === 'manual' ? '#fff' : 'var(--text)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ✍️ Manual
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBuilderTab('bank')}
+                        style={{
+                          padding: '0.25rem 0.6rem',
+                          fontSize: '0.75rem',
+                          fontWeight: builderTab === 'bank' ? 700 : 500,
+                          borderRadius: '0.35rem',
+                          border: 'none',
+                          background: builderTab === 'bank' ? 'var(--primary)' : 'transparent',
+                          color: builderTab === 'bank' ? '#fff' : 'var(--text)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        📚 Bank ({questionBank.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBuilderTab('ai')}
+                        style={{
+                          padding: '0.25rem 0.6rem',
+                          fontSize: '0.75rem',
+                          fontWeight: builderTab === 'ai' ? 700 : 500,
+                          borderRadius: '0.35rem',
+                          border: 'none',
+                          background: builderTab === 'ai' ? 'var(--primary)' : 'transparent',
+                          color: builderTab === 'ai' ? '#fff' : 'var(--text)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ✨ AI Generate
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* TAB 1: Manual Question Form */}
+                  {builderTab === 'manual' && (
+                    <div style={{ background: 'var(--bg-surface)', padding: '0.85rem', borderRadius: '0.6rem', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, marginBottom: '0.2rem' }}>
+                          Question Statement *
+                        </label>
+                        <textarea
+                          className="input-field"
+                          rows={2}
+                          placeholder="e.g. Which Article of the Indian Constitution provides for Right to Equality?"
+                          value={builderQText}
+                          onChange={e => setBuilderQText(e.target.value)}
+                        />
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 600, marginBottom: '0.2rem' }}>Option A *</label>
+                          <input className="input-field" placeholder="Option A text" value={builderOptA} onChange={e => setBuilderOptA(e.target.value)} />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 600, marginBottom: '0.2rem' }}>Option B *</label>
+                          <input className="input-field" placeholder="Option B text" value={builderOptB} onChange={e => setBuilderOptB(e.target.value)} />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 600, marginBottom: '0.2rem' }}>Option C</label>
+                          <input className="input-field" placeholder="Option C text" value={builderOptC} onChange={e => setBuilderOptC(e.target.value)} />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 600, marginBottom: '0.2rem' }}>Option D</label>
+                          <input className="input-field" placeholder="Option D text" value={builderOptD} onChange={e => setBuilderOptD(e.target.value)} />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 600, marginBottom: '0.2rem' }}>Correct Answer *</label>
+                          <select className="input-field" value={builderCorrect} onChange={e => setBuilderCorrect(e.target.value as any)}>
+                            <option value="A">Option A</option>
+                            <option value="B">Option B</option>
+                            <option value="C">Option C</option>
+                            <option value="D">Option D</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 600, marginBottom: '0.2rem' }}>Topic / Chapter</label>
+                          <input className="input-field" placeholder="e.g. Fundamental Rights" value={builderTopic} onChange={e => setBuilderTopic(e.target.value)} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 600, marginBottom: '0.2rem' }}>Explanation / Voice Solution</label>
+                        <input className="input-field" placeholder="Explanation read by voice assistant during result review" value={builderExplanation} onChange={e => setBuilderExplanation(e.target.value)} />
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.2rem' }}>
+                        <button
+                          type="button"
+                          onClick={handleAddQuestionToExam}
+                          className="btn-secondary"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem', fontWeight: 700 }}
+                        >
+                          <Plus size={14} /> Add Question to Exam
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 2: Question Bank Picker */}
+                  {builderTab === 'bank' && (
+                    <div style={{ background: 'var(--bg-surface)', padding: '0.65rem', borderRadius: '0.6rem', border: '1px solid var(--border)', maxHeight: '200px', overflowY: 'auto' }}>
+                      {questionBank.length === 0 ? (
+                        <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1rem' }}>No questions available in bank.</p>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                          {questionBank.map(item => (
+                            <div
+                              key={item.id}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                padding: '0.45rem 0.6rem',
+                                borderRadius: '0.45rem',
+                                border: '1px solid var(--border)',
+                                background: 'var(--bg-surface-secondary, rgba(0,0,0,0.01))',
+                                gap: '0.5rem',
+                              }}
+                            >
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {item.q}
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.15rem', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                  <span className="badge badge-blue" style={{ fontSize: '0.62rem' }}>{item.topic}</span>
+                                  <span>Correct: Option {String.fromCharCode(65 + item.correct)}</span>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={() => handleImportBankQuestionToExam(item)}
+                                style={{ fontSize: '0.72rem', padding: '0.25rem 0.5rem', flexShrink: 0 }}
+                              >
+                                + Add to Exam
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* TAB 3: AI Auto-Generation */}
+                  {builderTab === 'ai' && (
+                    <div style={{ background: 'var(--bg-surface)', padding: '1rem', borderRadius: '0.6rem', border: '1px solid var(--border)', textAlign: 'center' }}>
+                      <div style={{ maxWidth: 440, margin: '0 auto' }}>
+                        <Sparkles size={24} color="var(--primary)" style={{ margin: '0 auto 0.4rem' }} />
+                        <h5 style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text)', marginBottom: '0.2rem' }}>
+                          Instant Accessible Question Generator
+                        </h5>
+                        <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                          Auto-generate 5 syllabus-compliant questions for <strong>{newExamCategory} ({newExamSubject})</strong> with voice pronunciations.
+                        </p>
+                        <button
+                          type="button"
+                          disabled={isGeneratingExamQuestions}
+                          onClick={handleAutoGenerateExamQuestions}
+                          className="btn-primary"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem', margin: '0 auto' }}
+                        >
+                          {isGeneratingExamQuestions ? (
+                            <>
+                              <Loader2 size={14} className="spin" /> Generating Questions...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles size={14} /> Generate 5 Questions Now
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Added Questions Preview List */}
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                      <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                        CURRENT QUESTIONS IN THIS EXAM ({examQuestions.length})
+                      </span>
+                      {examQuestions.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm('Clear all questions from this exam draft?')) {
+                              setExamQuestions([]);
+                              setNewExamQuestionsCount('0');
+                            }
+                          }}
+                          style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '0.7rem', cursor: 'pointer' }}
+                        >
+                          Clear All
+                        </button>
+                      )}
+                    </div>
+
+                    {examQuestions.length === 0 ? (
+                      <div style={{ padding: '0.75rem', background: 'rgba(67, 56, 202, 0.05)', borderRadius: '0.5rem', border: '1px dashed var(--primary)', fontSize: '0.76rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                        ℹ️ No questions added yet. Use the tabs above to add questions, or click <strong>"Save & Publish Exam"</strong> to auto-fill 5 curriculum questions!
+                      </div>
+                    ) : (
+                      <div style={{ maxHeight: '160px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {examQuestions.map((q, idx) => (
+                          <div
+                            key={q.id || idx}
+                            style={{
+                              padding: '0.45rem 0.6rem',
+                              borderRadius: '0.4rem',
+                              border: '1px solid var(--border)',
+                              background: 'var(--bg-surface)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '0.5rem',
+                            }}
+                          >
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <span style={{ color: 'var(--primary)', marginRight: '0.3rem' }}>Q{idx + 1}.</span>
+                                {q.text}
+                              </div>
+                              <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', marginTop: '0.15rem', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                <span className="badge badge-green" style={{ fontSize: '0.6rem', padding: '0.08rem 0.3rem' }}>
+                                  Correct: Option {q.correct}
+                                </span>
+                                <span>{q.options.length} Options</span>
+                                <span>• {q.topic}</span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveQuestionFromExam(idx)}
+                              style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: '0.2rem' }}
+                              title="Remove question"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.4rem' }}>
                   <button type="button" className="btn-secondary" onClick={() => setShowAddExamModal(false)}>Cancel</button>
-                  <button type="submit" className="btn-primary">Save & Publish Exam</button>
+                  <button type="submit" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <CheckCircle2 size={16} /> Save & Publish Exam ({examQuestions.length || newExamQuestionsCount} Qs)
+                  </button>
                 </div>
               </form>
             </div>
@@ -2883,6 +4590,16 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+
+        {/* ══════════════════════════════════════════════════════════
+            MODALS: BULK IMPORT QUESTIONS VIA EXCEL / CSV
+           ══════════════════════════════════════════════════════════ */}
+        <ExcelQuestionImportModal
+          isOpen={showExcelImportModal}
+          onClose={() => setShowExcelImportModal(false)}
+          onImportSuccess={handleImportExcelQuestions}
+        />
+
         {/* Floating Draggable Quick Actions Button (Accessible on all admin pages) */}
         <DraggableQuickActions
           onCreateExam={() => setShowAddExamModal(true)}

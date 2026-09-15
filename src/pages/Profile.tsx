@@ -12,12 +12,17 @@ import {
   ArrowRight,
   ShieldCheck,
   CheckCircle2,
-  Clock
+  Clock,
+  Shield,
+  Sliders,
+  Check,
+  Volume2,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import { useAuth } from '../context/AuthContext';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { usePageVoice } from '../hooks/usePageVoice';
+import { speechService } from '../services/speechService';
 import { MOCK_ATTEMPTS, EXAMS, AI_RECOMMENDATIONS } from '../data/mockData';
 
 export default function Profile() {
@@ -27,8 +32,42 @@ export default function Profile() {
   const [editName, setEditName] = useState(false);
   const [name, setName] = useState(user?.name ?? '');
 
+  // Candidate Accommodation Profile State
+  const [impairmentTier, setImpairmentTier] = useState<string>(() => {
+    return localStorage.getItem('sight_impairment_tier') || 'Low Vision';
+  });
+  const [udidNumber, setUdidNumber] = useState<string>(() => {
+    return localStorage.getItem('sight_udid_number') || 'DL04202400987654';
+  });
+  const [extraTimeMultiplier, setExtraTimeMultiplier] = useState<number>(() => {
+    return parseFloat(localStorage.getItem('sight_time_multiplier') || '1.5');
+  });
+  const [screenReaderPref, setScreenReaderPref] = useState<string>(() => {
+    return localStorage.getItem('sight_screen_reader_pref') || 'Built-in SIGHT Voice';
+  });
+  const [autonomousMode, setAutonomousMode] = useState<boolean>(() => {
+    return localStorage.getItem('sight_autonomous_mode') !== 'false';
+  });
+  const [isSavedAccommodations, setIsSavedAccommodations] = useState(false);
+
+  const saveAccommodations = () => {
+    localStorage.setItem('sight_impairment_tier', impairmentTier);
+    localStorage.setItem('sight_udid_number', udidNumber);
+    localStorage.setItem('sight_time_multiplier', extraTimeMultiplier.toString());
+    localStorage.setItem('sight_screen_reader_pref', screenReaderPref);
+    localStorage.setItem('sight_autonomous_mode', autonomousMode.toString());
+    setIsSavedAccommodations(true);
+    speechService.speak(
+      `Accommodations updated. Extra time set to ${extraTimeMultiplier}x. Autonomous Scribe-Free Mode ${
+        autonomousMode ? 'enabled' : 'disabled'
+      }.`,
+      { priority: true }
+    );
+    setTimeout(() => setIsSavedAccommodations(false), 2500);
+  };
+
   useEffect(() => {
-    document.title = 'Profile — SIGHT-EXAM AI';
+    document.title = 'Profile — DrishtiX';
   }, []);
 
   const attempts = MOCK_ATTEMPTS;
@@ -392,6 +431,177 @@ export default function Profile() {
                     AI Focus Drills
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Candidate Accessibility Profile & Accommodation Management Card */}
+            <div
+              className="card fade-in"
+              style={{
+                padding: '1.25rem 1.4rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '1rem',
+                border: '1.5px solid var(--primary)',
+                background: 'var(--bg-card)',
+                borderRadius: '0.85rem',
+              }}
+              role="region"
+              aria-label="Candidate Accessibility Profile and Accommodation Settings"
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <ShieldCheck size={20} color="var(--primary)" />
+                  <div>
+                    <h3 style={{ margin: 0, fontWeight: 800, fontSize: '1.05rem', color: 'var(--text)' }}>
+                      PwD Accessibility & Accommodation Profile
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Rights of Persons with Disabilities (PwD) Act 2016 Certified Accommodations
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  {isSavedAccommodations && (
+                    <span className="badge badge-green fade-in" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem' }}>
+                      <Check size={12} /> Saved!
+                    </span>
+                  )}
+                  <button
+                    onClick={saveAccommodations}
+                    className="btn-primary"
+                    style={{ fontSize: '0.78rem', padding: '0.35rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+
+              {/* Form Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                {/* Impairment Tier */}
+                <div>
+                  <label htmlFor="impairment-tier" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
+                    Visual Impairment Tier
+                  </label>
+                  <select
+                    id="impairment-tier"
+                    value={impairmentTier}
+                    onChange={e => setImpairmentTier(e.target.value)}
+                    className="input-field"
+                    style={{ fontSize: '0.825rem', padding: '0.45rem 0.75rem' }}
+                  >
+                    <option value="Low Vision">Low Vision (Partial Sight)</option>
+                    <option value="Legally Blind">Legally Blind (High Magnification Required)</option>
+                    <option value="Total Blindness">Total Blindness (Screen Reader & Audio Only)</option>
+                    <option value="Color Vision Deficient">Color Vision Deficient (Deuteranopia/Protanopia)</option>
+                  </select>
+                </div>
+
+                {/* Government UDID Certificate Number */}
+                <div>
+                  <label htmlFor="udid-number" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
+                    Govt. Disability Certificate / UDID Card No.
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                    <input
+                      id="udid-number"
+                      value={udidNumber}
+                      onChange={e => setUdidNumber(e.target.value)}
+                      className="input-field"
+                      style={{ fontSize: '0.825rem', padding: '0.45rem 0.75rem', flex: 1 }}
+                      placeholder="e.g. DL04202400987654"
+                    />
+                    <span className="badge badge-green" style={{ fontSize: '0.7rem', padding: '0.35rem 0.6rem', flexShrink: 0 }}>
+                      Verified ✓
+                    </span>
+                  </div>
+                </div>
+
+                {/* Compensatory Time Multiplier */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
+                    Compensatory Extra Time Allocation
+                  </label>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    {[
+                      { val: 1.0, label: '1.0x (Standard)' },
+                      { val: 1.33, label: '1.33x (+20m/h)' },
+                      { val: 1.5, label: '1.5x (PwD Default)' },
+                      { val: 2.0, label: '2.0x (Double)' },
+                    ].map(m => (
+                      <button
+                        key={m.val}
+                        type="button"
+                        onClick={() => setExtraTimeMultiplier(m.val)}
+                        style={{
+                          flex: 1,
+                          padding: '0.4rem 0.2rem',
+                          borderRadius: '0.45rem',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          border: extraTimeMultiplier === m.val ? '1.5px solid var(--primary)' : '1px solid var(--border)',
+                          background: extraTimeMultiplier === m.val ? 'var(--primary-light)' : 'var(--bg-surface)',
+                          color: 'var(--text)',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Preferred Screen Reader / Assistive Tech */}
+                <div>
+                  <label htmlFor="screen-reader-select" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
+                    Preferred Assistive Technology
+                  </label>
+                  <select
+                    id="screen-reader-select"
+                    value={screenReaderPref}
+                    onChange={e => setScreenReaderPref(e.target.value)}
+                    className="input-field"
+                    style={{ fontSize: '0.825rem', padding: '0.45rem 0.75rem' }}
+                  >
+                    <option value="Built-in SIGHT Voice">Built-in DrishtiX Voice Synthesizer</option>
+                    <option value="NVDA">NVDA (NonVisual Desktop Access)</option>
+                    <option value="JAWS">JAWS (Job Access With Speech)</option>
+                    <option value="VoiceOver">Apple VoiceOver / TalkBack</option>
+                    <option value="Refreshable Braille">Refreshable Braille Display (BRLTTY)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Autonomous Mode Toggle Checkbox */}
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '0.6rem',
+                  border: '1px solid var(--border)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '0.75rem',
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Shield size={14} color="var(--primary)" /> Autonomous Scribe-Free Exam Mode
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Candidate is certified to complete examinations independently without a human scribe. Answers are verbally confirmed and voice actions are logged.
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={autonomousMode}
+                  onChange={e => setAutonomousMode(e.target.checked)}
+                  style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                  aria-label="Toggle Autonomous Scribe-Free Exam Mode"
+                />
               </div>
             </div>
 

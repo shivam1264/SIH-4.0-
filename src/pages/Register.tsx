@@ -18,8 +18,8 @@ export default function Register() {
   const [error, setError]           = useState('');
 
   useEffect(() => {
-    document.title = 'Create Account — SIGHT-EXAM AI';
-    speechService.speak('Registration page opened. Please enter your name, email, password, and choose your target exams.', { priority: true });
+    document.title = 'Create Account — DrishtiX';
+    speechService.speak('Registration page opened. Welcome to DrishtiX. Please enter your name, email, password, and choose your target exams.', { priority: true });
   }, []);
 
   const toggleExam = (exam: string) => {
@@ -65,14 +65,16 @@ export default function Register() {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: '2rem' }}>
       <div style={{ width: '100%', maxWidth: 480 }}>
         <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.6rem', color: 'var(--primary)' }} aria-hidden="true">
-            <Sparkles size={38} strokeWidth={1.75} />
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.85rem' }}>
+            <div style={{ width: 68, height: 68, borderRadius: '1rem', background: '#fff', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '5px' }}>
+              <img src="/drishtix-icon.png" alt="DrishtiX Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            </div>
           </div>
-          <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.75rem', fontWeight: 900, color: 'var(--text)', marginBottom: '0.35rem' }}>
-            Create Your Account
+          <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.85rem', fontWeight: 900, color: 'var(--text)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span>Drishti</span><span style={{ color: '#F59E0B' }}>X</span>
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Accessible exam preparation designed for independent learning
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.04em' }}>
+            Beyond Barriers, Brighter Futures
           </p>
         </div>
 

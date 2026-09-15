@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Target,
   Mic,
@@ -160,7 +161,9 @@ const TOPICS: Record<string, TopicData> = {
 
 export default function Practice() {
   const { prefs } = useAccessibility();
-  const [selectedTopic, setSelectedTopic] = useState('Indian History');
+  const [searchParams] = useSearchParams();
+  const initialTopic = searchParams.get('topic') || '';
+  const [selectedTopic, setSelectedTopic] = useState(initialTopic);
   const [qi, setQi]                     = useState(0);
   const [chosen, setChosen]             = useState<number | null>(null);
   const [revealed, setRevealed]         = useState(false);
@@ -168,7 +171,11 @@ export default function Practice() {
   const [streak, setStreak]             = useState(0);
   const [done, setDone]                 = useState(false);
   const [voiceActive, setVoiceActive]   = useState(true);
-  const [voiceStatus, setVoiceStatus]   = useState('Listening... Speak "Option A", "Option B", "Option C", or "Option D"');
+  const [voiceStatus, setVoiceStatus]   = useState(
+    initialTopic
+      ? 'Listening... Speak "Option A", "Option B", "Option C", or "Option D"'
+      : 'Listening... Speak a topic name like "Indian History" or "Pipes & Cisterns" to begin'
+  );
   const [isSpeaking, setIsSpeaking]     = useState(false);
 
   const topicData = selectedTopic ? TOPICS[selectedTopic] : null;
@@ -235,7 +242,7 @@ export default function Practice() {
   }
 
   useEffect(() => {
-    document.title = 'AI Practice Drills — SIGHT-EXAM AI';
+    document.title = 'AI Practice Drills — DrishtiX';
     speechService.setEnabled(true);
 
     const unlockGesture = async () => {
@@ -307,6 +314,14 @@ export default function Practice() {
   }
 
   function startTopic(t: string) {
+    if (!t) {
+      setSelectedTopic('');
+      speechService.stop();
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+      setVoiceStatus('Listening... Speak a topic name like "Indian History" or "Pipes & Cisterns" to begin');
+      return;
+    }
     const isSame = selectedTopic === t && qi === 0;
     setSelectedTopic(t);
     setQi(0);
@@ -318,10 +333,13 @@ export default function Practice() {
     setScore({ correct: 0, total: 0 });
     setStreak(0);
     setDone(false);
+    setVoiceStatus('Listening... Speak "Option A", "Option B", "Option C", or "Option D"');
     if (isSame) {
       setTimeout(() => readQuestionAloud(0), 300);
     }
   }
+  const startTopicRef = useRef(startTopic);
+  startTopicRef.current = startTopic;
 
   function selectOptionByIndex(idx: number) {
     if (revealedRef.current) return;
@@ -390,11 +408,41 @@ export default function Practice() {
   function finishDrill() {
     setDone(true);
     triggerConfetti();
-    const improvementText = 'Your History accuracy improved from 40 percent to 65 percent, a 25 percent gain. You are ready for medium-level questions.';
+    const improvementText = 'Your accuracy improved significantly. You are ready for competitive examination questions.';
     speechService.speak(`Drill completed! ${improvementText}`, { priority: true });
   }
 
   usePageVoice('Practice', [
+    {
+      triggers: ['all topics', 'topics dikhao', 'back to topics', 'saare topics', 'topic list', 'show topics', 'change topic', 'topics'],
+      answer: () => 'Showing all practice topics.',
+      action: () => startTopicRef.current(''),
+    },
+    {
+      triggers: ['indian history', 'history', 'history practice', 'itihas'],
+      answer: () => 'Starting Indian History practice drill.',
+      action: () => startTopicRef.current('Indian History'),
+    },
+    {
+      triggers: ['pipes and cisterns', 'pipes', 'cisterns', 'tanki'],
+      answer: () => 'Starting Pipes and Cisterns practice drill.',
+      action: () => startTopicRef.current('Pipes & Cisterns'),
+    },
+    {
+      triggers: ['compound interest', 'interest', 'ci', 'chakravriddhi byaj'],
+      answer: () => 'Starting Compound Interest practice drill.',
+      action: () => startTopicRef.current('Compound Interest'),
+    },
+    {
+      triggers: ['blood relations', 'blood relation', 'rishte'],
+      answer: () => 'Starting Blood Relations practice drill.',
+      action: () => startTopicRef.current('Blood Relations'),
+    },
+    {
+      triggers: ['mensuration', 'geometry', 'kshetramiti'],
+      answer: () => 'Starting Mensuration practice drill.',
+      action: () => startTopicRef.current('Mensuration'),
+    },
     {
       triggers: ['read question', 'question kya hai', 'prashna padho', 'question repeat', 'dobara padho'],
       answer: () => 'Reading question aloud.',
@@ -436,7 +484,7 @@ export default function Practice() {
     },
     {
       triggers: ['topic kya hai', 'current topic', 'vishay'],
-      answer: () => `Current topic ${selectedTopic} hai.`,
+      answer: () => (selectedTopic ? `Current topic ${selectedTopic} hai.` : 'No topic selected. Showing all topics.'),
     },
     {
       triggers: ['explanation', 'samjhao', 'karan'],
@@ -508,6 +556,90 @@ export default function Practice() {
       // 0.5. If the question is currently reading aloud, ignore audio from computer speakers
       if (isSpeakingRef.current) {
         return false;
+      }
+
+      // 0.8. Return to All Topics voice commands:
+      if (/\b(?:all topics|topics|back to topics|show topics|topic badlo|change topic|saare topics|topics dikhao|topics par jao|topics list)\b/i.test(clean)) {
+        setVoiceStatus('Showing all practice topics...');
+        audioCueService.select();
+        speechService.speak('Showing all practice topics');
+        startTopicRef.current('');
+        return true;
+      }
+
+      // 0.9. Topic Selection Commands (Select by name or number):
+      if (/\b(?:indian history|history|itihas|bharat ka itihas|movement|1942|plassey)\b/i.test(clean)) {
+        setVoiceStatus('Starting Indian History Drill...');
+        audioCueService.select();
+        speechService.speak('Starting Indian History practice drill');
+        startTopicRef.current('Indian History');
+        return true;
+      }
+      if (/\b(?:pipes?|cisterns?|pipe and cistern|pipe & cistern|tank|tanki)\b/i.test(clean)) {
+        setVoiceStatus('Starting Pipes & Cisterns Drill...');
+        audioCueService.select();
+        speechService.speak('Starting Pipes and Cisterns practice drill');
+        startTopicRef.current('Pipes & Cisterns');
+        return true;
+      }
+      if (/\b(?:compound interest|interest|byaj|chakravriddhi|c i|ci)\b/i.test(clean)) {
+        setVoiceStatus('Starting Compound Interest Drill...');
+        audioCueService.select();
+        speechService.speak('Starting Compound Interest practice drill');
+        startTopicRef.current('Compound Interest');
+        return true;
+      }
+      if (/\b(?:blood relations?|blood relation|rishte|sambandh|family tree)\b/i.test(clean)) {
+        setVoiceStatus('Starting Blood Relations Drill...');
+        audioCueService.select();
+        speechService.speak('Starting Blood Relations practice drill');
+        startTopicRef.current('Blood Relations');
+        return true;
+      }
+      if (/\b(?:mensuration|geometry|kshetramiti|triangle|rectangle|area)\b/i.test(clean)) {
+        setVoiceStatus('Starting Mensuration Drill...');
+        audioCueService.select();
+        speechService.speak('Starting Mensuration practice drill');
+        startTopicRef.current('Mensuration');
+        return true;
+      }
+
+      // Ordinal topic selections: Topic 1, Topic 2, etc.
+      const topicKeys = Object.keys(TOPICS);
+      if (/\b(?:first topic|pehla topic|topic 1|topic one|drill 1)\b/i.test(clean) && topicKeys[0]) {
+        setVoiceStatus(`Starting ${topicKeys[0]} Drill...`);
+        audioCueService.select();
+        speechService.speak(`Starting ${topicKeys[0]} practice drill`);
+        startTopicRef.current(topicKeys[0]);
+        return true;
+      }
+      if (/\b(?:second topic|doosra topic|topic 2|topic two|drill 2)\b/i.test(clean) && topicKeys[1]) {
+        setVoiceStatus(`Starting ${topicKeys[1]} Drill...`);
+        audioCueService.select();
+        speechService.speak(`Starting ${topicKeys[1]} practice drill`);
+        startTopicRef.current(topicKeys[1]);
+        return true;
+      }
+      if (/\b(?:third topic|teesra topic|topic 3|topic three|drill 3)\b/i.test(clean) && topicKeys[2]) {
+        setVoiceStatus(`Starting ${topicKeys[2]} Drill...`);
+        audioCueService.select();
+        speechService.speak(`Starting ${topicKeys[2]} practice drill`);
+        startTopicRef.current(topicKeys[2]);
+        return true;
+      }
+      if (/\b(?:fourth topic|chautha topic|topic 4|topic four|drill 4)\b/i.test(clean) && topicKeys[3]) {
+        setVoiceStatus(`Starting ${topicKeys[3]} Drill...`);
+        audioCueService.select();
+        speechService.speak(`Starting ${topicKeys[3]} practice drill`);
+        startTopicRef.current(topicKeys[3]);
+        return true;
+      }
+      if (/\b(?:fifth topic|paanchwa topic|topic 5|topic five|drill 5)\b/i.test(clean) && topicKeys[4]) {
+        setVoiceStatus(`Starting ${topicKeys[4]} Drill...`);
+        audioCueService.select();
+        speechService.speak(`Starting ${topicKeys[4]} practice drill`);
+        startTopicRef.current(topicKeys[4]);
+        return true;
       }
 
       // 1. Primary check via comprehensive classifier
@@ -706,10 +838,21 @@ export default function Practice() {
               <Mic size={14} className="mic-pulse" />
               <span>{voiceStatus}</span>
             </div>
-            <div style={{ display: 'flex', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'var(--bg-card)' }}>"Option A-D"</span>
-              <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'var(--bg-card)' }}>"Check"</span>
-              <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'var(--bg-card)' }}>"Next"</span>
+            <div style={{ display: 'flex', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+              {!selectedTopic ? (
+                <>
+                  <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'var(--bg-card)' }}>Say "Indian History"</span>
+                  <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'var(--bg-card)' }}>Say "Pipes & Cisterns"</span>
+                  <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'var(--bg-card)' }}>Say "Topic 1"</span>
+                </>
+              ) : (
+                <>
+                  <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'var(--bg-card)' }}>"Option A-D"</span>
+                  <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'var(--bg-card)' }}>"Check"</span>
+                  <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'var(--bg-card)' }}>"Next"</span>
+                  <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'var(--bg-card)' }}>"All Topics"</span>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -806,51 +949,54 @@ export default function Practice() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))', gap: '1rem' }}>
-              {Object.entries(TOPICS).map(([topic, data]) => (
-                <button
-                  key={topic}
-                  onClick={() => startTopic(topic)}
-                  style={{
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    borderRadius: '0.85rem',
-                    padding: '1.15rem',
-                    background: 'var(--bg-card)',
-                    border: '1.5px solid var(--border)',
-                    boxShadow: 'var(--shadow)',
-                    transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    minHeight: 115
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.borderColor = 'var(--primary)';
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = 'var(--shadow-md)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.borderColor = 'var(--border)';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'var(--shadow)';
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 700, marginBottom: '0.35rem', textTransform: 'uppercase' }}>
-                      {data.subject}
+              {Object.entries(TOPICS).map(([topic, data]) => {
+                const subLower = (data.subject || '').toLowerCase();
+                const fadeClass = subLower.includes('math') || subLower.includes('quant')
+                  ? 'card-fade-orange'
+                  : subLower.includes('reason') || subLower.includes('logic')
+                  ? 'card-fade-purple'
+                  : subLower.includes('history') || subLower.includes('polity')
+                  ? 'card-fade-rose'
+                  : subLower.includes('science')
+                  ? 'card-fade-emerald'
+                  : 'card-fade-blue';
+
+                return (
+                  <button
+                    key={topic}
+                    onClick={() => startTopic(topic)}
+                    className={`card-interactive ${fadeClass}`}
+                    style={{
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      borderRadius: '0.85rem',
+                      padding: '1.15rem',
+                      border: '1.5px solid var(--border)',
+                      boxShadow: 'var(--shadow)',
+                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      minHeight: 115
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 700, marginBottom: '0.35rem', textTransform: 'uppercase' }}>
+                        {data.subject}
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--text)', marginBottom: '0.4rem' }}>
+                        {topic}
+                      </div>
                     </div>
-                    <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--text)', marginBottom: '0.4rem' }}>
-                      {topic}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      <span>{data.questions.length} questions</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 2, color: 'var(--primary)', fontWeight: 600 }}>
+                        Start <ChevronRight size={13} />
+                      </span>
                     </div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    <span>{data.questions.length} questions</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 2, color: 'var(--primary)', fontWeight: 600 }}>
-                      Start <ChevronRight size={13} />
-                    </span>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </>
         ) : done ? (

@@ -12,7 +12,7 @@ export default function Login() {
   const [error, setError]   = useState('');
   const emailRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { emailRef.current?.focus(); document.title = 'Sign In — SIGHT-EXAM AI'; }, []);
+  useEffect(() => { emailRef.current?.focus(); document.title = 'Sign In — DrishtiX'; }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -33,21 +33,23 @@ export default function Login() {
 
   function fillDemo(role: 'student' | 'admin') {
     if (role === 'student') { setEmail('aryan@example.com'); setPass('student123'); }
-    else { setEmail('admin@sightexamai.in'); setPass('admin123'); }
+    else { setEmail('admin@drishtix.in'); setPass('admin123'); }
   }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', padding: '2rem' }}>
       <div style={{ width: '100%', maxWidth: 420 }}>
         {/* Brand */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem', color: 'var(--primary)' }} aria-hidden="true">
-            <Eye size={44} strokeWidth={1.75} />
+        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.85rem' }}>
+            <div style={{ width: 72, height: 72, borderRadius: '1rem', background: '#fff', boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '6px' }}>
+              <img src="/drishtix-icon.png" alt="DrishtiX Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            </div>
           </div>
-          <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.75rem', fontWeight: 900, color: 'var(--text)', marginBottom: '0.35rem' }}>
-            Welcome Back
+          <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.85rem', fontWeight: 900, color: 'var(--text)', marginBottom: '0.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span>Drishti</span><span style={{ color: '#F59E0B' }}>X</span>
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Sign in to continue your exam preparation</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.04em' }}>Beyond Barriers, Brighter Futures</p>
         </div>
 
         <div className="card" style={{ padding: '2rem' }}>

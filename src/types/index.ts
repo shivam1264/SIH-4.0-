@@ -51,12 +51,24 @@ export interface QuestionOption {
   phoneticText?: string;
 }
 
+export interface DiagramData {
+  type: 'bar' | 'pie' | 'geometry' | 'venn' | 'line';
+  title: string;
+  altDescription: string;
+  dataTable: { label: string; value: string | number }[];
+  svgContent?: string;
+}
+
 export interface Question {
   id: string;
   subject: Subject;
   topic: string;
   text: string;
   phoneticText?: string;
+  mathFormula?: string;
+  mathVerbalization?: string;
+  diagramData?: DiagramData;
+  aiSummary?: string;
   options: QuestionOption[];
   correct: 'A' | 'B' | 'C' | 'D';
   explanation: string;
@@ -152,6 +164,8 @@ export interface StudentAccommodations {
   highContrast: boolean;
   brailleDisplay: boolean;
   audioDescriptions: boolean;
+  autonomousExamMode?: boolean;
+  udidNumber?: string;
 }
 
 export interface AdminStudent {
@@ -230,5 +244,41 @@ export interface ComplianceReport {
   status: 'Ready' | 'Generating';
   fileSize: string;
   generatedDate: string;
+}
+
+// ── Study Materials ────────────────────────────
+export interface StudyMaterial {
+  id: string;
+  title: string;
+  subject: Subject;
+  category: string;
+  readTimeMinutes: number;
+  summary: string;
+  content: string;
+  keyPoints: string[];
+  audioNarrationText: string;
+  downloadUrl?: string;
+  fileSize?: string;
+  createdAt: string;
+  author?: string;
+  tags: string[];
+}
+
+// ── Previous Year Papers (PYQs) ────────────────
+export interface PYQPaper {
+  id: string;
+  title: string;
+  examName: string;
+  year: number;
+  shift?: string;
+  category: string;
+  totalQuestions: number;
+  durationMinutes: number;
+  linkedExamId?: string;
+  pdfUrl?: string;
+  audioSummaryText: string;
+  topicsCovered: string[];
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  createdAt: string;
 }
 

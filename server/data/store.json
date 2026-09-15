@@ -206,6 +206,22 @@
   ],
   "questionBank": [
     {
+      "id": "qb-1789504443572-0ege8",
+      "text": "Who discovered Gravity?",
+      "options": [
+        "Isaac Newton",
+        "Albert Einstein",
+        "Galileo Galilei",
+        "Nikola Tesla"
+      ],
+      "correctAnswer": 0,
+      "explanation": "Newton formulated gravity.",
+      "topic": "Physics",
+      "difficulty": "Easy",
+      "phoneticAudioText": "Question: Who discovered Gravity?. Option A: Isaac Newton. Option B: Albert Einstein. Option C: Galileo Galilei. Option D: Nikola Tesla. Correct is Option A.",
+      "approved": true
+    },
+    {
       "id": "qb-1789253321285",
       "text": "Under the Indian Constitution, which of the following writs can be issued against private individuals as well as public authorities?",
       "options": [
@@ -315,6 +331,21 @@
     }
   ],
   "attemptLogs": [
+    {
+      "id": "att_1789503966401",
+      "candidateName": "Rahul Sharma",
+      "rollNo": "PWD-2026-081",
+      "examTitle": "SSC CGL Tier-1 2024 Shift 1",
+      "examId": "ssc-reasoning-01",
+      "score": 88,
+      "totalMarks": 100,
+      "percentage": 88,
+      "passed": true,
+      "completedAt": "2026-09-15 20:26",
+      "timeTakenMinutes": 18,
+      "speechCommandsUsed": 24,
+      "audioIntegrityStatus": "Clean"
+    },
     {
       "id": "att_101",
       "candidateName": "Rahul Sharma",
@@ -442,6 +473,281 @@
       "status": "Certified",
       "violationsFound": 2,
       "remediated": 2
+    }
+  ],
+  "studyMaterials": [
+    {
+      "id": "sm-1789503986395",
+      "title": "Indian Banking System & RBI Monetary Policy",
+      "subject": "Economics",
+      "category": "Banking Awareness",
+      "readTimeMinutes": 10,
+      "summary": "RBI repo rate, reverse repo rate, CRR, SLR and monetary policy committee framework.",
+      "content": "Detailed lesson on RBI and monetary policy tools...",
+      "keyPoints": [
+        "Repo rate is lending rate to commercial banks",
+        "CRR is Cash Reserve Ratio kept with RBI"
+      ],
+      "audioNarrationText": "Indian Banking System and RBI Monetary Policy.",
+      "downloadUrl": "#",
+      "fileSize": "350 KB",
+      "createdAt": "2026-09-15",
+      "author": "Exam Content Cell",
+      "tags": []
+    },
+    {
+      "id": "sm-01",
+      "title": "Indian Constitution: Preamble, Fundamental Rights & Writs",
+      "subject": "General Awareness",
+      "category": "Indian Polity",
+      "readTimeMinutes": 8,
+      "summary": "Comprehensive audio-narrated breakdown of Articles 12-35, landmark Supreme Court judgments, and 5 constitutional writs.",
+      "content": "The Constitution of India is the supreme law of India. The document lays down the framework that demarcates fundamental political code, structure, procedures, powers, and duties of government institutions and sets out fundamental rights, directive principles, and the duties of citizens.\n\nPart III contains Fundamental Rights (Articles 12 to 35). Under Article 21, protection of life and personal liberty is guaranteed. The Supreme Court in the landmark K.S. Puttaswamy v. Union of India (2017) judgment affirmed that Right to Privacy is a fundamental right protected under Article 21.\n\nUnder Article 32, citizens can directly petition the Supreme Court for enforcement of fundamental rights using five prerogative writs:\n1. Habeas Corpus: To release a person from unlawful detention.\n2. Mandamus: Command to a public authority to perform a statutory duty.\n3. Prohibition: Issued by a higher court to prevent an inferior court from exceeding jurisdiction.\n4. Certiorari: To quash an order issued without jurisdiction or with error of law.\n5. Quo-Warranto: To challenge the legal authority of a person holding a public office.",
+      "keyPoints": [
+        "Article 21 guarantees life and personal liberty, including Privacy (Puttaswamy case)",
+        "Article 32 is termed the \"Heart and Soul\" of the Constitution by Dr. B.R. Ambedkar",
+        "Five constitutional writs: Habeas Corpus, Mandamus, Prohibition, Certiorari, and Quo-Warranto",
+        "Fundamental Rights are justiciable in High Courts (Art. 226) and Supreme Court (Art. 32)"
+      ],
+      "audioNarrationText": "Indian Constitution: Preamble, Fundamental Rights and Writs. Part three of the Indian Constitution guarantees Fundamental Rights from Articles twelve to thirty-five. Article twenty-one guarantees protection of life and personal liberty. Under Article thirty-two, citizens can approach the Supreme Court directly through five writs: Habeas Corpus, Mandamus, Prohibition, Certiorari, and Quo-Warranto.",
+      "downloadUrl": "#",
+      "fileSize": "420 KB",
+      "createdAt": "2026-03-10",
+      "author": "Govt. Exam Prep Research Cell",
+      "tags": [
+        "Polity",
+        "Constitution",
+        "Writs",
+        "Article 21",
+        "UPSC",
+        "SSC"
+      ]
+    },
+    {
+      "id": "sm-02",
+      "title": "Quantitative Aptitude: Percentage, Profit & Loss Master Formulas",
+      "subject": "Mathematics",
+      "category": "Quantitative Aptitude",
+      "readTimeMinutes": 10,
+      "summary": "Fast calculation shortcuts, percentage multiplier methods, and accessible formula descriptions.",
+      "content": "In competitive examinations like SSC CGL and Banking, percentage and profit-loss questions form over 25% of the quantitative aptitude section.\n\nKey Concepts:\n1. Multiplier Method:\n- To increase a number by x%, multiply by (1 + x/100).\n- To decrease a number by x%, multiply by (1 - x/100).\n\n2. Expenditure Invariance Rule:\nIf the price of a commodity increases by R%, consumption must be reduced by [R / (100 + R)] * 100% so that expenditure remains unchanged.\n\n3. Profit and Loss:\n- Cost Price (CP): Original price of an item.\n- Selling Price (SP): Price at which an item is sold.\n- Profit = SP - CP. Profit Percentage = (Profit / CP) * 100.\n- Loss = CP - SP. Loss Percentage = (Loss / CP) * 100.\n- Marked Price (MP) and Discount: Discount Percentage is always calculated on Marked Price.",
+      "keyPoints": [
+        "If price increases by 25%, consumption decreases by 20% to keep expenditure equal",
+        "Profit percentage is always calculated on Cost Price unless specified otherwise",
+        "Discount is always deducted from Marked Price: SP = MP * (1 - Discount%/100)"
+      ],
+      "audioNarrationText": "Quantitative Aptitude: Percentage, Profit and Loss Master Formulas. When price increases by R percent, reduction in consumption is R divided by one hundred plus R, multiplied by one hundred percent. Profit percentage equals profit divided by cost price multiplied by one hundred.",
+      "downloadUrl": "#",
+      "fileSize": "310 KB",
+      "createdAt": "2026-03-11",
+      "author": "Aptitude Training Wing",
+      "tags": [
+        "Mathematics",
+        "Percentage",
+        "Profit & Loss",
+        "SSC",
+        "Banking"
+      ]
+    },
+    {
+      "id": "sm-03",
+      "title": "Logical Reasoning: Syllogisms & Deductive Rules",
+      "subject": "Reasoning",
+      "category": "Logical Reasoning",
+      "readTimeMinutes": 7,
+      "summary": "Step-by-step rules for All, Some, No statements without visual diagram dependence, using auditory rules.",
+      "content": "Syllogism tests deductive logic without needing to visualize Venn diagrams, ideal for screen reader users and voice assistance.\n\nClassification of Propositions:\n1. Universal Affirmative (Type A): \"All A are B\".\nConversion: \"Some B are A\" is definitely true.\n\n2. Universal Negative (Type E): \"No A is B\".\nConversion: \"No B is A\" and \"Some B are not A\" are definitely true.\n\n3. Particular Affirmative (Type I): \"Some A are B\".\nConversion: \"Some B are A\" is definitely true.\n\n4. Particular Negative (Type O): \"Some A are not B\".\nNo definite conversion without qualification.\n\nGolden Rules of Deduction:\n- From two negative premises, no definite conclusion follows.\n- If one premise is negative, the conclusion must be negative.\n- If one premise is particular, the conclusion must be particular.",
+      "keyPoints": [
+        "All A are B implies Some B are A is always valid",
+        "Two negative premises never produce a valid universal conclusion",
+        "Screen-reader auditory verification avoids confusing spatial overlaps"
+      ],
+      "audioNarrationText": "Logical Reasoning: Syllogisms and Deductive Rules. Universal affirmative statements state that all A are B, from which some B are A always follows. Universal negative statements state that no A is B. If one premise is negative, the conclusion must always be negative.",
+      "downloadUrl": "#",
+      "fileSize": "290 KB",
+      "createdAt": "2026-03-12",
+      "author": "Cognitive Reasoning Unit",
+      "tags": [
+        "Reasoning",
+        "Syllogisms",
+        "Deductive Logic",
+        "Accessible Logic"
+      ]
+    },
+    {
+      "id": "sm-04",
+      "title": "Modern Indian History: National Freedom Struggle Timeline (1857-1947)",
+      "subject": "History",
+      "category": "Modern History",
+      "readTimeMinutes": 12,
+      "summary": "Chronological timeline of major national movements, Congress sessions, and key enactments.",
+      "content": "Chronology of Key Historic Milestones:\n- 1857: Sepoy Mutiny / First War of Indian Independence.\n- 1885: Formation of Indian National Congress (INC) in Bombay, presided by W.C. Bonnerjee.\n- 1905: Partition of Bengal by Lord Curzon; launch of Swadeshi and Boycott Movement.\n- 1916: Lucknow Pact between Congress and Muslim League; Home Rule League formed.\n- 1919: Rowlatt Act and Jallianwala Bagh Massacre on 13th April in Amritsar.\n- 1920: Non-Cooperation Movement launched by Mahatma Gandhi after Khilafat issue.\n- 1929: Lahore Session of INC presided by Jawaharlal Nehru adopts \"Purna Swaraj\" resolution.\n- 1930: Dandi March (Salt Satyagraha) launches Civil Disobedience Movement.\n- 1942: Quit India Movement launched with the slogan \"Do or Die\" at Gowalia Tank, Bombay.\n- 1947: Indian Independence Act passed by British Parliament; India gains freedom on 15th August.",
+      "keyPoints": [
+        "Lahore Session 1929 declared 26th January as Independence Day, later celebrated as Republic Day",
+        "1919 Government of India Act introduced Dyarchy in provincial administration",
+        "Quit India Movement 1942 was marked by the historic clarion call \"Do or Die\""
+      ],
+      "audioNarrationText": "Modern Indian History: National Freedom Struggle Timeline. Key events include the eighteen fifty-seven revolt, the nineteen twenty Non-Cooperation Movement, the nineteen twenty-nine Lahore resolution for complete independence, and the nineteen forty-two Quit India Movement.",
+      "downloadUrl": "#",
+      "fileSize": "510 KB",
+      "createdAt": "2026-03-13",
+      "author": "Historical Research Council",
+      "tags": [
+        "History",
+        "Freedom Movement",
+        "UPSC",
+        "SSC CGL",
+        "Timeline"
+      ]
+    },
+    {
+      "id": "sm-05",
+      "title": "General Science: Fundamental Physics Laws, Acoustics & Ecology",
+      "subject": "General Science",
+      "category": "Physics & Ecology",
+      "readTimeMinutes": 9,
+      "summary": "Auditory guide to SI units, sound wave frequency, Newton’s laws, and environmental conservation.",
+      "content": "Physics Principles:\n1. Newton’s Laws of Motion:\n- First Law (Inertia): An object remains in rest or uniform motion unless acted upon by external unbalanced force.\n- Second Law: Force equals mass times acceleration (F = m * a).\n- Third Law: Every action has an equal and opposite reaction.\n\n2. Acoustics and Sound:\n- Frequency is measured in Hertz (Hz).\n- Audible range of human ear: 20 Hz to 20,000 Hz (20 kHz).\n- Infrasound: Below 20 Hz (e.g., seismic waves, elephant vocalizations).\n- Ultrasound: Above 20,000 Hz (used in SONAR and medical ultrasonography).\n\nEcology & Biodiversity:\n- In-Situ Conservation: Protecting species in their natural habitats (National Parks, Wildlife Sanctuaries, Biosphere Reserves).\n- Ex-Situ Conservation: Protection outside natural habitats (Botanical Gardens, Zoological Parks, Seed Banks, Gene Banks).",
+      "keyPoints": [
+        "Audible human hearing is twenty to twenty thousand Hertz",
+        "National Parks are In-situ conservation; Botanical gardens are Ex-situ conservation",
+        "Acceleration due to gravity on Earth is approximately nine point eight meters per second squared"
+      ],
+      "audioNarrationText": "General Science: Fundamental Physics Laws, Acoustics and Ecology. Sound frequency audible to humans spans twenty Hertz to twenty thousand Hertz. In-situ conservation protects species in natural reserves, while ex-situ conservation preserves genetic assets in botanical gardens and seed banks.",
+      "downloadUrl": "#",
+      "fileSize": "380 KB",
+      "createdAt": "2026-03-14",
+      "author": "Scientific Literacy Board",
+      "tags": [
+        "Science",
+        "Physics",
+        "Sound Waves",
+        "Ecology",
+        "Conservation"
+      ]
+    }
+  ],
+  "pyqs": [
+    {
+      "id": "pyq-1789503993808",
+      "title": "UPSC CSE 2024 Prelims GS Paper 1",
+      "examName": "UPSC CSE",
+      "year": 2024,
+      "shift": "Morning Session",
+      "category": "UPSC",
+      "totalQuestions": 30,
+      "durationMinutes": 45,
+      "linkedExamId": "ssc-reasoning-01",
+      "pdfUrl": "#",
+      "audioSummaryText": "UPSC CSE 2024 Morning Session previous year question paper with 30 questions.",
+      "topicsCovered": [
+        "Polity",
+        "Modern History",
+        "Environment"
+      ],
+      "difficulty": "Hard",
+      "createdAt": "2026-09-15"
+    },
+    {
+      "id": "pyq-01",
+      "title": "SSC CGL Tier-1 2024 (Shift 1) — General Studies & Reasoning",
+      "examName": "SSC CGL",
+      "year": 2024,
+      "shift": "Shift 1 (Morning)",
+      "category": "SSC",
+      "totalQuestions": 25,
+      "durationMinutes": 20,
+      "linkedExamId": "ssc-reasoning-01",
+      "audioSummaryText": "SSC CGL Tier-1 twenty twenty-four Shift one paper containing twenty-five questions covering Indian Polity, Modern History, Syllogisms, and Direction tests. Press Attempt Mock to start.",
+      "topicsCovered": [
+        "Indian Polity",
+        "Freedom Struggle",
+        "Syllogisms",
+        "Number Series",
+        "Direction Sense"
+      ],
+      "difficulty": "Medium",
+      "createdAt": "2026-03-01"
+    },
+    {
+      "id": "pyq-02",
+      "title": "UPSC Civil Services Prelims 2023 — General Studies Paper-I",
+      "examName": "UPSC CSE",
+      "year": 2023,
+      "shift": "Morning Session",
+      "category": "UPSC",
+      "totalQuestions": 30,
+      "durationMinutes": 45,
+      "linkedExamId": "exam-1",
+      "audioSummaryText": "UPSC Civil Services Preliminary Examination twenty twenty-three General Studies Paper one with constitutional provisions, monetary policy framework, and environmental ecology.",
+      "topicsCovered": [
+        "Constitutional Law",
+        "RBI Monetary Policy",
+        "Biodiversity",
+        "In Situ Conservation"
+      ],
+      "difficulty": "Hard",
+      "createdAt": "2026-03-02"
+    },
+    {
+      "id": "pyq-03",
+      "title": "IBPS PO Prelims 2023 — Quantitative Aptitude & Reasoning",
+      "examName": "IBPS PO",
+      "year": 2023,
+      "shift": "Shift 2 (Afternoon)",
+      "category": "Banking",
+      "totalQuestions": 35,
+      "durationMinutes": 30,
+      "linkedExamId": "exam-2",
+      "audioSummaryText": "IBPS Probationary Officer Prelims twenty twenty-three paper. Emphasis on compound interest, percentage shortcuts, syllogisms, and seating arrangements.",
+      "topicsCovered": [
+        "Compound Interest",
+        "Percentages",
+        "Syllogism",
+        "Blood Relations"
+      ],
+      "difficulty": "Medium",
+      "createdAt": "2026-03-03"
+    },
+    {
+      "id": "pyq-04",
+      "title": "RRB NTPC CBT-1 2022 — General Awareness & Math",
+      "examName": "RRB NTPC",
+      "year": 2022,
+      "shift": "Shift 1",
+      "category": "Railway",
+      "totalQuestions": 40,
+      "durationMinutes": 35,
+      "linkedExamId": "ssc-reasoning-01",
+      "audioSummaryText": "Railway Recruitment Board NTPC CBT one paper. Covers railway history, physics units, algebra roots, and reasoning puzzles.",
+      "topicsCovered": [
+        "Physics Units",
+        "Indian Geography",
+        "Algebra",
+        "Number Series"
+      ],
+      "difficulty": "Easy",
+      "createdAt": "2026-03-04"
+    },
+    {
+      "id": "pyq-05",
+      "title": "SSC CHSL Tier-1 2023 — General Intelligence & GK",
+      "examName": "SSC CHSL",
+      "year": 2023,
+      "shift": "Shift 3 (Evening)",
+      "category": "SSC",
+      "totalQuestions": 25,
+      "durationMinutes": 20,
+      "linkedExamId": "exam-2",
+      "audioSummaryText": "SSC Combined Higher Secondary Level twenty twenty-three examination paper. General knowledge and reasoning with accessible verbalization.",
+      "topicsCovered": [
+        "Polity Articles",
+        "Coding-Decoding",
+        "Sound Waves",
+        "Indian Rivers"
+      ],
+      "difficulty": "Easy",
+      "createdAt": "2026-03-05"
     }
   ]
 }

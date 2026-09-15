@@ -55,8 +55,8 @@ export default function Landing() {
 
   // Step 1: Spoken Welcome & Screen Reader Announcement
   useEffect(() => {
-    document.title = 'SIGHT-EXAM AI — Exams Without Barriers';
-    const welcomeText = 'Welcome to SIGHT-EXAM AI. An accessible examination platform for independent learning. Get Started button. Login button. Press V to start voice guidance.';
+    document.title = 'DrishtiX — Beyond Barriers, Brighter Futures';
+    const welcomeText = 'Welcome to DrishtiX. Beyond Barriers, Brighter Futures. An accessible examination platform for independent learning. Get Started button. Login button. Press V to start voice guidance.';
 
     // Screen reader announcement
     const announce = document.createElement('div');
@@ -165,13 +165,18 @@ export default function Landing() {
       {/* Navbar */}
       <header style={{ position: 'sticky', top: 0, zIndex: 100, background: 'var(--bg-card)', borderBottom: '1px solid var(--border)', backdropFilter: 'blur(10px)' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0.85rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg, #2563EB, #7C3AED)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }} aria-hidden="true">
-              <Eye size={20} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ width: 42, height: 42, borderRadius: '0.65rem', background: '#fff', boxShadow: '0 2px 10px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '3px' }} aria-hidden="true">
+              <img src="/drishtix-icon.png" alt="DrishtiX Emblem" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
             </div>
             <div>
-              <span style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: '1.1rem', color: 'var(--text)' }}>SIGHT-EXAM AI</span>
-              <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', letterSpacing: '0.1em', fontWeight: 600 }}>EXAMS WITHOUT BARRIERS</div>
+              <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 900, fontSize: '1.25rem', lineHeight: 1.1, display: 'flex', alignItems: 'center' }}>
+                <span style={{ color: 'var(--text)' }}>Drishti</span>
+                <span style={{ color: '#F59E0B' }}>X</span>
+              </div>
+              <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)', letterSpacing: '0.04em', fontWeight: 700 }}>
+                BEYOND BARRIERS, BRIGHTER FUTURES
+              </div>
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -321,7 +326,7 @@ export default function Landing() {
 
       <footer style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--border)', padding: '2rem 1.5rem', textAlign: 'center' }}>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-          © 2026 SIGHT-EXAM AI · Built for SIH 4.0 · WCAG 2.1 AA Compliant · Dedicated to barrier-free accessibility
+          © 2026 DrishtiX · Beyond Barriers, Brighter Futures · Built for SIH 4.0 · WCAG 2.1 AA Compliant · Dedicated to barrier-free accessibility
         </p>
       </footer>
 

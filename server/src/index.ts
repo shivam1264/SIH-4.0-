@@ -11,6 +11,8 @@ import attemptRoutes from './routes/attempt.routes.js';
 import analyticsRoutes from './routes/analytics.routes.js';
 import accessibilityRoutes from './routes/accessibility.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
+import studyMaterialRoutes from './routes/studyMaterial.routes.js';
+import pyqRoutes from './routes/pyq.routes.js';
 
 dotenv.config();
 dotenv.config({ path: './server/.env' });
@@ -68,6 +70,8 @@ app.use('/api/attempts', attemptRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/accessibility', accessibilityRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/study-materials', studyMaterialRoutes);
+app.use('/api/pyqs', pyqRoutes);
 
 // Global 404 Handler
 app.use((req, res) => {

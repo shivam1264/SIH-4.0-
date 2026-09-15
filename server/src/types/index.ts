@@ -117,3 +117,37 @@ export interface ComplianceReport {
   violationsFound: number;
   remediated: number;
 }
+
+export interface StudyMaterial {
+  id: string;
+  title: string;
+  subject: string;
+  category: string;
+  readTimeMinutes: number;
+  summary: string;
+  content: string;
+  keyPoints: string[];
+  audioNarrationText: string;
+  downloadUrl?: string;
+  fileSize?: string;
+  createdAt: string;
+  author?: string;
+  tags: string[];
+}
+
+export interface PYQPaper {
+  id: string;
+  title: string;
+  examName: string;
+  year: number;
+  shift?: string;
+  category: string;
+  totalQuestions: number;
+  durationMinutes: number;
+  linkedExamId?: string;
+  pdfUrl?: string;
+  audioSummaryText: string;
+  topicsCovered: string[];
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  createdAt: string;
+}

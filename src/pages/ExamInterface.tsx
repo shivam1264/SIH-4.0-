@@ -20,15 +20,26 @@ import {
   Play,
   ArrowLeft,
   Loader2,
+  ShieldCheck,
+  Keyboard,
+  Calculator,
+  Eye,
+  Sparkles,
+  AlertTriangle,
 } from 'lucide-react';
 import { EXAMS, MOCK_ATTEMPTS } from '../data/mockData';
+import { examsApi } from '../services/api';
 import { speechService } from '../services/speechService';
 import { audioCueService } from '../services/audioCueService';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useAuth } from '../context/AuthContext';
 import { classifyVoiceCommand, VoiceCommandMatch } from '../services/voiceCommandClassifier';
 import { globalVoiceService } from '../services/globalVoiceService';
-import type { ExamAttempt, SubjectBreakdown } from '../types';
+import PreExamCalibrationWizard from '../components/PreExamCalibrationWizard';
+import AccessibleMathViewer, { verbalizeMathExpression } from '../components/AccessibleMathViewer';
+import AccessibleDiagramViewer from '../components/AccessibleDiagramViewer';
+import KeyboardShortcutsModal from '../components/KeyboardShortcutsModal';
+import type { Exam, ExamAttempt, SubjectBreakdown } from '../types';
 
 export default function ExamInterface() {
   const { examId } = useParams<{ examId: string }>();
@@ -36,12 +47,46 @@ export default function ExamInterface() {
   const { prefs } = useAccessibility();
   const { user } = useAuth();
 
-  const exam = EXAMS.find(e => e.id === examId);
+  const [exam, setExam] = useState<Exam | undefined>(() => {
+    return EXAMS.find(e => e.id === examId);
+  });
+  const [isFetchingExam, setIsFetchingExam] = useState<boolean>(!exam);
+
+  useEffect(() => {
+    if (!examId) return;
+    examsApi.getById(examId).then(found => {
+      if (found) {
+        setExam(found);
+      }
+      setIsFetchingExam(false);
+    }).catch(() => {
+      setIsFetchingExam(false);
+    });
+  }, [examId]);
+
+  // Compensatory extra time & autonomous mode state
+  const [timeMultiplier, setTimeMultiplier] = useState<number>(() => {
+    const saved = localStorage.getItem('sight_time_multiplier');
+    return saved ? parseFloat(saved) : 1.5;
+  });
+  const [autonomousMode, setAutonomousMode] = useState<boolean>(() => {
+    return localStorage.getItem('sight_autonomous_mode') !== 'false';
+  });
+  const [showCalibrationWizard, setShowCalibrationWizard] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showAiExplainer, setShowAiExplainer] = useState(false);
+  const [proctorWarnings, setProctorWarnings] = useState(0);
+  const [voiceAuditLog, setVoiceAuditLog] = useState<{ time: string; action: string; command: string }[]>([]);
+  const [screenReaderAnnouncement, setScreenReaderAnnouncement] = useState('');
 
   const [current, setCurrent]           = useState(0);
   const [answers, setAnswers]           = useState<Record<string, 'A' | 'B' | 'C' | 'D'>>({});
   const [flagged, setFlagged]           = useState<Record<string, boolean>>({});
-  const [timeLeft, setTimeLeft]         = useState((exam?.durationMinutes ?? 10) * 60);
+  const [timeLeft, setTimeLeft]         = useState(() => {
+    const baseMin = exam?.durationMinutes ?? 10;
+    const mult = parseFloat(localStorage.getItem('sight_time_multiplier') || '1.5');
+    return Math.round(baseMin * 60 * mult);
+  });
   const [voiceActive, setVoiceActive]   = useState(true);
   const [voiceText, setVoiceText]       = useState('');
   const [lastAction, setLastAction]     = useState('');
@@ -115,17 +160,76 @@ export default function ExamInterface() {
     await enableMicrophone();
     audioCueService.examStart();
     const qCount = examRef.current?.questions.length ?? 10;
-    speechService.speak(`Your ${qCount}-question mock test has started. Good luck!`, { priority: true });
+    speechService.speak(`Your ${qCount}-question mock test has started in Autonomous Scribe-Free Mode with ${timeMultiplier}x time allocation. Good luck!`, { priority: true });
+  }, [timeMultiplier]);
+
+  const verbalizeCurrentFormula = useCallback(() => {
+    const ex = examRef.current;
+    if (!ex) return;
+    const cur = currentRef.current;
+    const q = ex.questions[cur];
+    if (q?.mathFormula) {
+      const spoken = q.mathVerbalization || verbalizeMathExpression(q.mathFormula);
+      speechService.speak(`Mathematical formula: ${spoken}`, { priority: true });
+    } else {
+      speechService.speak('No mathematical formula present in this question.');
+    }
   }, []);
+
+  const describeCurrentDiagram = useCallback(() => {
+    const ex = examRef.current;
+    if (!ex) return;
+    const cur = currentRef.current;
+    const q = ex.questions[cur];
+    if (q?.diagramData) {
+      const dataStr = q.diagramData.dataTable?.map(d => `${d.label}: ${d.value}`).join(', ') || '';
+      speechService.speak(`Visual diagram description: ${q.diagramData.altDescription}. ${dataStr ? 'Data values: ' + dataStr : ''}`, { priority: true });
+    } else {
+      speechService.speak('No visual diagram present in this question.');
+    }
+  }, []);
+
+  const explainCurrentQuestion = useCallback(() => {
+    const ex = examRef.current;
+    if (!ex) return;
+    const cur = currentRef.current;
+    const q = ex.questions[cur];
+    setShowAiExplainer(true);
+    if (q?.aiSummary) {
+      speechService.speak(`AI Question Simplification: ${q.aiSummary}`, { priority: true });
+    } else {
+      speechService.speak(`Question Summary: This is a ${q.difficulty} question from ${q.subject}, topic ${q.topic}. ${q.text}`, { priority: true });
+    }
+  }, []);
+
+  // Real-Exam Proctoring Safeguard: Window Focus / Tab-Switch Detection
+  useEffect(() => {
+    if (!started || submitted) return;
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setProctorWarnings(w => {
+          const next = w + 1;
+          audioCueService.error();
+          speechService.speak(
+            `Proctoring Alert! Examination window focus lost. Warning ${next}. Please return to the examination screen immediately.`,
+            { priority: true }
+          );
+          return next;
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [started, submitted]);
 
   const readPreExamOverview = useCallback(() => {
     const ex = examRef.current;
     if (!ex) return;
     speechService.speak(
-      `${ex.title}. ${ex.totalQuestions} questions, ${ex.durationMinutes} minutes duration. Say "Start the exam" or click Begin Exam to start.`,
+      `${ex.title}. ${ex.totalQuestions} questions, duration ${Math.round(ex.durationMinutes * timeMultiplier)} minutes with ${timeMultiplier}x PwD time allocation. Say "Start the exam", press Enter to begin, or press C to calibrate accessibility.`,
       { priority: true }
     );
-  }, []);
+  }, [timeMultiplier]);
 
   // Step 16: Spoken Submit Status & Action Guidance
   const readSubmitStatus = useCallback(() => {
@@ -181,7 +285,7 @@ export default function ExamInterface() {
   // Redirect if exam not found
   useEffect(() => {
     if (!exam) { navigate('/exams'); return; }
-    document.title = `${exam.title} — SIGHT-EXAM AI`;
+    document.title = `${exam.title} — DrishtiX`;
   }, [exam, navigate]);
 
   // Auto-read exam instructions upon opening pre-exam screen
@@ -335,12 +439,22 @@ export default function ExamInterface() {
         case 'r': case 'R': readQuestion(); break;
         case 'v': case 'V': toggleVoice(); break;
         case 's': case 'S': e.preventDefault(); setShowSubmitDlg(true); break;
-        case 'Escape': setShowPalette(false); break;
+        case 'm': case 'M': verbalizeCurrentFormula(); break;
+        case 'd': case 'D': describeCurrentDiagram(); break;
+        case 'e': case 'E': explainCurrentQuestion(); break;
+        case '?': case '/': setShowShortcutsModal(true); break;
+        case 'c': case 'C': setShowCalibrationWizard(true); break;
+        case 'Escape':
+          setShowPalette(false);
+          setShowShortcutsModal(false);
+          setShowCalibrationWizard(false);
+          setShowAiExplainer(false);
+          break;
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [started, current, showSubmitDlg, voiceActive, answers, flagged, exam]);
+  }, [started, current, showSubmitDlg, voiceActive, answers, flagged, exam, verbalizeCurrentFormula, describeCurrentDiagram, explainCurrentQuestion]);
 
   function selectOption(opt: 'A' | 'B' | 'C' | 'D') {
     const ex = examRef.current;
@@ -528,6 +642,10 @@ export default function ExamInterface() {
         }
         break;
       }
+      case 'MATH':      verbalizeCurrentFormula(); break;
+      case 'DIAGRAM':   describeCurrentDiagram(); break;
+      case 'EXPLAIN':   explainCurrentQuestion(); break;
+      case 'SHORTCUTS': setShowShortcutsModal(true); break;
       case 'START_EXAM':
         if (!startedRef.current) {
           startExamNow();
@@ -537,6 +655,12 @@ export default function ExamInterface() {
         break;
       case 'STOP_VOICE': toggleVoice(); break;
     }
+
+    // Record voice activity audit trail for autonomous proctoring transparency
+    setVoiceAuditLog(prev => [
+      ...prev,
+      { time: new Date().toLocaleTimeString(), action: cmd, command: cmd }
+    ]);
   }
 
   async function toggleVoice() {
@@ -837,7 +961,38 @@ export default function ExamInterface() {
     setTimeout(() => navigate(`/results/${attempt.id}`), 1200);
   }
 
-  if (!exam) return null;
+  if (isFetchingExam) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--text)' }}>
+        <div style={{ textAlign: 'center', padding: '2rem' }}>
+          <Loader2 size={36} className="animate-spin" color="var(--primary)" style={{ margin: '0 auto 1rem auto' }} />
+          <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.25rem', fontWeight: 700 }}>Loading Examination Environment...</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Synchronizing questions, audio phonetic cues, and compensatory timer.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!exam || !exam.questions || exam.questions.length === 0) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', color: 'var(--text)' }}>
+        <div className="card" style={{ maxWidth: 480, textAlign: 'center', padding: '2.5rem 2rem' }}>
+          <AlertTriangle size={42} color="#EF4444" style={{ margin: '0 auto 1rem auto' }} />
+          <h2 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.3rem', fontWeight: 800, marginBottom: '0.5rem' }}>Examination Not Ready or Empty</h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: 1.5, marginBottom: '1.5rem' }}>
+            The requested test contains no active questions yet. Please return to the Mock Tests library or ask your administrator.
+          </p>
+          <button
+            className="btn-primary"
+            onClick={() => navigate('/exams')}
+            style={{ width: '100%', padding: '0.75rem', fontWeight: 700 }}
+          >
+            Return to Mock Tests Library
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Start screen
   if (!started) {
@@ -921,7 +1076,7 @@ export default function ExamInterface() {
               <span>🎙️ Voice Active: Say <u>"Start the Exam"</u> or press <u>Enter</u> to begin hands-free!</span>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="btn-secondary" onClick={() => navigate('/exams')} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <ArrowLeft size={16} /> Cancel
               </button>
@@ -932,6 +1087,14 @@ export default function ExamInterface() {
                 aria-label="Read exam instructions aloud"
               >
                 <Volume2 size={16} /> Read Info
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={() => setShowCalibrationWizard(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', borderColor: 'var(--primary)', color: 'var(--primary)' }}
+                aria-label="Calibrate accessibility hardware and accommodations"
+              >
+                <ShieldCheck size={16} /> Calibrate Accessibility (C)
               </button>
               <button
                 id="begin-exam-btn"
@@ -945,6 +1108,19 @@ export default function ExamInterface() {
             </div>
           </div>
         </div>
+        {/* Pre-Exam Calibration Wizard Modal */}
+        <PreExamCalibrationWizard
+          isOpen={showCalibrationWizard}
+          onClose={() => setShowCalibrationWizard(false)}
+          onComplete={({ timeMultiplier: tm, autonomousMode: am }) => {
+            setTimeMultiplier(tm);
+            setAutonomousMode(am);
+            setShowCalibrationWizard(false);
+            setTimeLeft(Math.round(exam.durationMinutes * 60 * tm));
+            startExamNow();
+          }}
+          examTitle={exam.title}
+        />
       </div>
     );
   }
@@ -957,22 +1133,46 @@ export default function ExamInterface() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
+      {/* Screen Reader Only Accessible Live Announcements */}
+      <div className="sr-only" role="status" aria-live="polite">
+        {screenReaderAnnouncement || `Question ${current + 1} of ${exam.questions.length}. ${lastAction}`}
+      </div>
+
       {/* Exam header */}
       <header style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)', padding: '0.75rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', position: 'sticky', top: 0, zIndex: 50 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text)' }}>{exam.title}</span>
           <span className="badge badge-blue" style={{ fontSize: '0.7rem' }}>Q {current + 1}/{exam.questions.length}</span>
+          {autonomousMode && (
+            <span className="badge badge-green" style={{ fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+              <ShieldCheck size={12} /> Autonomous Mode
+            </span>
+          )}
+          {proctorWarnings > 0 && (
+            <span className="badge badge-red" style={{ fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+              ⚠️ Proctor Warning ({proctorWarnings})
+            </span>
+          )}
           {flagged[q.id] && (
             <span className="badge badge-amber" style={{ fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
               <Flag size={12} fill="currentColor" /> Flagged
             </span>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
           {/* Timer */}
-          <div style={{ background: `${timerColor}20`, border: `2px solid ${timerColor}`, borderRadius: '0.5rem', padding: '0.35rem 0.9rem', fontFamily: 'monospace', fontWeight: 900, fontSize: '1.1rem', color: timerColor, display: 'flex', alignItems: 'center', gap: '0.4rem' }} aria-label={`Time remaining: ${mins} minutes and ${secs} seconds`} aria-live="off">
-            <Clock size={16} /> {mins}:{secs}
+          <div style={{ background: `${timerColor}20`, border: `2px solid ${timerColor}`, borderRadius: '0.5rem', padding: '0.35rem 0.75rem', fontFamily: 'monospace', fontWeight: 900, fontSize: '1.05rem', color: timerColor, display: 'flex', alignItems: 'center', gap: '0.35rem' }} aria-label={`Time remaining: ${mins} minutes and ${secs} seconds`} aria-live="off">
+            <Clock size={15} /> {mins}:{secs}
           </div>
+          {/* Keyboard shortcuts helper button */}
+          <button
+            className="btn-ghost"
+            onClick={() => setShowShortcutsModal(true)}
+            style={{ fontSize: '0.78rem', padding: '0.35rem 0.6rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+            aria-label="Open Keyboard Shortcuts Guide (?)"
+          >
+            <Keyboard size={14} /> Keys (?)
+          </button>
           {/* Voice toggle */}
           <button className={voiceActive ? 'btn-primary mic-pulse' : 'btn-secondary'} onClick={toggleVoice} aria-pressed={voiceActive} aria-label={voiceActive ? 'Voice commands active. Click to disable.' : 'Click to enable voice commands'} style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             {voiceActive ? <><Mic size={15} /> Listening</> : <><MicOff size={15} /> Voice Off</>}
@@ -1132,11 +1332,102 @@ export default function ExamInterface() {
             </div>
 
             {/* Question number + text */}
-            <div style={{ marginBottom: '1.75rem' }}>
+            <div style={{ marginBottom: '1.25rem' }}>
               <h2 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
                 QUESTION {current + 1} OF {exam.questions.length}
               </h2>
               <p style={{ fontSize: '1.1rem', fontWeight: 500, color: 'var(--text)', lineHeight: 1.65, whiteSpace: 'pre-line' }}>{q.text}</p>
+            </div>
+
+            {/* Accessible Mathematical Formula Rendering & Verbalizer */}
+            {q.mathFormula && (
+              <AccessibleMathViewer
+                formula={q.mathFormula}
+                verbalization={q.mathVerbalization}
+                title="Mathematical Question Expression"
+              />
+            )}
+
+            {/* Accessible Graphical / Diagram Representation */}
+            {q.diagramData && (
+              <AccessibleDiagramViewer diagram={q.diagramData} />
+            )}
+
+            {/* AI Simplified Explanation Callout */}
+            {showAiExplainer && (
+              <div
+                className="fade-in"
+                style={{
+                  background: 'rgba(124, 58, 237, 0.08)',
+                  border: '1.5px solid #7C3AED',
+                  borderRadius: '0.65rem',
+                  padding: '0.85rem 1.1rem',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  gap: '0.75rem',
+                }}
+              >
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <Sparkles size={18} color="#7C3AED" style={{ flexShrink: 0, marginTop: '0.15rem' }} />
+                  <div>
+                    <strong style={{ fontSize: '0.85rem', color: '#6D28D9', display: 'block', marginBottom: '0.2rem' }}>
+                      AI Simplified Explanation:
+                    </strong>
+                    <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text)', lineHeight: 1.5 }}>
+                      {q.aiSummary || `This question tests core principles of ${q.topic}. Identify the specific relationship asked in: "${q.text}".`}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  className="btn-ghost"
+                  onClick={() => setShowAiExplainer(false)}
+                  style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {/* Accessible Quick Assist Action Bar */}
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+              <button
+                onClick={explainCurrentQuestion}
+                className="btn-ghost"
+                style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                aria-label="Explain or simplify this question with AI (E)"
+              >
+                <Sparkles size={13} color="var(--primary)" /> AI Explain (E)
+              </button>
+              <button
+                onClick={readQuestion}
+                className="btn-ghost"
+                style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                aria-label="Read question and options aloud (R)"
+              >
+                <Volume2 size={13} /> Read Aloud (R)
+              </button>
+              {q.mathFormula && (
+                <button
+                  onClick={verbalizeCurrentFormula}
+                  className="btn-ghost"
+                  style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem', border: '1px solid var(--primary)', color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                  aria-label="Verbalize mathematical formula phonetically (M)"
+                >
+                  <Calculator size={13} /> Verbalize Math (M)
+                </button>
+              )}
+              {q.diagramData && (
+                <button
+                  onClick={describeCurrentDiagram}
+                  className="btn-ghost"
+                  style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem', border: '1px solid var(--secondary)', color: 'var(--secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                  aria-label="Describe visual diagram aloud (D)"
+                >
+                  <Eye size={13} /> Describe Diagram (D)
+                </button>
+              )}
             </div>
 
             {/* Voice Status Pill directly on the question card */}
@@ -1416,6 +1707,12 @@ export default function ExamInterface() {
           </div>
         </div>
       )}
+
+      {/* Keyboard Shortcuts Cheatsheet Modal */}
+      <KeyboardShortcutsModal
+        isOpen={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
+      />
     </div>
   );
 }

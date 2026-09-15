@@ -19,11 +19,13 @@ import {
   Accessibility,
   Bell,
   FileSpreadsheet,
+  Clock,
 } from 'lucide-react';
 
 interface NavItem {
   id?: string;
   label: string;
+  description?: string;
   path: string;
   icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number; style?: React.CSSProperties }>;
   badge?: string;
@@ -42,19 +44,22 @@ const STUDENT_NAV_GROUPS: NavGroup[] = [
       { label: 'Dashboard', path: '/dashboard', icon: Home },
       { label: 'Mock Tests', path: '/exams', icon: FileText, badge: '4 Live' },
       { label: 'AI Practice Drills', path: '/practice', icon: Target, badge: 'New' },
+      { label: 'Study Materials', path: '/study-materials', icon: BookOpen, badge: 'Notes' },
+      { label: 'Past Year Papers', path: '/pyqs', icon: FileSpreadsheet, badge: 'PYQ' },
     ],
   },
   {
     heading: 'ANALYTICS & RESULTS',
     items: [
       { label: 'Performance', path: '/performance', icon: BarChart3 },
+      { label: 'Exam History', path: '/history', icon: Clock, badge: 'Logs' },
     ],
   },
   {
     heading: 'ACCOUNT & SYSTEM',
     items: [
+      { label: 'Accessibility Settings', path: '/settings', icon: Accessibility },
       { label: 'Profile', path: '/profile', icon: UserIcon },
-      { label: 'Accessibility Settings', path: '/settings', icon: SettingsIcon },
       { label: 'Admin Panel', path: '/admin?tab=dashboard', icon: ShieldCheck, adminOnly: true },
     ],
   },
@@ -71,10 +76,13 @@ const ADMIN_NAV_ITEMS: {
     { id: 'exams', label: 'Examinations', icon: FileText, badge: '4 Live' },
     { id: 'questions', label: 'Question Bank', icon: BookOpen },
     { id: 'ai-generator', label: 'AI Question Generator', icon: Bot, badge: 'AI' },
+    { id: 'study-materials', label: 'Study Materials', icon: BookOpen, badge: 'Notes' },
+    { id: 'pyqs', label: 'Past Year Papers', icon: FileSpreadsheet, badge: 'PYQ' },
     { id: 'subjects', label: 'Subjects & Topics', icon: GraduationCap },
     { id: 'attempts', label: 'Attempts & Results', icon: Award },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'accessibility', label: 'Accessibility', icon: Accessibility, badge: '99.4%' },
+    { id: 'compliance', label: 'Compliance Audit', icon: ShieldCheck, badge: 'WCAG' },
     { id: 'notifications', label: 'Notifications', icon: Bell, badge: '3' },
     { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
@@ -103,30 +111,157 @@ export default function Sidebar({ onClose }: Props) {
     onClose?.();
   }
 
+  function getBadgeStyle(badge: string): React.CSSProperties {
+    switch (badge) {
+      case 'AI':
+      case 'New':
+        return {
+          background: 'rgba(236, 72, 153, 0.2)',
+          color: '#F472B6',
+          border: '1px solid rgba(244, 114, 182, 0.35)',
+        };
+      case '99.4%':
+        return {
+          background: 'rgba(16, 185, 129, 0.2)',
+          color: '#6EE7B7',
+          border: '1px solid rgba(52, 211, 153, 0.35)',
+        };
+      case 'WCAG':
+      case 'Notes':
+        return {
+          background: 'rgba(139, 92, 246, 0.2)',
+          color: '#C084FC',
+          border: '1px solid rgba(168, 85, 247, 0.35)',
+        };
+      case '3':
+      case 'Logs':
+        return {
+          background: 'rgba(245, 158, 11, 0.2)',
+          color: '#FCD34D',
+          border: '1px solid rgba(251, 191, 36, 0.35)',
+        };
+      case 'PYQ':
+        return {
+          background: 'rgba(14, 165, 233, 0.2)',
+          color: '#7DD3FC',
+          border: '1px solid rgba(56, 189, 248, 0.35)',
+        };
+      case '4 Live':
+      case '5 PwD':
+      default:
+        return {
+          background: 'rgba(59, 130, 246, 0.2)',
+          color: '#93C5FD',
+          border: '1px solid rgba(96, 165, 250, 0.35)',
+        };
+    }
+  }
+
   return (
     <nav className="sidebar" aria-label="Main navigation" role="navigation">
       {/* Brand Header: perfectly aligned with top navbar at 56px height */}
       <div
         style={{
           height: 56,
+          maxHeight: 56,
+          width: '100%',
+          minWidth: '100%',
+          maxWidth: '100%',
           padding: '0 0.85rem',
-          borderBottom: '1px solid var(--border)',
+          borderBottom: '1px solid var(--sidebar-border, rgba(255, 255, 255, 0.08))',
+          background: 'rgba(0, 0, 0, 0.25)',
           display: 'flex',
           alignItems: 'center',
           gap: '0.65rem',
           flexShrink: 0,
           boxSizing: 'border-box',
+          overflow: 'hidden',
         }}
       >
-        <div style={{ width: 32, height: 32, borderRadius: '0.5rem', background: 'linear-gradient(135deg, var(--primary), var(--secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 2px 5px rgba(37,99,235,0.25)', flexShrink: 0 }}>
-          <Eye size={18} strokeWidth={2.2} />
-        </div>
-        <div style={{ minWidth: 0, overflow: 'hidden' }}>
-          <div style={{ fontFamily: "'Outfit', sans-serif", fontWeight: 800, fontSize: '0.92rem', color: 'var(--text)', letterSpacing: '-0.02em', lineHeight: 1.15, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-            {isAdminRoute ? 'SIGHT-EXAM AI' : 'SIGHT-EXAM'}
+        <div
+          onClick={() => go(isAdminRoute ? '/admin' : '/dashboard')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.65rem',
+            cursor: 'pointer',
+            width: '100%',
+            minWidth: 0,
+            overflow: 'hidden',
+          }}
+          title={isAdminRoute ? 'DrishtiX Admin Control Center' : 'DrishtiX — Beyond Barriers, Brighter Futures'}
+        >
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '0.6rem',
+              background: '#ffffff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 10px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.2)',
+              flexShrink: 0,
+              overflow: 'hidden',
+              padding: '2px',
+            }}
+          >
+            <img
+              src="/drishtix-icon.png"
+              alt="DrishtiX Logo"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
           </div>
-          <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.04em', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-            {isAdminRoute ? 'ADMIN CONTROL CENTER' : 'EXAMS WITHOUT BARRIERS'}
+          <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+            <div
+              style={{
+                fontFamily: "'Outfit', sans-serif",
+                fontWeight: 900,
+                fontSize: '1.05rem',
+                letterSpacing: '-0.02em',
+                lineHeight: 1.15,
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
+                overflow: 'hidden',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <span style={{ color: '#F8FAFC' }}>Drishti</span>
+              <span style={{ color: '#F59E0B' }}>X</span>
+              {isAdminRoute && (
+                <span
+                  style={{
+                    fontSize: '0.58rem',
+                    background: '#3B82F6',
+                    color: '#fff',
+                    padding: '1px 5px',
+                    borderRadius: '4px',
+                    marginLeft: '6px',
+                    fontWeight: 800,
+                    letterSpacing: '0.04em',
+                    flexShrink: 0,
+                  }}
+                >
+                  ADMIN
+                </span>
+              )}
+            </div>
+            <div
+              style={{
+                fontSize: '0.58rem',
+                color: 'var(--sidebar-text-muted, #94A3B8)',
+                fontWeight: 700,
+                letterSpacing: '0.03em',
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
+                overflow: 'hidden',
+                marginTop: '1px',
+                lineHeight: 1.2,
+              }}
+            >
+              {isAdminRoute ? 'Admin Control Center' : 'Beyond Barriers, Brighter Futures'}
+            </div>
           </div>
         </div>
       </div>
@@ -136,7 +271,7 @@ export default function Sidebar({ onClose }: Props) {
         {isAdminRoute ? (
           /* Dedicated Admin Navigation (All 13 Modules) */
           <div>
-            <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '0.08em', padding: '0 0.6rem', marginBottom: '0.5rem' }}>
+            <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--sidebar-heading, #60A5FA)', letterSpacing: '0.08em', padding: '0 0.6rem', marginBottom: '0.5rem' }}>
               ADMINISTRATION SUITE
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
@@ -153,13 +288,14 @@ export default function Sidebar({ onClose }: Props) {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '0.5rem 0.7rem',
+                      padding: '0.52rem 0.7rem',
                       whiteSpace: 'nowrap',
+                      gap: '0.5rem',
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0, flex: 1 }}>
                       <Icon size={16} strokeWidth={isActive ? 2.3 : 1.8} style={{ flexShrink: 0 }} />
-                      <span style={{ fontSize: '0.82rem', whiteSpace: 'nowrap', fontWeight: isActive ? 700 : 500 }}>
+                      <span style={{ fontSize: '0.82rem', whiteSpace: 'nowrap', fontWeight: isActive ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {item.label}
                       </span>
                     </div>
@@ -170,11 +306,9 @@ export default function Sidebar({ onClose }: Props) {
                           fontWeight: 700,
                           padding: '0.12rem 0.45rem',
                           borderRadius: '999px',
-                          background: item.badge === 'AI' ? '#FDF2F8' : item.badge === '99.4%' ? '#F0FDF4' : '#EFF6FF',
-                          color: item.badge === 'AI' ? '#DB2777' : item.badge === '99.4%' ? '#16A34A' : '#2563EB',
-                          border: `1px solid ${item.badge === 'AI' ? '#FCE7F3' : item.badge === '99.4%' ? '#BBF7D0' : '#DBEAFE'}`,
                           flexShrink: 0,
                           lineHeight: 1.2,
+                          ...getBadgeStyle(item.badge),
                         }}
                       >
                         {item.badge}
@@ -193,10 +327,10 @@ export default function Sidebar({ onClose }: Props) {
 
             return (
               <div key={group.heading}>
-                <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-light)', letterSpacing: '0.08em', padding: '0 0.6rem', marginBottom: '0.35rem' }}>
+                <div style={{ fontSize: '0.65rem', fontWeight: 800, color: 'var(--sidebar-heading, #60A5FA)', letterSpacing: '0.08em', padding: '0 0.6rem', marginBottom: '0.4rem' }}>
                   {group.heading}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                   {visibleItems.map(item => {
                     const Icon = item.icon;
                     const isActive = location.pathname === item.path || (item.path.startsWith('/admin') && location.pathname === '/admin');
@@ -210,26 +344,28 @@ export default function Sidebar({ onClose }: Props) {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          padding: '0.55rem 0.75rem',
+                          padding: '0.55rem 0.65rem',
                           whiteSpace: 'nowrap',
+                          borderRadius: '0.65rem',
+                          gap: '0.45rem',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0, textAlign: 'left', flex: 1 }}>
                           <Icon size={17} strokeWidth={isActive ? 2.3 : 1.8} style={{ flexShrink: 0 }} />
-                          <span style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{item.label}</span>
+                          <span style={{ fontSize: '0.83rem', whiteSpace: 'nowrap', fontWeight: isActive ? 700 : 500, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {item.label}
+                          </span>
                         </div>
                         {item.badge && (
                           <span
                             style={{
-                              fontSize: '0.68rem',
+                              fontSize: '0.65rem',
                               fontWeight: 700,
-                              padding: '0.15rem 0.5rem',
+                              padding: '0.1rem 0.42rem',
                               borderRadius: '999px',
-                              background: item.badge === 'New' ? '#FDF2F8' : '#EFF6FF',
-                              color: item.badge === 'New' ? '#DB2777' : '#2563EB',
-                              border: `1px solid ${item.badge === 'New' ? '#FCE7F3' : '#DBEAFE'}`,
                               flexShrink: 0,
                               lineHeight: 1.2,
+                              ...getBadgeStyle(item.badge),
                             }}
                           >
                             {item.badge}
@@ -246,16 +382,16 @@ export default function Sidebar({ onClose }: Props) {
       </div>
 
       {/* Logout button */}
-      <div style={{ padding: '0.65rem 0.75rem', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+      <div style={{ padding: '0.65rem 0.75rem', borderTop: '1px solid var(--sidebar-border, rgba(255, 255, 255, 0.08))', background: 'rgba(0, 0, 0, 0.2)', flexShrink: 0 }}>
         <button
           onClick={handleLogout}
           style={{
             width: '100%',
             padding: '0.65rem 1rem',
             borderRadius: '0.65rem',
-            background: '#FEF2F2',
-            border: '1px solid #FEE2E2',
-            color: '#EF4444',
+            background: 'rgba(239, 68, 68, 0.12)',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            color: '#FCA5A5',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -264,6 +400,16 @@ export default function Sidebar({ onClose }: Props) {
             fontSize: '0.85rem',
             cursor: 'pointer',
             transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.22)';
+            e.currentTarget.style.color = '#FFFFFF';
+            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.45)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)';
+            e.currentTarget.style.color = '#FCA5A5';
+            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.25)';
           }}
           aria-label="Logout"
         >

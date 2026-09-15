@@ -63,7 +63,17 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
   return (
     <div className="app-layout">
       {/* Desktop sidebar */}
-      <div className="hidden md:block">
+      <div
+        className="hidden md:block"
+        style={{
+          width: 'var(--sidebar-width, 276px)',
+          minWidth: 'var(--sidebar-width, 276px)',
+          maxWidth: 'var(--sidebar-width, 276px)',
+          height: '100vh',
+          overflow: 'hidden',
+          flexShrink: 0,
+        }}
+      >
         <Sidebar />
       </div>
 
@@ -76,21 +86,25 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
         />
       )}
       {sidebarOpen && (
-        <div style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: 280, zIndex: 201, overflow: 'auto', background: 'var(--bg-sidebar)', boxShadow: '4px 0 24px rgba(0,0,0,0.2)' }}>
+        <div style={{ position: 'fixed', left: 0, top: 0, bottom: 0, width: 'var(--sidebar-width, 276px)', zIndex: 201, overflow: 'auto', background: 'var(--bg-sidebar)', boxShadow: '4px 0 24px rgba(0,0,0,0.2)' }}>
           <Sidebar onClose={() => setSidebarOpen(false)} />
         </div>
       )}
 
       {/* Main Container */}
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', maxHeight: '100vh', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', maxHeight: '100vh', overflow: 'hidden', minWidth: 0, flex: 1 }}>
         {/* Fixed Executive Header Bar */}
         <header
           role="banner"
           style={{
             height: 56,
+            maxHeight: 56,
             padding: '0 1.25rem',
-            background: 'var(--bg-card)',
+            background: 'var(--bg-header)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
             borderBottom: '1px solid var(--border)',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -98,6 +112,8 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
             top: 0,
             zIndex: 50,
             flexShrink: 0,
+            boxSizing: 'border-box',
+            overflow: 'hidden',
           }}
         >
           {/* Left: Mobile Menu & Clean Minimal Breadcrumb */}
@@ -318,6 +334,7 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
             height: 'calc(100vh - 56px)',
             padding: '1.75rem 1.5rem 3rem',
             overflowY: 'auto',
+            background: 'transparent',
           }}
         >
           {children}
@@ -346,7 +363,7 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
             </div>
 
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-              SIGHT-EXAM AI is 100% operable without touching a mouse. Use these keystrokes at any point:
+              DrishtiX is 100% operable without touching a mouse. Use these keystrokes at any point:
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxHeight: '55vh', overflowY: 'auto' }}>
@@ -370,13 +387,13 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
       )}
 
       <style>{`
-        @media (min-width: 768px) {
-          .app-layout { grid-template-columns: 260px 1fr; height: 100vh; max-height: 100vh; overflow: hidden; }
+        @media (min-width: 769px) {
+          .app-layout { grid-template-columns: var(--sidebar-width, 276px) 1fr; height: 100vh; max-height: 100vh; overflow: hidden; width: 100%; }
           .hidden.md\\:block { display: block !important; }
           .md\\:hidden { display: none !important; }
         }
-        @media (max-width: 767px) {
-          .app-layout { grid-template-columns: 1fr; height: 100vh; max-height: 100vh; overflow: hidden; }
+        @media (max-width: 768px) {
+          .app-layout { grid-template-columns: 1fr; height: 100vh; max-height: 100vh; overflow: hidden; width: 100%; }
           .hidden.md\\:block { display: none !important; }
           .md\\:hidden { display: flex !important; }
         }

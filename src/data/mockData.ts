@@ -8,7 +8,9 @@ import type {
   CandidateAttemptLog,
   PronunciationRule,
   AdminAnnouncement,
-  ComplianceReport
+  ComplianceReport,
+  StudyMaterial,
+  PYQPaper,
 } from '../types';
 
 // ─────────────────────────────────────────────
@@ -81,30 +83,45 @@ export const EXAMS: Exam[] = [
         explanation: 'North 10m and South 10m cancel. She displaced 20m East from start.',
       },
       {
-        id: 'ssc-r-q5', subject: 'Mathematics', topic: 'Percentages', difficulty: 'Medium', tags: ['percentage', 'profit'],
-        text: 'A shopkeeper marks goods 40% above cost price and gives a 25% discount. Profit/Loss %?',
-        phoneticText: 'A shopkeeper marks goods forty percent above cost price and gives a twenty-five percent discount. What is the profit or loss percentage?',
+        id: 'ssc-r-q5', subject: 'Mathematics', topic: 'Algebra & Roots', difficulty: 'Medium', tags: ['algebra', 'math'],
+        text: 'Simplify the algebraic expression: \\sqrt{x^2 + 6x + 9} when x = 5.',
+        phoneticText: 'Simplify the algebraic expression: square root of x squared plus 6x plus 9, when x equals 5.',
+        mathFormula: '\\sqrt{x^2 + 6x + 9}',
+        mathVerbalization: 'square root of x squared plus 6x plus 9, end root',
+        aiSummary: 'This question tests polynomial factorization. Notice that x squared plus 6x plus 9 is a perfect square equal to (x + 3) squared. Taking the square root gives (x + 3). Substituting x = 5 gives 5 + 3 = 8.',
         options: [
-          { id: 'A', text: '5% Profit' },
-          { id: 'B', text: '5% Loss' },
-          { id: 'C', text: '10% Profit' },
-          { id: 'D', text: '15% Profit' },
+          { id: 'A', text: '8' },
+          { id: 'B', text: '6' },
+          { id: 'C', text: '10' },
+          { id: 'D', text: '12' },
         ],
         correct: 'A',
-        explanation: 'Let CP=100. MP=140. SP=140×0.75=105. Profit=5%.',
+        explanation: 'x² + 6x + 9 = (x + 3)². Taking the square root yields |x + 3|. For x = 5, 5 + 3 = 8.',
       },
       {
-        id: 'ssc-r-q6', subject: 'Mathematics', topic: 'Simple Interest', difficulty: 'Easy', tags: ['SI'],
-        text: 'Find simple interest on ₹5,000 at 8% per annum for 3 years.',
-        phoneticText: 'Find the simple interest on five thousand rupees at eight percent per annum for three years.',
+        id: 'ssc-r-q6', subject: 'Mathematics', topic: 'Data Interpretation', difficulty: 'Easy', tags: ['chart', 'data-interpretation'],
+        text: 'The bar chart shows coal production (in metric tonnes) of four public sector mines: Mine A (40 MT), Mine B (75 MT), Mine C (90 MT), and Mine D (60 MT). Which mine recorded the second highest production?',
+        phoneticText: 'The bar chart shows coal production in metric tonnes of four public sector mines: Mine A with forty MT, Mine B with seventy-five MT, Mine C with ninety MT, and Mine D with sixty MT. Which mine recorded the second highest production?',
+        diagramData: {
+          type: 'bar',
+          title: 'Public Sector Coal Production (Metric Tonnes)',
+          altDescription: 'A vertical bar chart with 4 bars representing Coal Mines. Mine C is tallest at 90 MT, followed by Mine B at 75 MT, Mine D at 60 MT, and Mine A at 40 MT.',
+          dataTable: [
+            { label: 'Mine A', value: '40 MT' },
+            { label: 'Mine B', value: '75 MT' },
+            { label: 'Mine C', value: '90 MT' },
+            { label: 'Mine D', value: '60 MT' }
+          ]
+        },
+        aiSummary: 'Analyze the values: Mine C has 90 (highest), Mine B has 75 (second highest), Mine D has 60, and Mine A has 40. Therefore, Mine B is the second highest.',
         options: [
-          { id: 'A', text: '₹1,000' },
-          { id: 'B', text: '₹1,200' },
-          { id: 'C', text: '₹1,500' },
-          { id: 'D', text: '₹2,000' },
+          { id: 'A', text: 'Mine A' },
+          { id: 'B', text: 'Mine B' },
+          { id: 'C', text: 'Mine C' },
+          { id: 'D', text: 'Mine D' },
         ],
         correct: 'B',
-        explanation: 'SI = (P×R×T)/100 = (5000×8×3)/100 = ₹1,200.',
+        explanation: 'Ranked from highest: Mine C (90 MT) > Mine B (75 MT) > Mine D (60 MT) > Mine A (40 MT). Second highest is Mine B.',
       },
       {
         id: 'ssc-r-q7', subject: 'Reasoning', topic: 'Analogy', difficulty: 'Easy', tags: ['analogy'],
@@ -927,4 +944,252 @@ export const MOCK_COMPLIANCE_REPORTS: ComplianceReport[] = [
     fileSize: '1.2 MB',
     generatedDate: '2026-03-08',
   },
+];
+
+export const MOCK_STUDY_MATERIALS: StudyMaterial[] = [
+  {
+    id: 'sm-01',
+    title: 'Indian Constitution: Preamble, Fundamental Rights & Writs',
+    subject: 'General Awareness',
+    category: 'Indian Polity',
+    readTimeMinutes: 8,
+    summary: 'Comprehensive audio-narrated breakdown of Articles 12-35, landmark Supreme Court judgments, and 5 constitutional writs.',
+    content: `The Constitution of India is the supreme law of India. It lays down the framework demarcating fundamental political codes, structures, procedures, powers, and duties of government institutions, and sets out fundamental rights, directive principles, and duties of citizens.
+
+Part III contains Fundamental Rights (Articles 12 to 35). Under Article 21, protection of life and personal liberty is guaranteed. The Supreme Court in the landmark K.S. Puttaswamy v. Union of India (2017) judgment affirmed that Right to Privacy is an intrinsic part of the right to life and personal liberty under Article 21.
+
+Under Article 32, citizens can petition the Supreme Court directly for enforcement of fundamental rights using five prerogative writs:
+1. Habeas Corpus: To produce a detained person before court to test the legality of detention.
+2. Mandamus: Command issued to a public official or body to perform a mandatory statutory duty.
+3. Prohibition: Issued by a superior court to prevent a lower court or tribunal from exceeding its jurisdiction.
+4. Certiorari: Issued to quash an order rendered without jurisdiction or in violation of natural justice principles.
+5. Quo-Warranto: Issued to inquire into the legality of the claim which a party asserts to an office or franchise.`,
+    keyPoints: [
+      'Article 21 guarantees life and personal liberty, including Privacy (Puttaswamy case)',
+      'Article 32 is termed the "Heart and Soul" of the Constitution by Dr. B.R. Ambedkar',
+      'Five constitutional writs: Habeas Corpus, Mandamus, Prohibition, Certiorari, and Quo-Warranto',
+      'Fundamental Rights are enforceable in High Courts (Art. 226) and Supreme Court (Art. 32)'
+    ],
+    audioNarrationText: 'Indian Constitution: Preamble, Fundamental Rights and Writs. Part three of the Indian Constitution guarantees Fundamental Rights from Articles twelve to thirty-five. Article twenty-one guarantees protection of life and personal liberty. Under Article thirty-two, citizens can approach the Supreme Court directly through five writs: Habeas Corpus, Mandamus, Prohibition, Certiorari, and Quo-Warranto.',
+    downloadUrl: '#',
+    fileSize: '420 KB',
+    createdAt: '2026-03-10',
+    author: 'Govt. Exam Prep Research Cell',
+    tags: ['Polity', 'Constitution', 'Writs', 'Article 21', 'UPSC', 'SSC']
+  },
+  {
+    id: 'sm-02',
+    title: 'Quantitative Aptitude: Percentage, Profit & Loss Master Formulas',
+    subject: 'Mathematics',
+    category: 'Quantitative Aptitude',
+    readTimeMinutes: 10,
+    summary: 'Fast calculation shortcuts, percentage multiplier methods, and accessible formula descriptions.',
+    content: `In competitive examinations like SSC CGL, Banking, and Railways, percentage and profit-loss questions form over 25% of the quantitative aptitude section.
+
+Key Principles:
+1. Multiplier Method:
+- To increase a value by x%, multiply by (1 + x/100).
+- To decrease a value by x%, multiply by (1 - x/100).
+
+2. Expenditure Invariance Formula:
+If the price of an essential commodity increases by R%, consumption must be reduced by [R / (100 + R)] * 100% so that overall expenditure remains unchanged.
+
+3. Profit and Loss Relationships:
+- Cost Price (CP): Original expenditure incurred to acquire the item.
+- Selling Price (SP): Revenue generated upon sale.
+- Profit = SP - CP. Profit Percentage = (Profit / CP) * 100.
+- Loss = CP - SP. Loss Percentage = (Loss / CP) * 100.
+- Marked Price (MP) and Discount: Discounts are always calculated on the Marked Price: SP = MP * (1 - Discount%/100).`,
+    keyPoints: [
+      'If price increases by 25%, consumption decreases by 20% to keep expenditure equal',
+      'Profit percentage is always calculated on Cost Price unless specified otherwise',
+      'Discount is always deducted from Marked Price: SP = MP * (1 - Discount%/100)'
+    ],
+    audioNarrationText: 'Quantitative Aptitude: Percentage, Profit and Loss Master Formulas. When price increases by R percent, reduction in consumption is R divided by one hundred plus R, multiplied by one hundred percent. Profit percentage equals profit divided by cost price multiplied by one hundred.',
+    downloadUrl: '#',
+    fileSize: '310 KB',
+    createdAt: '2026-03-11',
+    author: 'Aptitude Training Wing',
+    tags: ['Mathematics', 'Percentage', 'Profit & Loss', 'SSC', 'Banking']
+  },
+  {
+    id: 'sm-03',
+    title: 'Logical Reasoning: Syllogisms & Deductive Rules',
+    subject: 'Reasoning',
+    category: 'Logical Reasoning',
+    readTimeMinutes: 7,
+    summary: 'Step-by-step rules for All, Some, No statements without visual diagram dependence, using auditory rules.',
+    content: `Syllogism tests deductive logic without needing to draw or visualize Venn diagrams, ideal for screen reader users and voice assistance.
+
+Classification of Propositions:
+1. Universal Affirmative (Type A): "All A are B".
+Conversion: "Some B are A" is definitely true.
+
+2. Universal Negative (Type E): "No A is B".
+Conversion: "No B is A" and "Some B are not A" are definitely true.
+
+3. Particular Affirmative (Type I): "Some A are B".
+Conversion: "Some B are A" is definitely true.
+
+4. Particular Negative (Type O): "Some A are not B".
+No definite conversion without qualification.
+
+Golden Deductive Axioms:
+- From two negative premises, no universal conclusion can be derived.
+- If one premise is negative, the resulting conclusion must be negative.
+- If one premise is particular, the resulting conclusion must be particular.`,
+    keyPoints: [
+      'All A are B implies Some B are A is always valid',
+      'Two negative premises never produce a valid universal conclusion',
+      'Screen-reader auditory verification avoids confusing spatial overlaps'
+    ],
+    audioNarrationText: 'Logical Reasoning: Syllogisms and Deductive Rules. Universal affirmative statements state that all A are B, from which some B are A always follows. Universal negative statements state that no A is B. If one premise is negative, the conclusion must always be negative.',
+    downloadUrl: '#',
+    fileSize: '290 KB',
+    createdAt: '2026-03-12',
+    author: 'Cognitive Reasoning Unit',
+    tags: ['Reasoning', 'Syllogisms', 'Deductive Logic', 'Accessible Logic']
+  },
+  {
+    id: 'sm-04',
+    title: 'Modern Indian History: National Freedom Struggle Timeline (1857-1947)',
+    subject: 'History',
+    category: 'Modern History',
+    readTimeMinutes: 12,
+    summary: 'Chronological timeline of major national movements, Congress sessions, and key enactments.',
+    content: `Chronology of Historic Milestones:
+- 1857: Sepoy Mutiny / First War of Indian Independence.
+- 1885: Formation of Indian National Congress (INC) in Bombay, presided by W.C. Bonnerjee.
+- 1905: Partition of Bengal by Lord Curzon; launch of Swadeshi and Boycott Movement.
+- 1916: Lucknow Pact between Congress and Muslim League; Home Rule League formed.
+- 1919: Rowlatt Act and Jallianwala Bagh Massacre on 13th April in Amritsar.
+- 1920: Non-Cooperation Movement launched by Mahatma Gandhi after Khilafat issue.
+- 1929: Lahore Session of INC presided by Jawaharlal Nehru adopts "Purna Swaraj" resolution.
+- 1930: Dandi March (Salt Satyagraha) launches Civil Disobedience Movement.
+- 1942: Quit India Movement launched with the slogan "Do or Die" at Gowalia Tank, Bombay.
+- 1947: Indian Independence Act passed by British Parliament; India gains freedom on 15th August.`,
+    keyPoints: [
+      'Lahore Session 1929 declared 26th January as Independence Day, later celebrated as Republic Day',
+      '1919 Government of India Act introduced Dyarchy in provincial administration',
+      'Quit India Movement 1942 was marked by the historic clarion call "Do or Die"'
+    ],
+    audioNarrationText: 'Modern Indian History: National Freedom Struggle Timeline. Key events include the eighteen fifty-seven revolt, the nineteen twenty Non-Cooperation Movement, the nineteen twenty-nine Lahore resolution for complete independence, and the nineteen forty-two Quit India Movement.',
+    downloadUrl: '#',
+    fileSize: '510 KB',
+    createdAt: '2026-03-13',
+    author: 'Historical Research Council',
+    tags: ['History', 'Freedom Movement', 'UPSC', 'SSC CGL', 'Timeline']
+  },
+  {
+    id: 'sm-05',
+    title: 'General Science: Fundamental Physics Laws, Acoustics & Ecology',
+    subject: 'General Science',
+    category: 'Physics & Ecology',
+    readTimeMinutes: 9,
+    summary: 'Auditory guide to SI units, sound wave frequency, Newton’s laws, and environmental conservation.',
+    content: `Physics Principles:
+1. Newton’s Laws of Motion:
+- First Law (Inertia): An object remains in rest or uniform motion unless acted upon by external unbalanced force.
+- Second Law: Force equals mass times acceleration (F = m * a).
+- Third Law: Every action has an equal and opposite reaction.
+
+2. Acoustics and Sound:
+- Frequency is measured in Hertz (Hz).
+- Audible range of human ear: 20 Hz to 20,000 Hz (20 kHz).
+- Infrasound: Below 20 Hz (e.g., seismic waves, elephant vocalizations).
+- Ultrasound: Above 20,000 Hz (used in SONAR and medical ultrasonography).
+
+Ecology & Biodiversity:
+- In-Situ Conservation: Protecting species in their natural habitats (National Parks, Wildlife Sanctuaries, Biosphere Reserves).
+- Ex-Situ Conservation: Protection outside natural habitats (Botanical Gardens, Zoological Parks, Seed Banks, Gene Banks).`,
+    keyPoints: [
+      'Audible human hearing is twenty to twenty thousand Hertz',
+      'National Parks are In-situ conservation; Botanical gardens are Ex-situ conservation',
+      'Acceleration due to gravity on Earth is approximately nine point eight meters per second squared'
+    ],
+    audioNarrationText: 'General Science: Fundamental Physics Laws, Acoustics and Ecology. Sound frequency audible to humans spans twenty Hertz to twenty thousand Hertz. In-situ conservation protects species in natural reserves, while ex-situ conservation preserves genetic assets in botanical gardens and seed banks.',
+    downloadUrl: '#',
+    fileSize: '380 KB',
+    createdAt: '2026-03-14',
+    author: 'Scientific Literacy Board',
+    tags: ['Science', 'Physics', 'Sound Waves', 'Ecology', 'Conservation']
+  }
+];
+
+export const MOCK_PYQS: PYQPaper[] = [
+  {
+    id: 'pyq-01',
+    title: 'SSC CGL Tier-1 2024 (Shift 1) — General Studies & Reasoning',
+    examName: 'SSC CGL',
+    year: 2024,
+    shift: 'Shift 1 (Morning)',
+    category: 'SSC',
+    totalQuestions: 25,
+    durationMinutes: 20,
+    linkedExamId: 'ssc-reasoning-01',
+    audioSummaryText: 'SSC CGL Tier-1 twenty twenty-four Shift one paper containing twenty-five questions covering Indian Polity, Modern History, Syllogisms, and Direction tests. Press Attempt Mock to start.',
+    topicsCovered: ['Indian Polity', 'Freedom Struggle', 'Syllogisms', 'Number Series', 'Direction Sense'],
+    difficulty: 'Medium',
+    createdAt: '2026-03-01'
+  },
+  {
+    id: 'pyq-02',
+    title: 'UPSC Civil Services Prelims 2023 — General Studies Paper-I',
+    examName: 'UPSC CSE',
+    year: 2023,
+    shift: 'Morning Session',
+    category: 'UPSC',
+    totalQuestions: 30,
+    durationMinutes: 45,
+    linkedExamId: 'exam-1',
+    audioSummaryText: 'UPSC Civil Services Preliminary Examination twenty twenty-three General Studies Paper one with constitutional provisions, monetary policy framework, and environmental ecology.',
+    topicsCovered: ['Constitutional Law', 'RBI Monetary Policy', 'Biodiversity', 'In Situ Conservation'],
+    difficulty: 'Hard',
+    createdAt: '2026-03-02'
+  },
+  {
+    id: 'pyq-03',
+    title: 'IBPS PO Prelims 2023 — Quantitative Aptitude & Reasoning',
+    examName: 'IBPS PO',
+    year: 2023,
+    shift: 'Shift 2 (Afternoon)',
+    category: 'Banking',
+    totalQuestions: 35,
+    durationMinutes: 30,
+    linkedExamId: 'exam-2',
+    audioSummaryText: 'IBPS Probationary Officer Prelims twenty twenty-three paper. Emphasis on compound interest, percentage shortcuts, syllogisms, and seating arrangements.',
+    topicsCovered: ['Compound Interest', 'Percentages', 'Syllogism', 'Blood Relations'],
+    difficulty: 'Medium',
+    createdAt: '2026-03-03'
+  },
+  {
+    id: 'pyq-04',
+    title: 'RRB NTPC CBT-1 2022 — General Awareness & Math',
+    examName: 'RRB NTPC',
+    year: 2022,
+    shift: 'Shift 1',
+    category: 'Railway',
+    totalQuestions: 40,
+    durationMinutes: 35,
+    linkedExamId: 'ssc-reasoning-01',
+    audioSummaryText: 'Railway Recruitment Board NTPC CBT one paper. Covers railway history, physics units, algebra roots, and reasoning puzzles.',
+    topicsCovered: ['Physics Units', 'Indian Geography', 'Algebra', 'Number Series'],
+    difficulty: 'Easy',
+    createdAt: '2026-03-04'
+  },
+  {
+    id: 'pyq-05',
+    title: 'SSC CHSL Tier-1 2023 — General Intelligence & GK',
+    examName: 'SSC CHSL',
+    year: 2023,
+    shift: 'Shift 3 (Evening)',
+    category: 'SSC',
+    totalQuestions: 25,
+    durationMinutes: 20,
+    linkedExamId: 'exam-2',
+    audioSummaryText: 'SSC Combined Higher Secondary Level twenty twenty-three examination paper. General knowledge and reasoning with accessible verbalization.',
+    topicsCovered: ['Polity Articles', 'Coding-Decoding', 'Sound Waves', 'Indian Rivers'],
+    difficulty: 'Easy',
+    createdAt: '2026-03-05'
+  }
 ];

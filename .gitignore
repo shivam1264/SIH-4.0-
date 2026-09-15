@@ -43,3 +43,4 @@ whisper_server/models/
 *.njsproj
 *.sln
 *.sw?
+scratch/

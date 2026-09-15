@@ -20,10 +20,34 @@
 
 /* ── CSS CUSTOM PROPERTIES / THEMES ───────────────────── */
 :root {
-  /* Default (Light) */
+  /* Default (Light) — Multi-color luminous ambient mesh fade for rest of website */
+  --bg-gradient:
+    radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.12) 0px, transparent 55%),
+    radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.12) 0px, transparent 55%),
+    radial-gradient(at 50% 50%, rgba(16, 185, 129, 0.08) 0px, transparent 60%),
+    radial-gradient(at 0% 100%, rgba(244, 63, 94, 0.08) 0px, transparent 55%),
+    radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.11) 0px, transparent 55%),
+    linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 50%, #EEF2F6 100%);
   --bg:           #F8FAFC;
+  --bg-card-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.88) 50%, rgba(241, 245, 249, 0.94) 100%);
   --bg-card:      #FFFFFF;
-  --bg-sidebar:   #FFFFFF;
+  --card-bg:      var(--bg-card-gradient);
+  --card-border:  rgba(226, 232, 240, 0.85);
+  --card-shadow:  0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+  --bg-header:    linear-gradient(90deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 250, 252, 0.90) 50%, rgba(255, 255, 255, 0.94) 100%);
+
+  /* Distinct Executive Midnight Dark Sidebar ("edahar ka totally colour alag") */
+  --sidebar-width: 276px;
+  --bg-sidebar:   linear-gradient(180deg, #090D1A 0%, #0F172A 55%, #131E35 100%);
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-text: #F8FAFC;
+  --sidebar-text-muted: #94A3B8;
+  --sidebar-heading: #60A5FA;
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.07);
+  --sidebar-active-bg: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  --sidebar-active-text: #FFFFFF;
+  --sidebar-active-shadow: 0 4px 16px rgba(37, 99, 235, 0.4);
+
   --bg-surface:   #F1F5F9;
   --text:         #0F172A;
   --text-muted:   #64748B;
@@ -48,9 +72,29 @@
 }
 
 [data-theme="dark"] {
+  --bg-gradient:
+    radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.12) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(139, 92, 246, 0.12) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(16, 185, 129, 0.08) 0px, transparent 55%),
+    radial-gradient(at 0% 100%, rgba(244, 63, 94, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(14, 165, 233, 0.10) 0px, transparent 50%),
+    linear-gradient(180deg, #0F172A 0%, #0B0F19 100%);
   --bg:           #0F172A;
+  --bg-card-gradient: linear-gradient(145deg, rgba(30, 41, 59, 0.90) 0%, rgba(15, 23, 42, 0.85) 100%);
   --bg-card:      #1E293B;
-  --bg-sidebar:   #1E293B;
+  --card-bg:      var(--bg-card-gradient);
+  --card-border:  rgba(255, 255, 255, 0.12);
+  --card-shadow:  0 4px 20px -2px rgba(0, 0, 0, 0.35);
+  --bg-header:    linear-gradient(90deg, rgba(15, 23, 42, 0.94) 0%, rgba(30, 41, 59, 0.90) 50%, rgba(15, 23, 42, 0.94) 100%);
+  --bg-sidebar:   linear-gradient(180deg, #050811 0%, #0A0F1D 55%, #0F172A 100%);
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-text: #F8FAFC;
+  --sidebar-text-muted: #94A3B8;
+  --sidebar-heading: #60A5FA;
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.08);
+  --sidebar-active-bg: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  --sidebar-active-text: #FFFFFF;
+  --sidebar-active-shadow: 0 4px 16px rgba(37, 99, 235, 0.45);
   --bg-surface:   #334155;
   --text:         #F1F5F9;
   --text-muted:   #94A3B8;
@@ -75,7 +119,16 @@
 [data-theme="high-contrast"] {
   --bg:           #000000;
   --bg-card:      #0A0A0A;
-  --bg-sidebar:   #0A0A0A;
+  --bg-header:    #000000;
+  --bg-sidebar:   #000000;
+  --sidebar-border: #FFFFFF;
+  --sidebar-text: #FFFFFF;
+  --sidebar-text-muted: #FFFFFF;
+  --sidebar-heading: #FFFF00;
+  --sidebar-hover-bg: #1A1A1A;
+  --sidebar-active-bg: #FFFFFF;
+  --sidebar-active-text: #000000;
+  --sidebar-active-shadow: none;
   --bg-surface:   #1A1A1A;
   --text:         #FFFFFF;
   --text-muted:   #E5E5E5;
@@ -97,7 +150,16 @@
 [data-theme="yellow-black"] {
   --bg:           #000000;
   --bg-card:      #0D0D00;
-  --bg-sidebar:   #111100;
+  --bg-header:    #000000;
+  --bg-sidebar:   #000000;
+  --sidebar-border: #FFFF00;
+  --sidebar-text: #FFFF00;
+  --sidebar-text-muted: #FFFF00;
+  --sidebar-heading: #00FFFF;
+  --sidebar-hover-bg: #1A1A00;
+  --sidebar-active-bg: #FFFF00;
+  --sidebar-active-text: #000000;
+  --sidebar-active-shadow: none;
   --bg-surface:   #1A1A00;
   --text:         #FFFF00;
   --text-muted:   #FFD700;
@@ -118,9 +180,12 @@
 
 /* ── HIGH CONTRAST & ACCESSIBILITY ENHANCEMENTS ─────── */
 [data-theme="high-contrast"] .card,
-[data-theme="yellow-black"] .card {
+[data-theme="high-contrast"] [class*="card-fade-"],
+[data-theme="yellow-black"] .card,
+[data-theme="yellow-black"] [class*="card-fade-"] {
   background: var(--bg-card) !important;
   border: 2px solid var(--border) !important;
+  box-shadow: none !important;
 }
 
 [data-theme="high-contrast"] .card svg,
@@ -148,7 +213,8 @@ html {
 
 body {
   font-family: var(--font);
-  background-color: var(--bg);
+  background: var(--bg-gradient, var(--bg));
+  background-attachment: fixed;
   color: var(--text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
@@ -176,18 +242,199 @@ body {
 
 /* ── UTILITY CLASSES ──────────────────────────────────── */
 .card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
+  background: var(--card-bg, var(--bg-card));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--card-border, var(--border));
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  box-shadow: var(--card-shadow, var(--shadow));
   padding: 1.5rem;
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
 }
 
 .card-interactive:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--primary);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px -4px rgba(37, 99, 235, 0.12), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
+  border-color: rgba(37, 99, 235, 0.4);
+}
+
+/* ── MULTI-COLOR FADE CARD PRESETS (RICH EXAM-SELECTION STYLE) ── */
+.card-fade-blue,
+.card-fade-purple,
+.card-fade-emerald,
+.card-fade-amber,
+.card-fade-orange,
+.card-fade-rose,
+.card-fade-indigo,
+.card-fade-aurora {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 8px -1px rgba(0, 0, 0, 0.02) !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.card-fade-blue::before,
+.card-fade-purple::before,
+.card-fade-emerald::before,
+.card-fade-amber::before,
+.card-fade-orange::before,
+.card-fade-rose::before,
+.card-fade-indigo::before,
+.card-fade-aurora::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  z-index: 2;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+/* Blue (SSC style) */
+.card-fade-blue {
+  background: radial-gradient(circle at 95% 5%, rgba(37, 99, 235, 0.14) 0%, transparent 60%), linear-gradient(155deg, #ffffff 0%, #f4f8ff 45%, #e1effe 100%) !important;
+  border: 1.5px solid rgba(59, 130, 246, 0.38) !important;
+}
+.card-fade-blue::before {
+  background: linear-gradient(90deg, #2563EB 0%, #3B82F6 50%, #60A5FA 100%);
+}
+.card-fade-blue:hover {
+  transform: translateY(-4px);
+  border-color: #2563EB !important;
+  box-shadow: 0 12px 28px -2px rgba(37, 99, 235, 0.32), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Orange (Banking style) */
+.card-fade-orange {
+  background: radial-gradient(circle at 95% 5%, rgba(234, 88, 12, 0.14) 0%, transparent 60%), linear-gradient(155deg, #ffffff 0%, #fff9f3 45%, #ffedd5 100%) !important;
+  border: 1.5px solid rgba(249, 115, 22, 0.38) !important;
+}
+.card-fade-orange::before {
+  background: linear-gradient(90deg, #EA580C 0%, #F97316 50%, #FB923C 100%);
+}
+.card-fade-orange:hover {
+  transform: translateY(-4px);
+  border-color: #EA580C !important;
+  box-shadow: 0 12px 28px -2px rgba(234, 88, 12, 0.32), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Amber / Gold (UPSC style) */
+.card-fade-amber {
+  background: radial-gradient(circle at 95% 5%, rgba(217, 119, 6, 0.14) 0%, transparent 60%), linear-gradient(155deg, #ffffff 0%, #fefdf2 45%, #fef3c7 100%) !important;
+  border: 1.5px solid rgba(217, 119, 6, 0.38) !important;
+}
+.card-fade-amber::before {
+  background: linear-gradient(90deg, #D97706 0%, #F59E0B 50%, #FBBF24 100%);
+}
+.card-fade-amber:hover {
+  transform: translateY(-4px);
+  border-color: #D97706 !important;
+  box-shadow: 0 12px 28px -2px rgba(217, 119, 6, 0.32), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Emerald Green (Railway style) */
+.card-fade-emerald {
+  background: radial-gradient(circle at 95% 5%, rgba(5, 150, 105, 0.14) 0%, transparent 60%), linear-gradient(155deg, #ffffff 0%, #f2fdf6 45%, #d1fae5 100%) !important;
+  border: 1.5px solid rgba(16, 185, 129, 0.38) !important;
+}
+.card-fade-emerald::before {
+  background: linear-gradient(90deg, #059669 0%, #10B981 50%, #34D399 100%);
+}
+.card-fade-emerald:hover {
+  transform: translateY(-4px);
+  border-color: #059669 !important;
+  box-shadow: 0 12px 28px -2px rgba(5, 150, 105, 0.32), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Purple (Reasoning / Creative style) */
+.card-fade-purple {
+  background: radial-gradient(circle at 95% 5%, rgba(124, 58, 237, 0.14) 0%, transparent 60%), linear-gradient(155deg, #ffffff 0%, #faf5ff 45%, #ede9fe 100%) !important;
+  border: 1.5px solid rgba(139, 92, 246, 0.38) !important;
+}
+.card-fade-purple::before {
+  background: linear-gradient(90deg, #7C3AED 0%, #8B5CF6 50%, #A78BFA 100%);
+}
+.card-fade-purple:hover {
+  transform: translateY(-4px);
+  border-color: #7C3AED !important;
+  box-shadow: 0 12px 28px -2px rgba(124, 58, 237, 0.32), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Rose (High Priority / Alert style) */
+.card-fade-rose {
+  background: radial-gradient(circle at 95% 5%, rgba(225, 29, 72, 0.14) 0%, transparent 60%), linear-gradient(155deg, #ffffff 0%, #fff5f6 45%, #ffe4e6 100%) !important;
+  border: 1.5px solid rgba(244, 63, 94, 0.38) !important;
+}
+.card-fade-rose::before {
+  background: linear-gradient(90deg, #E11D48 0%, #F43F5E 50%, #FB7185 100%);
+}
+.card-fade-rose:hover {
+  transform: translateY(-4px);
+  border-color: #E11D48 !important;
+  box-shadow: 0 12px 28px -2px rgba(225, 29, 72, 0.32), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Indigo (Defence / Analytical style) */
+.card-fade-indigo {
+  background: radial-gradient(circle at 95% 5%, rgba(79, 70, 229, 0.14) 0%, transparent 60%), linear-gradient(155deg, #ffffff 0%, #f4f6ff 45%, #e0e7ff 100%) !important;
+  border: 1.5px solid rgba(99, 102, 241, 0.38) !important;
+}
+.card-fade-indigo::before {
+  background: linear-gradient(90deg, #4F46E5 0%, #6366F1 50%, #818CF8 100%);
+}
+.card-fade-indigo:hover {
+  transform: translateY(-4px);
+  border-color: #4F46E5 !important;
+  box-shadow: 0 12px 28px -2px rgba(79, 70, 229, 0.32), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Aurora (Multispectral Ambient style) */
+.card-fade-aurora {
+  background: linear-gradient(135deg, rgba(239, 246, 255, 0.95) 0%, rgba(245, 243, 255, 0.90) 45%, rgba(240, 253, 244, 0.95) 100%) !important;
+  border: 1.5px solid rgba(199, 210, 254, 0.6) !important;
+}
+.card-fade-aurora::before {
+  background: linear-gradient(90deg, #3B82F6 0%, #8B5CF6 50%, #10B981 100%);
+}
+.card-fade-aurora:hover {
+  transform: translateY(-4px);
+  border-color: #6366F1 !important;
+  box-shadow: 0 12px 28px -2px rgba(99, 102, 241, 0.25), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Dark mode overrides for card fade presets */
+[data-theme="dark"] .card-fade-blue {
+  background: linear-gradient(145deg, rgba(30, 58, 138, 0.35) 0%, rgba(15, 23, 42, 0.85) 100%) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+[data-theme="dark"] .card-fade-purple {
+  background: linear-gradient(145deg, rgba(76, 29, 149, 0.35) 0%, rgba(15, 23, 42, 0.85) 100%) !important;
+  border-color: rgba(139, 92, 246, 0.3) !important;
+}
+[data-theme="dark"] .card-fade-emerald {
+  background: linear-gradient(145deg, rgba(6, 78, 59, 0.35) 0%, rgba(15, 23, 42, 0.85) 100%) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+[data-theme="dark"] .card-fade-amber {
+  background: linear-gradient(145deg, rgba(120, 53, 15, 0.35) 0%, rgba(15, 23, 42, 0.85) 100%) !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+[data-theme="dark"] .card-fade-orange {
+  background: linear-gradient(145deg, rgba(124, 45, 18, 0.35) 0%, rgba(15, 23, 42, 0.85) 100%) !important;
+  border-color: rgba(249, 115, 22, 0.3) !important;
+}
+[data-theme="dark"] .card-fade-rose {
+  background: linear-gradient(145deg, rgba(136, 19, 55, 0.35) 0%, rgba(15, 23, 42, 0.85) 100%) !important;
+  border-color: rgba(244, 63, 94, 0.3) !important;
+}
+[data-theme="dark"] .card-fade-indigo {
+  background: linear-gradient(145deg, rgba(49, 46, 129, 0.35) 0%, rgba(15, 23, 42, 0.85) 100%) !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+[data-theme="dark"] .card-fade-aurora {
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.90) 100%) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
 }
 
 .btn-primary {
@@ -320,13 +567,26 @@ body {
 }
 .wave-bar { animation: waveBar 1s ease-in-out infinite; }
 
+/* ── RESPONSIVE UTILITIES ──────────────────────────────── */
+.hidden { display: none !important; }
+.block  { display: block !important; }
+@media (min-width: 769px) {
+  .md\:hidden { display: none !important; }
+  .md\:block  { display: block !important; }
+}
+@media (max-width: 768px) {
+  .md\:hidden { display: flex !important; }
+  .md\:block  { display: none !important; }
+}
+
 /* ── SIDEBAR LAYOUT ───────────────────────────────────── */
 .app-layout {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: var(--sidebar-width, 276px) 1fr;
   height: 100vh;
   max-height: 100vh;
   overflow: hidden;
+  width: 100%;
 }
 @media (max-width: 768px) {
   .app-layout { grid-template-columns: 1fr; }
@@ -334,16 +594,22 @@ body {
 
 .sidebar {
   background: var(--bg-sidebar);
-  border-right: 1px solid var(--border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-right: 1px solid var(--sidebar-border, var(--border));
   padding: 0;
   position: sticky;
   top: 0;
   height: 100vh;
   display: flex;
   flex-direction: column;
-  width: 260px;
+  width: var(--sidebar-width, 276px);
+  min-width: var(--sidebar-width, 276px);
+  max-width: var(--sidebar-width, 276px);
   overflow: hidden;
   box-sizing: border-box;
+  box-shadow: 4px 0 24px -4px rgba(0, 0, 0, 0.22);
+  z-index: 60;
 }
 
 .sidebar-link {
@@ -351,30 +617,38 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.65rem;
-  padding: 0.6rem 0.85rem;
-  border-radius: 0.6rem;
-  color: var(--text-muted);
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.65rem;
+  color: var(--sidebar-text-muted, #94A3B8);
   text-decoration: none;
   font-weight: 500;
-  font-size: 0.875rem;
-  border: 1.5px solid transparent;
-  transition: all 0.15s ease;
+  font-size: 0.86rem;
+  border: 1px solid transparent;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
-  background: none;
+  background: transparent;
   width: 100%;
   text-align: left;
   white-space: nowrap;
 }
 .sidebar-link:hover {
-  background: var(--primary-light);
-  color: var(--primary);
+  background: var(--sidebar-hover-bg, rgba(255, 255, 255, 0.08));
+  color: #FFFFFF;
+  transform: translateX(2px);
 }
 .sidebar-link.active {
-  background: var(--primary-light);
-  color: var(--primary);
+  background: var(--sidebar-active-bg, linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%));
+  color: var(--sidebar-active-text, #FFFFFF);
   font-weight: 700;
-  border-color: rgba(37,99,235,0.3);
-  box-shadow: 0 1px 3px rgba(37,99,235,0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: var(--sidebar-active-shadow, 0 4px 14px rgba(37, 99, 235, 0.4));
+}
+.sidebar-link.active svg {
+  color: #FFFFFF !important;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.5));
+}
+.sidebar-link:not(.active):hover svg {
+  color: #60A5FA;
 }
 
 /* ── LANDING PAGE ─────────────────────────────────────── */
@@ -534,4 +808,77 @@ body {
   border-radius: 0.25rem 0.25rem 0 0;
   width: 2rem;
   transition: height 0.5s ease;
+}
+
+/* ── ULTRA-PREMIUM EXAM CARDS & BUTTONS ───────────────── */
+.exam-card-premium {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.exam-card-premium:hover {
+  transform: translateY(-5px);
+}
+
+.exam-start-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.exam-start-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transform: skewX(-20deg);
+  transition: left 0.7s ease;
+}
+
+.exam-start-btn:hover::after {
+  left: 140%;
+}
+
+.exam-start-btn:hover {
+  filter: brightness(1.06);
+  transform: translateY(-2px);
+}
+
+.exam-start-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* Dark mode adjustments for dual-color gradient cards */
+[data-theme="dark"] .exam-card-premium {
+  background: linear-gradient(155deg, #1e293b 0%, #0f172a 60%, #1e1b4b 100%) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] .exam-card-premium div[style*="rgba(255, 255, 255, 0.78)"] {
+  background: rgba(15, 23, 42, 0.75) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+[data-theme="dark"] .exam-card-premium button[style*="rgba(255, 255, 255, 0.85)"] {
+  background: rgba(30, 41, 59, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* High Contrast mode keeps strict WCAG AAA borders and background */
+[data-theme="high-contrast"] .exam-card-premium,
+[data-theme="yellow-black"] .exam-card-premium {
+  background: var(--bg-card) !important;
+  border: 2px solid var(--border) !important;
+  box-shadow: none !important;
+}
+
+/* Examination table row hover */
+.table-row-hover:hover {
+  background: rgba(37, 99, 235, 0.035) !important;
+}
+
+[data-theme="dark"] .table-row-hover:hover {
+  background: rgba(255, 255, 255, 0.04) !important;
 }

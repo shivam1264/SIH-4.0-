@@ -43,7 +43,7 @@ export default function Settings() {
   const [availableVoices, setAvailableVoices] = useState(() => speechService.getAvailableVoices());
 
   useEffect(() => {
-    document.title = 'Accessibility Preferences — SIGHT-EXAM AI';
+    document.title = 'Accessibility Preferences — DrishtiX';
     const updateVoices = () => {
       setAvailableVoices(speechService.getAvailableVoices());
     };
@@ -103,7 +103,7 @@ export default function Settings() {
   function testVoice() {
     speechService.configure(prefs.voiceRate, prefs.voicePitch, prefs.voiceName);
     speechService.speak(
-      'Welcome to SIGHT-EXAM AI. Audio guidance is active and calibrated. Question 1. What is the capital of India? Option A: Mumbai. Option B: New Delhi.',
+      'Welcome to DrishtiX. Beyond Barriers, Brighter Futures. Audio guidance is active and calibrated. Question 1. What is the capital of India? Option A: Mumbai. Option B: New Delhi.',
       { priority: true }
     );
     setTestSpoken(true);

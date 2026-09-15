@@ -32,7 +32,7 @@ export default function Results() {
   const [showSolutions, setShowSolutions] = useState(false);
 
   useEffect(() => {
-    document.title = 'Results — SIGHT-EXAM AI';
+    document.title = 'Results — DrishtiX';
     // Check live attempts (localStorage) first
     const liveAttempts: ExamAttempt[] = JSON.parse(localStorage.getItem('sight-exam-attempts') ?? '[]');
     const all = [...liveAttempts, ...MOCK_ATTEMPTS];

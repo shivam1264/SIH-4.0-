@@ -182,7 +182,7 @@ export default function Onboarding() {
 
   // Initial welcome and preference step read
   useEffect(() => {
-    document.title = 'Accessible Onboarding — SIGHT-EXAM AI';
+    document.title = 'Accessible Onboarding — DrishtiX';
     speechService.speak("Let's configure your accessibility preferences. Would you like voice guidance enabled? Say Yes or No, or press Y or N.", { priority: true });
     return () => speechService.stop();
   }, []);

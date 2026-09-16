@@ -500,151 +500,208 @@ export default function Landing() {
       </header>
 
       <main id="main-content">
-        {/* ── HERO SECTION ── */}
+        {/* ── HERO SECTION WITH CUSTOM INSPIRATIONAL ILLUSTRATION BACKGROUND ── */}
         <section
           style={{
-            padding: '5.5rem 1.5rem 3.5rem',
-            textAlign: 'center',
             position: 'relative',
+            minHeight: '88vh',
+            backgroundImage: 'url(/hero-bg.png)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center right',
+            backgroundRepeat: 'no-repeat',
+            padding: '5rem 2rem 4.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            overflow: 'hidden',
             zIndex: 1,
           }}
           aria-labelledby="hero-heading"
         >
-          <div style={{ maxWidth: 960, margin: '0 auto' }}>
-            {/* Groq AI Whisper announcement badge with vivid neon glow */}
-            <div className="badge-glow fade-in" style={{ marginBottom: '2rem' }}>
-              <Zap size={14} style={{ color: '#FBBF24' }} />
-              <span>⚡ Powered by Groq AI Whisper Large-v3 · ~200ms Latency · 100% WCAG 2.1 AAA</span>
-            </div>
+          {/* Directional gradient wash: preserves crystal-clear contrast on the left while showcasing the student and India Gate on the right */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(90deg, rgba(5, 8, 22, 0.95) 0%, rgba(5, 8, 22, 0.88) 42%, rgba(5, 8, 22, 0.38) 72%, rgba(5, 8, 22, 0.12) 100%)',
+              zIndex: 1,
+              pointerEvents: 'none',
+            }}
+            aria-hidden="true"
+          />
 
-            {/* 3D Main Headline with rich blended gradient text */}
-            <h1
-              id="hero-heading"
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 'clamp(2.75rem, 6.5vw, 5rem)',
-                fontWeight: 900,
-                lineHeight: 1.1,
-                letterSpacing: '-0.03em',
-                color: '#FFFFFF',
-                marginBottom: '1.75rem',
-              }}
-              className="fade-in"
-            >
-              Exams Without Barriers.{' '}
-              <br />
-              <span
+          {/* Smooth bottom fade into the dark obsidian ecosystem canvas */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: '160px',
+              background: 'linear-gradient(180deg, transparent 0%, rgba(5, 8, 20, 0.8) 60%, #050814 100%)',
+              zIndex: 2,
+              pointerEvents: 'none',
+            }}
+            aria-hidden="true"
+          />
+
+          <div
+            style={{
+              position: 'relative',
+              zIndex: 3,
+              maxWidth: 1320,
+              margin: '0 auto',
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '3.5rem',
+            }}
+          >
+            {/* Left-aligned hero headline, badge, subtitle, and CTA buttons */}
+            <div style={{ maxWidth: 720, textAlign: 'left' }}>
+              {/* Groq AI Whisper announcement badge with vivid neon glow */}
+              <div className="badge-glow fade-in" style={{ marginBottom: '1.75rem' }}>
+                <Zap size={14} style={{ color: '#FBBF24' }} />
+                <span>⚡ Powered by Groq AI Whisper Large-v3 · ~200ms Latency · 100% WCAG 2.1 AAA</span>
+              </div>
+
+              {/* 3D Main Headline with rich blended gradient text */}
+              <h1
+                id="hero-heading"
                 style={{
-                  background: 'linear-gradient(135deg, #38BDF8 0%, #818CF8 30%, #C084FC 65%, #34D399 100%)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  filter: 'drop-shadow(0 4px 25px rgba(129, 140, 248, 0.35))',
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 'clamp(2.6rem, 5.8vw, 4.75rem)',
+                  fontWeight: 900,
+                  lineHeight: 1.1,
+                  letterSpacing: '-0.03em',
+                  color: '#FFFFFF',
+                  marginBottom: '1.5rem',
+                }}
+                className="fade-in"
+              >
+                Exams Without Barriers.{' '}
+                <br />
+                <span
+                  style={{
+                    background: 'linear-gradient(135deg, #38BDF8 0%, #818CF8 30%, #C084FC 65%, #34D399 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    filter: 'drop-shadow(0 4px 25px rgba(129, 140, 248, 0.35))',
+                  }}
+                >
+                  Empowerment for Every Aspirant.
+                </span>
+              </h1>
+
+              {/* Sub-headline */}
+              <p
+                style={{
+                  fontSize: 'clamp(1.05rem, 2vw, 1.22rem)',
+                  color: '#CBD5E1',
+                  lineHeight: 1.7,
+                  marginBottom: '2.25rem',
+                  maxWidth: 640,
+                }}
+                className="fade-in"
+              >
+                India's premier AI-powered accessible examination platform for SSC, Banking, UPSC and Railways.
+                Engineered with voice commands, spoken math equations, audio earcons, and keyboard independence — no
+                assistance required.
+              </p>
+
+              {/* Hero CTA Action Group */}
+              <div
+                style={{
+                  display: 'flex',
+                  gap: '1.1rem',
+                  justifyContent: 'flex-start',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                }}
+                className="fade-in"
+              >
+                <button
+                  className="hero-btn-primary"
+                  onClick={() => navigate('/exams')}
+                  style={{
+                    padding: '0.95rem 2.25rem',
+                    fontSize: '1.02rem',
+                  }}
+                  aria-label="Launch interactive mock examination"
+                >
+                  <Sparkles size={19} />
+                  <span>Launch Mock Exam</span>
+                  <ArrowRight size={18} />
+                </button>
+
+                <button
+                  className="hero-btn-secondary"
+                  onClick={() => navigate('/login')}
+                  style={{
+                    padding: '0.95rem 2.25rem',
+                    fontSize: '1.02rem',
+                  }}
+                  aria-label="Sign in with demo student account"
+                >
+                  <LogIn size={19} />
+                  <span>Demo Student Login</span>
+                </button>
+
+                <button
+                  className="hero-btn-secondary"
+                  onClick={toggleVoice}
+                  style={{
+                    padding: '0.95rem 1.85rem',
+                    fontSize: '1.02rem',
+                    border: voiceActive ? '2px solid #22C55E' : '1.5px solid rgba(255, 255, 255, 0.18)',
+                    boxShadow: voiceActive ? '0 0 25px rgba(34, 197, 94, 0.35)' : undefined,
+                  }}
+                  aria-label="Toggle voice guidance (or press key V)"
+                >
+                  {voiceActive ? <MicOff size={19} style={{ color: '#EF4444' }} /> : <Mic size={19} style={{ color: '#38BDF8' }} />}
+                  <span>{voiceActive ? 'Mute Voice' : 'Voice (V)'}</span>
+                </button>
+              </div>
+
+              {/* Quick Demo Credentials & Voice hint */}
+              <div
+                style={{
+                  marginTop: '1.6rem',
+                  fontSize: '0.85rem',
+                  color: '#94A3B8',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '1rem',
+                  flexWrap: 'wrap',
                 }}
               >
-                Empowerment for Every Aspirant.
-              </span>
-            </h1>
-
-            {/* Sub-headline */}
-            <p
-              style={{
-                fontSize: 'clamp(1.05rem, 2.2vw, 1.25rem)',
-                color: '#94A3B8',
-                lineHeight: 1.7,
-                marginBottom: '2.5rem',
-                maxWidth: 720,
-                margin: '0 auto 2.5rem',
-              }}
-              className="fade-in"
-            >
-              India's premier AI-powered accessible examination platform for SSC, Banking, UPSC and Railways.
-              Engineered with voice commands, spoken math equations, audio earcons, and keyboard independence — no
-              assistance required.
-            </p>
-
-            {/* Hero CTA Action Group */}
-            <div
-              style={{
-                display: 'flex',
-                gap: '1.25rem',
-                justifyContent: 'center',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-              }}
-              className="fade-in"
-            >
-              <button
-                className="hero-btn-primary"
-                onClick={() => navigate('/exams')}
-                style={{
-                  padding: '1rem 2.4rem',
-                  fontSize: '1.05rem',
-                }}
-                aria-label="Launch interactive mock examination"
-              >
-                <Sparkles size={19} />
-                <span>Launch Mock Exam</span>
-                <ArrowRight size={18} />
-              </button>
-
-              <button
-                className="hero-btn-secondary"
-                onClick={() => navigate('/login')}
-                style={{
-                  padding: '1rem 2.4rem',
-                  fontSize: '1.05rem',
-                }}
-                aria-label="Sign in with demo student account"
-              >
-                <LogIn size={19} />
-                <span>Demo Student Login</span>
-              </button>
-
-              <button
-                className="hero-btn-secondary"
-                onClick={toggleVoice}
-                style={{
-                  padding: '1rem 2rem',
-                  fontSize: '1.05rem',
-                  border: voiceActive ? '2px solid #22C55E' : '1.5px solid rgba(255, 255, 255, 0.18)',
-                  boxShadow: voiceActive ? '0 0 25px rgba(34, 197, 94, 0.35)' : undefined,
-                }}
-                aria-label="Toggle voice guidance (or press key V)"
-              >
-                {voiceActive ? <MicOff size={19} style={{ color: '#EF4444' }} /> : <Mic size={19} style={{ color: '#38BDF8' }} />}
-                <span>{voiceActive ? 'Mute Voice' : 'Voice (V)'}</span>
-              </button>
-            </div>
-
-            {/* Quick Demo Credentials & Voice hint */}
-            <div
-              style={{
-                marginTop: '1.75rem',
-                fontSize: '0.85rem',
-                color: '#64748B',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '1rem',
-                flexWrap: 'wrap',
-              }}
-            >
-              <span>
-                Demo Account: <strong style={{ color: '#E2E8F0' }}>aryan@example.com</strong> /{' '}
-                <strong style={{ color: '#E2E8F0' }}>student123</strong>
-              </span>
-              <span>·</span>
-              <span>
-                Say <kbd style={{ background: 'rgba(30, 41, 59, 0.8)', color: '#38BDF8', padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.15)' }}>"Help"</kbd> or press{' '}
-                <kbd style={{ background: 'rgba(30, 41, 59, 0.8)', color: '#38BDF8', padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.15)' }}>V</kbd> for voice guidance
-              </span>
+                <span>
+                  Demo Account: <strong style={{ color: '#FFFFFF' }}>aryan@example.com</strong> /{' '}
+                  <strong style={{ color: '#FFFFFF' }}>student123</strong>
+                </span>
+                <span>·</span>
+                <span>
+                  Say <kbd style={{ background: 'rgba(30, 41, 59, 0.9)', color: '#38BDF8', padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.15)' }}>"Help"</kbd> or press{' '}
+                  <kbd style={{ background: 'rgba(30, 41, 59, 0.9)', color: '#38BDF8', padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.15)' }}>V</kbd> for voice guidance
+                </span>
+              </div>
             </div>
           </div>
+        </section>
 
-          {/* ── 3D SIMULATED CYBER EXAM TERMINAL PREVIEW ── */}
+        {/* ── 3D SIMULATED CYBER EXAM TERMINAL PREVIEW ── */}
+        <section
+          style={{
+            padding: '1.5rem 1.5rem 4rem',
+            position: 'relative',
+            zIndex: 3,
+            marginTop: '-3.5rem',
+          }}
+          aria-label="Simulated Exam Terminal"
+        >
           <div
             className="perspective-1000 fade-in"
-            style={{ maxWidth: 960, margin: '3.5rem auto 0', padding: '0 1rem' }}
+            style={{ maxWidth: 980, margin: '0 auto', padding: '0 1rem' }}
           >
             <div
               className="card-3d glass-panel-glow"

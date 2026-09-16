@@ -16,6 +16,8 @@ const Ctx = createContext<AuthCtx | null>(null);
 // Simulated user store fallback
 const MOCK_USERS: Record<string, { user: User; password: string }> = {
   'aryan@example.com':        { user: DEMO_STUDENT, password: 'student123' },
+  'rahul@student.in':         { user: DEMO_STUDENT, password: 'student123' },
+  'admin@drishtix.in':        { user: DEMO_ADMIN,   password: 'admin123' },
   'admin@sightexamai.in':     { user: DEMO_ADMIN,   password: 'admin123' },
 };
 

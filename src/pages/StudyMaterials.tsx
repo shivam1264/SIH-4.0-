@@ -20,6 +20,7 @@ import AppLayout from '../components/AppLayout';
 import { studyMaterialsApi } from '../services/api';
 import { speechService } from '../services/speechService';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { usePageVoice } from '../hooks/usePageVoice';
 import type { StudyMaterial } from '../types';
 
 function getSubjectTheme(subject: string = '', category: string = '') {
@@ -153,6 +154,120 @@ export default function StudyMaterials() {
     speechService.stop();
     setSpeakingId(null);
   }
+
+  function openReader(item: StudyMaterial) {
+    setActiveReadingItem(item);
+    if (prefs.autoReadQuestion || prefs.voiceMode) {
+      setTimeout(() => handlePlayAudio(item), 300);
+    }
+  }
+
+  // Universal Keyboard Accessibility for Visually Impaired Candidates in Study Materials
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (activeReadingItem) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          speechService.stop();
+          setSpeakingId(null);
+          setActiveReadingItem(null);
+          return;
+        }
+        if (e.key === ' ' || e.key === 'p' || e.key === 'P') {
+          e.preventDefault();
+          handlePlayAudio(activeReadingItem);
+          return;
+        }
+        if (e.key === 'k' || e.key === 'K') {
+          e.preventDefault();
+          speechService.stop();
+          const points = `Key Highlights: ${activeReadingItem.keyPoints.join('. ')}`;
+          speechService.speak(points, { priority: true });
+          return;
+        }
+        if (e.key === 's' || e.key === 'S') {
+          e.preventDefault();
+          const speeds = [0.75, 1.0, 1.25, 1.5];
+          const nextSpeed = speeds[(speeds.indexOf(speechRate) + 1) % speeds.length] || 1.0;
+          setSpeechRate(nextSpeed);
+          speechService.configure(nextSpeed, 1.0);
+          speechService.speak(`Speed ${nextSpeed}x`);
+          return;
+        }
+        return;
+      }
+
+      // Catalog view shortcuts
+      if (e.key >= '1' && e.key <= '4') {
+        const idx = parseInt(e.key, 10) - 1;
+        if (materials[idx]) {
+          e.preventDefault();
+          openReader(materials[idx]);
+        }
+        return;
+      }
+
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        if (materials.length > 0) {
+          handlePlayAudio(materials[0]);
+        }
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [activeReadingItem, materials, speakingId, speechRate, prefs.autoReadQuestion, prefs.voiceMode]);
+
+  usePageVoice('StudyMaterials', [
+    {
+      triggers: ['read notes', 'read study notes', 'play notes', 'listen to notes', 'listen', 'play audio notes'],
+      answer: () => {
+        if (materials.length > 0) {
+          handlePlayAudio(materials[0]);
+          return '';
+        }
+        return 'No study materials available to read.';
+      },
+    },
+    {
+      triggers: ['stop audio', 'stop reading', 'mute reading'],
+      answer: () => 'Audio reading stopped.',
+      action: () => handleStopAllAudio(),
+    },
+    {
+      triggers: ['show all notes', 'all subjects', 'all notes', 'reset filter'],
+      answer: () => 'Showing all study materials across all subjects.',
+      action: () => setSelectedSubject('All'),
+    },
+    {
+      triggers: ['science notes', 'filter science', 'general science', 'science'],
+      answer: () => 'Filtering by General Science study materials.',
+      action: () => setSelectedSubject('Science'),
+    },
+    {
+      triggers: ['polity notes', 'filter polity', 'indian polity', 'polity'],
+      answer: () => 'Filtering by Indian Polity study materials.',
+      action: () => setSelectedSubject('Polity'),
+    },
+    {
+      triggers: ['banking notes', 'filter banking', 'economy notes', 'banking'],
+      answer: () => 'Filtering by Banking and Economy study materials.',
+      action: () => setSelectedSubject('Banking'),
+    },
+    {
+      triggers: ['reasoning notes', 'filter reasoning', 'logic notes', 'reasoning'],
+      answer: () => 'Filtering by Reasoning study materials.',
+      action: () => setSelectedSubject('Reasoning'),
+    },
+    {
+      triggers: ['summary', 'read summary', 'overview', 'how many notes'],
+      answer: () => `Study Materials library has ${materials.length} comprehensive audio notes available with key point summaries and voice narration.`,
+    },
+  ]);
 
   // Filter materials
   const filteredMaterials = useMemo(() => {
@@ -630,7 +745,7 @@ export default function StudyMaterials() {
                     </button>
 
                     <button
-                      onClick={() => setActiveReadingItem(item)}
+                      onClick={() => openReader(item)}
                       style={{
                         padding: '0.42rem 0.75rem',
                         borderRadius: '0.5rem',

@@ -28,12 +28,12 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { EXAMS, MOCK_ATTEMPTS } from '../data/mockData';
-import { examsApi } from '../services/api';
+import { examsApi, attemptsApi } from '../services/api';
 import { speechService } from '../services/speechService';
 import { audioCueService } from '../services/audioCueService';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useAuth } from '../context/AuthContext';
-import { classifyVoiceCommand, VoiceCommandMatch } from '../services/voiceCommandClassifier';
+import { classifyVoiceCommand, classifyVoiceIntent, VoiceCommandMatch } from '../services/voiceCommandClassifier';
 import { globalVoiceService } from '../services/globalVoiceService';
 import PreExamCalibrationWizard from '../components/PreExamCalibrationWizard';
 import AccessibleMathViewer, { verbalizeMathExpression } from '../components/AccessibleMathViewer';
@@ -105,6 +105,8 @@ export default function ExamInterface() {
   const animFrameRef                    = useRef<number | null>(null);
   const timerRef                        = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTime                       = useRef(Date.now());
+  const examStartTimestampRef           = useRef<number>(Date.now());
+  const totalAllocatedSecondsRef        = useRef<number>(Math.round((exam?.durationMinutes ?? 10) * 60 * 1.5));
   const questionTimes                   = useRef<Record<string, number>>({});
   const qStartTime                      = useRef(Date.now());
 
@@ -153,10 +155,38 @@ export default function ExamInterface() {
 
   const startExamNow = useCallback(async () => {
     if (startedRef.current) return;
+    const now = Date.now();
+    const baseMin = examRef.current?.durationMinutes ?? 10;
+    const totalAlloc = Math.round(baseMin * 60 * timeMultiplier);
+
+    startTime.current = now;
+    examStartTimestampRef.current = now;
+    totalAllocatedSecondsRef.current = totalAlloc;
+    setTimeLeft(totalAlloc);
+    timeLeftRef.current = totalAlloc;
+
     setStarted(true);
     startedRef.current = true;
     setVoiceActive(true);
     voiceActiveRef.current = true;
+
+    // Persist active exam session for reload recovery
+    if (examRef.current) {
+      try {
+        localStorage.setItem(`drishtix_active_exam_${examRef.current.id}`, JSON.stringify({
+          examId: examRef.current.id,
+          examTitle: examRef.current.title,
+          examStartTimestamp: now,
+          totalAllocatedSeconds: totalAlloc,
+          currentQuestionIndex: 0,
+          answers: {},
+          flagged: {},
+          questionTimes: {},
+          lastUpdated: now,
+        }));
+      } catch {}
+    }
+
     await enableMicrophone();
     audioCueService.examStart();
     const qCount = examRef.current?.questions.length ?? 10;
@@ -288,6 +318,108 @@ export default function ExamInterface() {
     document.title = `${exam.title} — DrishtiX`;
   }, [exam, navigate]);
 
+  // Reload recovery on mount
+  useEffect(() => {
+    if (!exam || startedRef.current || submitted) return;
+    const sessionKey = `drishtix_active_exam_${exam.id}`;
+    const raw = localStorage.getItem(sessionKey);
+    if (!raw) return;
+
+    try {
+      const session = JSON.parse(raw);
+      if (session.examId === exam.id && session.examStartTimestamp) {
+        const elapsed = Math.floor((Date.now() - session.examStartTimestamp) / 1000);
+        const allocated = session.totalAllocatedSeconds || (exam.durationMinutes * 60);
+        const remaining = allocated - elapsed;
+
+        if (remaining > 0) {
+          console.log('[ExamInterface] Recovering active exam session from reload:', session);
+          startTime.current = session.examStartTimestamp;
+          examStartTimestampRef.current = session.examStartTimestamp;
+          totalAllocatedSecondsRef.current = allocated;
+          setTimeLeft(remaining);
+          timeLeftRef.current = remaining;
+          setAnswers(session.answers || {});
+          answersRef.current = session.answers || {};
+          setFlagged(session.flagged || {});
+          flaggedRef.current = session.flagged || {};
+          const savedCur = Math.min(Math.max(0, session.currentQuestionIndex || 0), exam.questions.length - 1);
+          setCurrent(savedCur);
+          currentRef.current = savedCur;
+          if (session.questionTimes) {
+            questionTimes.current = session.questionTimes;
+          }
+          setStarted(true);
+          startedRef.current = true;
+          setVoiceActive(true);
+          voiceActiveRef.current = true;
+          enableMicrophone();
+
+          const m = Math.floor(remaining / 60);
+          const resumeMsg = `Exam session recovered. Resuming at question ${savedCur + 1} of ${exam.questions.length}. You have ${m} minutes remaining.`;
+          speechService.speak(resumeMsg, { priority: true });
+          setScreenReaderAnnouncement(resumeMsg);
+        } else {
+          console.warn('[ExamInterface] Recovered exam session expired.');
+          localStorage.removeItem(sessionKey);
+        }
+      }
+    } catch (err) {
+      console.warn('[ExamInterface] Error restoring active exam session:', err);
+    }
+  }, [exam, submitted]);
+
+  // Persist ongoing exam state to recover from accidental reload or browser close
+  useEffect(() => {
+    if (!started || submitted || !exam) return;
+    try {
+      const sessionKey = `drishtix_active_exam_${exam.id}`;
+      const savedRaw = localStorage.getItem(sessionKey);
+      let baseObj: any = {};
+      if (savedRaw) {
+        try { baseObj = JSON.parse(savedRaw); } catch {}
+      }
+      const updated = {
+        ...baseObj,
+        examId: exam.id,
+        examTitle: exam.title,
+        examStartTimestamp: examStartTimestampRef.current,
+        totalAllocatedSeconds: totalAllocatedSecondsRef.current,
+        currentQuestionIndex: current,
+        answers,
+        flagged,
+        questionTimes: questionTimes.current,
+        lastUpdated: Date.now(),
+      };
+      localStorage.setItem(sessionKey, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('[ExamInterface] Failed to persist active exam state:', e);
+    }
+  }, [started, submitted, exam, current, answers, flagged]);
+
+  // BroadcastChannel for multi-tab coordination and concurrency integrity
+  useEffect(() => {
+    if (!exam || !started || submitted) return;
+    let channel: BroadcastChannel | null = null;
+    try {
+      channel = new BroadcastChannel(`drishtix_exam_tab_${exam.id}`);
+      channel.postMessage({ type: 'TAB_ACTIVE', timestamp: Date.now() });
+
+      channel.onmessage = (event) => {
+        if (event.data?.type === 'TAB_ACTIVE') {
+          console.warn('[ExamInterface] Detected concurrent tab for the same exam.');
+          speechService.speak('Notice: This examination is open in another window.', { priority: false });
+        }
+      };
+    } catch (e) {
+      // BroadcastChannel fallback if not supported
+    }
+
+    return () => {
+      channel?.close();
+    };
+  }, [exam, started, submitted]);
+
   // Auto-read exam instructions upon opening pre-exam screen
   useEffect(() => {
     if (started || !exam) return;
@@ -345,22 +477,30 @@ export default function ExamInterface() {
     questionRef.current?.focus();
   }, [current, started, exam, autoAdvance]);
 
-  // Timer
+  // Timer (Authoritative Wall-Clock Calculation)
   useEffect(() => {
     if (!started) return;
     audioCueService.examStart();
     timerRef.current = setInterval(() => {
-      setTimeLeft(t => {
-        if (t <= 1) { clearInterval(timerRef.current!); handleAutoSubmit(); return 0; }
-        if (prefs.timerWarnings && (t === 300 || t === 60)) {
-          audioCueService.timerWarning();
-          speechService.speak(t === 300 ? 'Five minutes remaining' : 'One minute remaining', true);
-        }
-        return t - 1;
-      });
+      const elapsed = Math.floor((Date.now() - examStartTimestampRef.current) / 1000);
+      const remaining = Math.max(0, totalAllocatedSecondsRef.current - elapsed);
+      setTimeLeft(remaining);
+      timeLeftRef.current = remaining;
+
+      if (remaining <= 0) {
+        clearInterval(timerRef.current!);
+        handleAutoSubmit();
+        return;
+      }
+      if (prefs.timerWarnings && (remaining === 300 || remaining === 60)) {
+        audioCueService.timerWarning();
+        speechService.speak(remaining === 300 ? 'Five minutes remaining' : 'One minute remaining', true);
+      }
     }, 1000);
-    return () => clearInterval(timerRef.current!);
-  }, [started]);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [started, prefs.timerWarnings]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -435,6 +575,7 @@ export default function ExamInterface() {
         case 'ArrowRight': case 'n': case 'N': goNext(); break;
         case 'ArrowLeft':  case 'p': case 'P': goPrev(); break;
         // Actions
+        case 't': case 'T': e.preventDefault(); readTimeLeft(); break;
         case 'f': case 'F': toggleFlag(); break;
         case 'r': case 'R': readQuestion(); break;
         case 'v': case 'V': toggleVoice(); break;
@@ -539,19 +680,35 @@ export default function ExamInterface() {
     audioCueService.select();
   }
 
+  const readTimeLeft = useCallback(() => {
+    const m = Math.floor(timeLeftRef.current / 60);
+    const s = timeLeftRef.current % 60;
+    speechService.speak(`Time remaining: ${m} minutes and ${s} seconds.`, { priority: true });
+  }, []);
+
   function readQuestion() {
     const ex = examRef.current;
     if (!ex) return;
     const cur = currentRef.current;
     const q = ex.questions[cur];
     if (!q) return;
-    const optionText = q.options.map(o => `Option ${o.id}: ${o.text}`).join('. ');
+
+    // Verbalize math formulas and units phonetically
+    const qText = speechService.mathToPhonetic(q.phoneticText ?? q.text);
+    const optionText = q.options.map(o => `Option ${o.id}: ${speechService.mathToPhonetic(o.text)}`).join('. ');
     const ans = answersRef.current[q.id];
+    const isFlagged = flaggedRef.current[q.id];
+
+    let extraHints = '';
+    if (q.mathFormula) extraHints += ' Note: Mathematical formula present. Press M to hear formula breakdown.';
+    if (q.diagramData) extraHints += ' Note: Visual diagram present. Press D to hear diagram description.';
+    if (isFlagged) extraHints += ' This question is flagged for review.';
+
     setIsSpeakingAloud(true);
     isSpeakingAloudRef.current = true;
     setVoiceText('');
     speechService.speak(
-      `Question ${cur + 1} of ${ex.questions.length}. ${q.phoneticText ?? q.text}. ${optionText}.${ans ? ' Selected answer: Option ' + ans : ''}`,
+      `Question ${cur + 1} of ${ex.questions.length}. ${qText}. ${optionText}.${ans ? ' Selected answer: Option ' + ans + '.' : ''}${extraHints}`,
       {
         priority: true,
         onEnd: () => {
@@ -562,6 +719,36 @@ export default function ExamInterface() {
       }
     );
   }
+
+  // Autonomous Question Audio-Reading & Focus Management on Question Transition
+  useEffect(() => {
+    if (!started || submitted) return;
+    const ex = examRef.current;
+    if (!ex) return;
+    const q = ex.questions[current];
+    if (!q) return;
+
+    // Focus the question card for native screen readers
+    try {
+      questionRef.current?.focus();
+    } catch {}
+
+    const ans = answersRef.current[q.id];
+    const isFlagged = flaggedRef.current[q.id];
+    const liveText = `Question ${current + 1} of ${ex.questions.length}. ${q.text}. Options: ${q.options.map(o => `${o.id}: ${o.text}`).join(', ')}.${ans ? ' Answered Option ' + ans + '.' : ' Not yet answered.'}${isFlagged ? ' Flagged for review.' : ''}`;
+    setScreenReaderAnnouncement(liveText);
+
+    // If autoReadQuestion or autonomousMode is active, automatically read out the question!
+    if (prefs.autoReadQuestion || autonomousMode) {
+      try {
+        audioCueService.navigation();
+      } catch {}
+      const timer = setTimeout(() => {
+        readQuestion();
+      }, 150);
+      return () => clearTimeout(timer);
+    }
+  }, [current, started, submitted, prefs.autoReadQuestion, autonomousMode]);
 
   function recordQTime() {
     const ex = examRef.current;
@@ -722,139 +909,222 @@ export default function ExamInterface() {
 
     setVoiceText(clean);
 
-    // 2. Pre-exam screen commands (Before user enters the exam)
+    // 2. Pre-exam screen commands (Before candidate enters the exam)
     if (!startedRef.current) {
-      if (
-        clean.includes('start') || clean.includes('begin') || clean.includes('shuru') ||
-        clean.includes('click') || clean.includes('tap') || clean.includes('enter') ||
-        clean.includes('open') || clean.includes('chalu') || clean.includes('proceed') ||
-        clean.includes('yes') || clean.includes('haan') || clean.includes('ok') ||
-        clean.includes('go') || clean.includes('ready') || clean.includes('ssc') ||
-        clean.includes('scc') || clean.includes('s s c') || clean.includes('cgl') ||
-        clean.includes('reasoning') || clean.includes('exam') || clean.includes('test')
-      ) {
-        console.log('[ExamInterface Voice] 🚀 Pre-exam START triggered from:', clean);
+      const preIntent = classifyVoiceIntent(clean, {
+        examState: 'not-started',
+        route: '/exam/',
+      });
+
+      console.log('[ExamInterface Pre-Exam] Intent:', preIntent.type, preIntent);
+
+      // Explicit Start Command ONLY
+      if (preIntent.type === 'START_EXAM' && !preIntent.isNegated) {
+        console.log('[ExamInterface Voice] 🚀 Pre-exam START triggered from verified intent');
         startExamNow();
         return true;
       }
-      if (clean.includes('read') || clean.includes('info') || clean.includes('sunao') || clean.includes('overview') || clean.includes('instruction')) {
-        readPreExamOverview();
-        return true;
-      }
-      if (clean.includes('cancel') || clean.includes('back') || clean.includes('piche') || clean.includes('peeche')) {
+
+      // "Open mock test" or "go back" on pre-exam screen goes back to library without starting
+      if (preIntent.type === 'OPEN_MOCK_TESTS' || preIntent.type === 'NAVIGATE_BACK') {
+        speechService.speak('Mock test opened.');
         navigate('/exams');
         return true;
       }
+
+      // Read instructions / overview
+      if (
+        preIntent.type === 'READ_QUESTION' ||
+        clean.includes('instruction') ||
+        clean.includes('overview') ||
+        clean.includes('info')
+      ) {
+        readPreExamOverview();
+        return true;
+      }
+
       return false;
     }
 
-    const now = Date.now();
-
-    // 3. Submit confirmation dialog
+    // 3. Submit confirmation dialog (Strict affirmative/negative safety)
     if (showSubmitDlgRef.current) {
-      if (clean.includes('yes') || clean.includes('haan') || clean.includes('submit') || clean.includes('confirm') || clean.includes('ok')) {
+      const dlgIntent = classifyVoiceIntent(clean, {
+        examState: 'submit-dialog',
+        route: '/exam/',
+        isModalOpen: true,
+      });
+
+      console.log('[ExamInterface SubmitDialog] Intent:', dlgIntent.type);
+
+      if (dlgIntent.type === 'CONFIRM_SUBMIT') {
         submitExam();
         return true;
       }
-      if (clean.includes('cancel') || clean.includes('no') || clean.includes('nahi') || clean.includes('resume') || clean.includes('back')) {
+      if (dlgIntent.type === 'CANCEL_SUBMIT') {
         setShowSubmitDlg(false);
         speechService.speak('Resuming examination.');
         return true;
       }
-      if (clean.includes('read') || clean.includes('status') || clean.includes('sunao')) {
+      if (dlgIntent.type === 'READ_QUESTION' || clean.includes('status') || clean.includes('sunao')) {
         readSubmitStatus();
         return true;
       }
       return false;
     }
 
-    // 4. In-Exam Reading & Repeat
-    if (
-      clean.includes('read question') || clean.includes('read the question') ||
-      clean === 'read' || clean === 'repeat' || clean.includes('dobara') || clean.includes('padho') || clean.includes('fir se')
-    ) {
+    // 4. In-Exam Command Processing using Intent Classifier
+    const ex = examRef.current;
+    const cur = currentRef.current;
+    const curQ = ex?.questions[cur];
+
+    const intent = classifyVoiceIntent(clean, {
+      examState: 'in-progress',
+      route: '/exam/',
+      currentQuestionIndex: cur,
+      totalQuestions: ex?.questions.length,
+      currentAnswer: curQ ? answersRef.current[curQ.id] : undefined,
+    });
+
+    console.log(`[ExamInterface Voice] Intent: ${intent.type} (negated=${intent.isNegated}) from "${clean}"`);
+
+    // Guard against unsupported sequential commands
+    if (intent.type === 'SEQUENTIAL_UNSUPPORTED') {
+      speechService.speak('Please give one command at a time.');
+      return true;
+    }
+
+    // Guard against negated actions (e.g. "don't submit the exam", "don't select A")
+    if (intent.isNegated) {
+      speechService.speak('Understood, action cancelled.');
+      return true;
+    }
+
+    // A. Next Question
+    if (intent.type === 'NEXT_QUESTION') {
+      goNext();
+      return true;
+    }
+
+    // B. Previous Question
+    if (intent.type === 'PREV_QUESTION') {
+      goPrev();
+      return true;
+    }
+
+    // C. Read or Repeat Question
+    if (intent.type === 'READ_QUESTION' || intent.type === 'REPEAT_QUESTION') {
       readQuestion();
       return true;
     }
 
-    // 5. Action classifier
-    const match = classifyVoiceCommand(clean);
-    if (match) {
-      if (lastCmdRef.current.cmd === match.action && now - lastCmdRef.current.time < 700) return true;
-      console.log(`[ExamInterface Voice] ✅ COMMAND: ${match.action} from "${clean}"`);
-      lastCmdRef.current = { cmd: match.action, time: now };
-      handleVoiceCmd(match.action);
-      setLastAction(match.label);
-      return true;
-    }
-
-    // 6. Option Selection (A, B, C, D)
-    if (
-      clean.includes('option a') || clean === 'a' || clean === 'one' || clean === '1' ||
-      clean.includes('pehla') || clean.includes('alpha') || clean.includes('a option') ||
-      clean.includes('option 1') || clean === 'option one' || clean === 'hey' || clean === 'ei' || clean === 'ek'
-    ) { selectOption('A'); return true; }
-    if (
-      clean.includes('option b') || clean === 'b' || clean === 'two' || clean === '2' ||
-      clean.includes('dusra') || clean.includes('doosra') || clean.includes('bravo') ||
-      clean.includes('b option') || clean.includes('option 2') || clean === 'option two' ||
-      clean === 'bee' || clean === 'be' || clean === 'to' || clean === 'too' || clean === 'do' || clean.includes('option to')
-    ) { selectOption('B'); return true; }
-    if (
-      clean.includes('option c') || clean === 'c' || clean === 'three' || clean === '3' ||
-      clean.includes('teesra') || clean.includes('tisra') || clean.includes('charlie') ||
-      clean.includes('c option') || clean.includes('option 3') || clean === 'option three' ||
-      clean === 'see' || clean === 'sea' || clean === 'si' || clean === 'teen'
-    ) { selectOption('C'); return true; }
-    if (
-      clean.includes('option d') || clean === 'd' || clean === 'four' || clean === '4' ||
-      clean.includes('chautha') || clean.includes('delta') || clean.includes('d option') ||
-      clean.includes('option 4') || clean === 'option four' || clean === 'the' || clean === 'dee' ||
-      clean === 'di' || clean === 'chaar' || clean === 'char' || clean === 'for'
-    ) { selectOption('D'); return true; }
-
-    // Option text matching
-    const ex = examRef.current;
-    const cur = currentRef.current;
-    const curQ = ex?.questions[cur];
-    if (curQ) {
-      for (const opt of curQ.options) {
-        const optClean = opt.text.toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
-        if (optClean && (clean === optClean || clean.includes(optClean) || (optClean.length >= 3 && optClean.includes(clean)))) {
-          selectOption(opt.id as 'A' | 'B' | 'C' | 'D'); return true;
-        }
+    // D. Option Selection or Answer Change (e.g. "Select option B", "Change my answer to C")
+    if (intent.type === 'SELECT_OPTION' || intent.type === 'CHANGE_ANSWER') {
+      if (intent.targetOption) {
+        selectOption(intent.targetOption);
+        return true;
       }
     }
 
-    // In-Exam Navigation
-    if (clean.includes('next') || clean.includes('agla') || clean.includes('aage')) { goNext(); return true; }
-    if (clean.includes('prev') || clean.includes('previous') || clean.includes('pichla') || clean.includes('back')) { goPrev(); return true; }
-    if (clean.includes('flag') || clean.includes('mark') || clean.includes('review')) { toggleFlag(); return true; }
-    if (clean.includes('submit') || clean.includes('finish') || clean.includes('khatam')) { setShowSubmitDlg(true); return true; }
-    if (clean.includes('time') || clean.includes('samay') || clean.includes('kitna time')) {
+    // E. Clear / Deselect Answer
+    if (intent.type === 'CLEAR_ANSWER') {
+      if (ex && curQ) {
+        setAnswers(a => {
+          const n = { ...a };
+          delete n[curQ.id];
+          return n;
+        });
+        answersRef.current = { ...answersRef.current };
+        delete answersRef.current[curQ.id];
+        audioCueService.select();
+        speechService.speak('Answer cleared.');
+        setLastAction('Cleared Answer');
+      }
+      return true;
+    }
+
+    // F. Flag Question
+    if (intent.type === 'FLAG_QUESTION') {
+      toggleFlag();
+      return true;
+    }
+
+    // G. Submit Exam (Initiate Confirmation Modal)
+    if (intent.type === 'INITIATE_SUBMIT') {
+      setShowSubmitDlg(true);
+      speechService.speak('Opening submit confirmation. Say Yes to submit or No to continue.');
+      return true;
+    }
+
+    // H. Time Remaining
+    if (intent.type === 'TIME_REMAINING') {
       const m = Math.floor(timeLeftRef.current / 60);
       const s = timeLeftRef.current % 60;
       speechService.speak(`You have ${m} minutes and ${s} seconds remaining.`, { priority: true });
       return true;
     }
-    if (clean.includes('clear') || clean.includes('mitao')) {
-      if (ex) {
-        setAnswers(a => { const n = { ...a }; delete n[ex.questions[cur].id]; return n; });
-        audioCueService.select();
+
+    // I. Read Options
+    if (intent.type === 'READ_OPTIONS') {
+      if (curQ) {
+        const opts = curQ.options.map(o => `Option ${o.id}: ${o.text}`).join('. ');
+        speechService.speak(`Options are: ${opts}`, { priority: true });
       }
       return true;
     }
 
-    const fallbackMatch = clean.match(/\b(?:options?|tap|select|choose|click|mark|tick|ans|answer|wala|pe|par|number|no\.?)?\s*([abcd1-4])\b/i);
-    if (fallbackMatch) {
-      const rawChar = fallbackMatch[1].toUpperCase();
-      const mapKey: Record<string, 'A' | 'B' | 'C' | 'D'> = { 'A': 'A', '1': 'A', 'B': 'B', '2': 'B', 'C': 'C', '3': 'C', 'D': 'D', '4': 'D' };
-      const optId = mapKey[rawChar];
-      if (optId) { selectOption(optId); return true; }
+    // J. Goto Question Number
+    if (intent.type === 'GOTO_QUESTION' && intent.targetQuestionNumber !== undefined) {
+      const n = intent.targetQuestionNumber - 1;
+      if (ex && n >= 0 && n < ex.questions.length) {
+        recordQTime();
+        setCurrent(n);
+        speechService.speak(`Question ${n + 1}.`);
+        audioCueService.navigation();
+      }
+      return true;
+    }
+
+    // K. Assistive Verbalization
+    if (intent.type === 'VERBALIZE_MATH') { verbalizeCurrentFormula(); return true; }
+    if (intent.type === 'DESCRIBE_DIAGRAM') { describeCurrentDiagram(); return true; }
+    if (intent.type === 'EXPLAIN_QUESTION') { explainCurrentQuestion(); return true; }
+    if (intent.type === 'SHOW_SHORTCUTS') { setShowShortcutsModal(true); return true; }
+    if (intent.type === 'STOP_VOICE') { toggleVoice(); return true; }
+
+    // L. Verbatim Option Text Matching (Candidate spoke the text of an option)
+    if (curQ) {
+      for (const opt of curQ.options) {
+        const optClean = opt.text.toLowerCase().replace(/[^a-z0-9]/g, ' ').trim();
+        if (optClean && (clean === optClean || clean.includes(optClean) || (optClean.length >= 4 && optClean.includes(clean)))) {
+          selectOption(opt.id as 'A' | 'B' | 'C' | 'D');
+          return true;
+        }
+      }
+    }
+
+    // M. Clarification for genuinely ambiguous inputs (e.g. "open it", "start it")
+    if (intent.type === 'CLARIFY_AMBIGUOUS') {
+      speechService.speak("I didn't understand. Please say that again.");
+      return true;
     }
 
     return false;
-  }, [goNext, goPrev, navigate, readPreExamOverview, readQuestion, readSubmitStatus, selectOption, startExamNow, submitExam, toggleFlag]);
+  }, [
+    goNext,
+    goPrev,
+    navigate,
+    readPreExamOverview,
+    readQuestion,
+    readSubmitStatus,
+    selectOption,
+    startExamNow,
+    submitExam,
+    toggleFlag,
+    toggleVoice,
+    verbalizeCurrentFormula,
+    describeCurrentDiagram,
+    explainCurrentQuestion,
+  ]);
 
   // ── Unified Global Voice Engine ─────────────────────────────────
   useEffect(() => {
@@ -950,10 +1220,29 @@ export default function ExamInterface() {
       subjectBreakdown, weakTopics, strongTopics,
     };
 
+    // Remove active in-progress exam session
+    try {
+      localStorage.removeItem(`drishtix_active_exam_${exam.id}`);
+    } catch {}
+
     // Store attempt
     const stored = JSON.parse(localStorage.getItem('sight-exam-attempts') ?? '[]');
     stored.unshift(attempt);
     localStorage.setItem('sight-exam-attempts', JSON.stringify(stored));
+
+    // Also sync to backend API
+    attemptsApi.create({
+      id: attempt.id,
+      examId: exam.id,
+      examTitle: exam.title,
+      score: correct * 2,
+      maxScore: exam.questions.length * 2,
+      percentage,
+      timeSpentSeconds: Math.round((Date.now() - startTime.current) / 1000),
+      status: 'Completed',
+      flags: [],
+      audioAlertsCount: voiceAuditLog.length,
+    }).catch(err => console.warn('[ExamInterface] Backend attempt sync fallback:', err));
 
     audioCueService.examSubmit();
     speechService.speak(`Exam submitted. You scored ${percentage} percent. ${correct} correct out of ${exam.questions.length}.`, true);

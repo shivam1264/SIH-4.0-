@@ -55,48 +55,78 @@ export default function Settings() {
 
   usePageVoice('Settings', [
     {
-      triggers: ['dark mode', 'dark theme', 'black theme'],
-      answer: () => 'Dark mode activate kar diya gaya hai.',
+      triggers: ['dark mode', 'dark theme', 'black theme', 'dark'],
+      answer: () => 'Dark mode activated.',
       action: () => setTheme('dark'),
     },
     {
-      triggers: ['light mode', 'light theme', 'white theme'],
-      answer: () => 'Light mode activate kar diya gaya hai.',
+      triggers: ['light mode', 'light theme', 'white theme', 'light'],
+      answer: () => 'Light mode activated.',
       action: () => setTheme('default'),
     },
     {
-      triggers: ['high contrast', 'yellow black', 'contrast'],
-      answer: () => 'High contrast theme activate kar di gayi hai.',
+      triggers: ['high contrast', 'contrast theme', 'high contrast mode'],
+      answer: () => 'High contrast theme activated.',
       action: () => setTheme('high-contrast'),
     },
     {
-      triggers: ['font size bada', 'large font', 'bada text', 'font bada'],
-      answer: () => 'Font size large set kar diya gaya hai.',
+      triggers: ['yellow on black', 'yellow black', 'yellow theme'],
+      answer: () => 'Yellow on black theme activated.',
+      action: () => setTheme('yellow-black'),
+    },
+    {
+      triggers: ['huge font', 'huge text', '150%', 'maximum font', 'sabse bada font'],
+      answer: () => 'Font size set to huge 150 percent.',
+      action: () => setFontSize('xxlarge'),
+    },
+    {
+      triggers: ['extra large', 'xlarge', 'x large', '135%', 'extra large font'],
+      answer: () => 'Font size set to extra large 135 percent.',
+      action: () => setFontSize('xlarge'),
+    },
+    {
+      triggers: ['large font', 'large text', '115%', 'bada text', 'font bada'],
+      answer: () => 'Font size set to large 115 percent.',
       action: () => setFontSize('large'),
     },
     {
-      triggers: ['font size normal', 'medium font', 'normal text'],
-      answer: () => 'Font size normal set kar diya gaya hai.',
+      triggers: ['normal font', 'normal text', '100%', 'default font', 'default text'],
+      answer: () => 'Font size set to normal 100 percent.',
       action: () => setFontSize('default'),
     },
     {
-      triggers: ['speed badhao', 'fast bolo', 'voice rate up'],
-      answer: () => 'Voice speed badha di gayi hai.',
-      action: () => setVoiceRate(Math.min(1.4, Number((prefs.voiceRate + 0.1).toFixed(2)))),
+      triggers: ['automatic question announcing', 'auto read', 'auto question', 'toggle auto read', 'announcing'],
+      answer: () => `Automatic question announcing ${!prefs.autoReadQuestion ? 'enabled' : 'disabled'}.`,
+      action: () => toggleAutoRead(),
     },
     {
-      triggers: ['speed kam karo', 'slow bolo', 'dheere bolo', 'voice rate down'],
-      answer: () => 'Voice speed kam kar di gayi hai.',
-      action: () => setVoiceRate(Math.max(0.75, Number((prefs.voiceRate - 0.1).toFixed(2)))),
+      triggers: ['audio feedback', 'toggle audio feedback', 'sound feedback', 'audio cues'],
+      answer: () => `Audio feedback sound cues ${!prefs.audioFeedback ? 'enabled' : 'disabled'}.`,
+      action: () => toggleAudioFeedback(),
     },
     {
-      triggers: ['summary', 'current settings', 'preferences kya hai', 'batao'],
-      answer: () => `Current settings: Theme ${prefs.theme}, Font size ${prefs.fontSize}, Voice speed ${prefs.voiceRate}x, Audio feedback ${prefs.audioFeedback ? 'enabled' : 'disabled'}.`,
+      triggers: ['speed badhao', 'fast bolo', 'voice rate up', 'faster voice', 'speak faster'],
+      answer: () => 'Voice speed increased.',
+      action: () => setVoiceRate(Math.min(1.8, Number((prefs.voiceRate + 0.15).toFixed(2)))),
     },
     {
-      triggers: ['test voice', 'awaz test', 'voice check'],
-      answer: () => 'Testing voice audio calibration now.',
+      triggers: ['speed kam karo', 'slow bolo', 'dheere bolo', 'voice rate down', 'slower voice', 'speak slower'],
+      answer: () => 'Voice speed decreased.',
+      action: () => setVoiceRate(Math.max(0.6, Number((prefs.voiceRate - 0.15).toFixed(2)))),
+    },
+    {
+      triggers: ['summary', 'current settings', 'preferences kya hai', 'batao', 'read settings'],
+      answer: () => `Current accessibility settings: Theme ${prefs.theme}, Font scaling ${prefs.fontSize}, Speaking pace ${prefs.voiceRate.toFixed(1)}x, Automatic question reading ${prefs.autoReadQuestion ? 'active' : 'inactive'}.`,
+    },
+    {
+      triggers: ['test voice', 'awaz test', 'voice check', 'sample voice', 'sample voice output'],
+      answer: () => 'Testing voice audio output now.',
       action: () => testVoice(),
+    },
+    {
+      triggers: ['reset to defaults', 'reset settings', 'default settings', 'restore defaults'],
+      answer: () => 'System accessibility preferences reset to default values.',
+      action: () => resetToDefaults(),
     },
   ]);
 

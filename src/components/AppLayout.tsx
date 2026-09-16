@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Menu,
   Sun,
@@ -16,8 +16,10 @@ import {
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import NotificationCenter from './NotificationCenter';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { speechService } from '../services/speechService';
+import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
 import { useAuth } from '../context/AuthContext';
 
 interface Props {
@@ -32,8 +34,37 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const politeRef = useRef<HTMLDivElement>(null);
+  const assertiveRef = useRef<HTMLDivElement>(null);
 
   const isAdminRoute = location.pathname.startsWith('/admin') || user?.role === 'admin';
+
+  // Register screen reader elements
+  useEffect(() => {
+    if (politeRef.current && assertiveRef.current) {
+      screenReaderAnnouncer.registerElements(politeRef.current, assertiveRef.current);
+    }
+  }, []);
+
+  // Automatic spoken page orientation on route changes
+  useEffect(() => {
+    screenReaderAnnouncer.handleRouteChange(location.pathname, prefs.voiceMode);
+  }, [location.pathname, prefs.voiceMode]);
+
+  // Global accessibility hotkeys (B / O for orientation)
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.key === 'b' || e.key === 'B' || e.key === 'o' || e.key === 'O') {
+        e.preventDefault();
+        screenReaderAnnouncer.orientCurrentPage(location.pathname, true);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKey);
+    return () => window.removeEventListener('keydown', handleGlobalKey);
+  }, [location.pathname]);
 
   function cycleTheme() {
     if (prefs.theme === 'default') setTheme('dark');
@@ -48,8 +79,8 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
   }
 
   const shortcuts = [
+    { key: 'B / O', desc: 'Hear spoken page orientation and available options' },
     { key: 'V', desc: 'Toggle Voice Guidance & Speech commands' },
-    { key: 'B', desc: 'Hear spoken audio briefing for current page' },
     { key: 'R', desc: 'Read question or section aloud' },
     { key: '1-4', desc: 'Select option A, B, C, or D in exam' },
     { key: 'Alt + N', desc: 'Navigate to Next question' },
@@ -62,6 +93,46 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
 
   return (
     <div className="app-layout">
+      {/* Visually Impaired Skip to Main Content Link */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only"
+        style={{
+          position: 'fixed',
+          top: '0.6rem',
+          left: '0.6rem',
+          zIndex: 99999,
+          padding: '0.65rem 1.25rem',
+          background: 'var(--primary, #2563EB)',
+          color: '#ffffff',
+          fontWeight: 800,
+          borderRadius: '0.5rem',
+          boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
+          textDecoration: 'none',
+          outline: '3px solid #ffffff',
+        }}
+      >
+        Skip to Main Educational Content (Enter)
+      </a>
+
+      {/* Screen Reader ARIA Live Announcers */}
+      <div
+        id="sr-polite-announcements"
+        ref={politeRef}
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      />
+      <div
+        id="sr-assertive-announcements"
+        ref={assertiveRef}
+        className="sr-only"
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true"
+      />
+
       {/* Desktop sidebar */}
       <div
         className="hidden md:block"
@@ -113,7 +184,7 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
             zIndex: 50,
             flexShrink: 0,
             boxSizing: 'border-box',
-            overflow: 'hidden',
+            overflow: 'visible',
           }}
         >
           {/* Left: Mobile Menu & Clean Minimal Breadcrumb */}
@@ -151,37 +222,7 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
 
           {/* Right: Clean & Compact Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
-            {/* Admin Notifications */}
-            {isAdminRoute && (
-              <button
-                className="btn-ghost"
-                onClick={() => navigate('/admin?tab=notifications')}
-                style={{
-                  position: 'relative',
-                  padding: '0.4rem',
-                  borderRadius: '0.5rem',
-                  color: 'var(--text-muted)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                aria-label="Notifications"
-                title="Notifications (3 unread)"
-              >
-                <Bell size={17} />
-                <span
-                  style={{
-                    position: 'absolute',
-                    top: 6,
-                    right: 6,
-                    width: 7,
-                    height: 7,
-                    borderRadius: '50%',
-                    background: '#EF4444',
-                  }}
-                />
-              </button>
-            )}
+
 
             {/* Quick Voice Mode Button */}
             <button
@@ -286,6 +327,9 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
             >
               <Keyboard size={15} />
             </button>
+
+            {/* Notification Center (Real-world synchronized notifications) */}
+            <NotificationCenter />
 
             {/* User Profile Avatar */}
             <div

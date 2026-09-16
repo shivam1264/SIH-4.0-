@@ -41,7 +41,24 @@ const INITIAL_DATA: DatabaseSchema = {
       name: 'Admin User',
       email: 'admin@sightexamai.in',
       role: 'admin',
-      // Default dev password: admin123
+      passwordHash: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+    },
+    {
+      id: 'usr_admin_drishtix',
+      name: 'DrishtiX Administrator',
+      email: 'admin@drishtix.in',
+      role: 'admin',
+      passwordHash: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+    },
+    {
+      id: 'usr_aryan',
+      name: 'Aryan Sharma',
+      email: 'aryan@example.com',
+      role: 'student',
+      impairmentTier: 'low-vision',
+      extraTimeMultiplier: 1.5,
+      highContrastDefault: false,
+      screenReaderOptimized: true,
       passwordHash: '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
     },
     {

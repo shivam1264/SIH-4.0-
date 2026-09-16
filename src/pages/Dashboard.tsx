@@ -26,6 +26,7 @@ import { speechService } from '../services/speechService';
 import { usePageVoice } from '../hooks/usePageVoice';
 import { useVoiceAssistant } from '../context/VoiceAssistantContext';
 import { MOCK_ATTEMPTS, EXAMS } from '../data/mockData';
+import type { ExamAttempt } from '../types';
 
 // ── Hero Illustration Component ──
 function HeroIllustration() {
@@ -268,7 +269,10 @@ export default function Dashboard() {
     }
   }, [user, navigate]);
 
-  const attempts = MOCK_ATTEMPTS.filter(
+  const rawLive = localStorage.getItem('sight-exam-attempts');
+  const liveAttempts: ExamAttempt[] = rawLive ? JSON.parse(rawLive) : [];
+  const allAttempts = [...liveAttempts, ...MOCK_ATTEMPTS];
+  const attempts = allAttempts.filter(
     a => a.studentId === user?.id || user?.role === 'student'
   );
 
@@ -277,11 +281,36 @@ export default function Dashboard() {
   const avgScore = attempts.length
     ? Math.round(attempts.reduce((s, a) => s + a.percentage, 0) / attempts.length)
     : 66;
-  const bestScore = 80;
+  const bestScore = attempts.length
+    ? Math.max(...attempts.map(a => a.percentage))
+    : 80;
 
   const briefingText = `Dashboard. Your current score is ${avgScore} percent. You have completed ${
     attempts.length || 4
   } tests. Your weak topics are Pipes and Cisterns and History. You have recommended practice sessions ready. Say Start practice, or Show exams.`;
+
+  // Universal Keyboard Accessibility in Dashboard
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      switch (e.key) {
+        case '1': e.preventDefault(); navigate('/exams'); break;
+        case '2': e.preventDefault(); navigate('/practice'); break;
+        case '3': e.preventDefault(); navigate('/study-materials'); break;
+        case '4': e.preventDefault(); navigate('/pyqs'); break;
+        case '5': e.preventDefault(); navigate('/performance'); break;
+        case '6': e.preventDefault(); navigate('/history'); break;
+        case 'b': case 'B': case 'o': case 'O':
+          e.preventDefault();
+          speechService.speak(briefingText, { priority: true });
+          break;
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [briefingText, navigate]);
 
   // Register Dashboard Q&A with Global Voice Assistant
   usePageVoice('Dashboard', [

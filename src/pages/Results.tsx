@@ -17,16 +17,21 @@ import {
   BookOpen,
   FileText,
   Search,
-  ArrowRight
+  ArrowRight,
+  Volume2,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import { MOCK_ATTEMPTS, EXAMS } from '../data/mockData';
 import { usePageVoice } from '../hooks/usePageVoice';
+import { speechService } from '../services/speechService';
+import { audioCueService } from '../services/audioCueService';
+import { useAccessibility } from '../context/AccessibilityContext';
 import type { ExamAttempt } from '../types';
 
 export default function Results() {
   const { attemptId } = useParams<{ attemptId: string }>();
   const navigate = useNavigate();
+  const { prefs } = useAccessibility();
   const [attempt, setAttempt] = useState<ExamAttempt | null>(null);
   const [exam, setExam] = useState(EXAMS[0]);
   const [showSolutions, setShowSolutions] = useState(false);
@@ -36,13 +41,137 @@ export default function Results() {
     // Check live attempts (localStorage) first
     const liveAttempts: ExamAttempt[] = JSON.parse(localStorage.getItem('sight-exam-attempts') ?? '[]');
     const all = [...liveAttempts, ...MOCK_ATTEMPTS];
-    const found = all.find(a => a.id === attemptId);
-    if (found) {
-      setAttempt(found);
-      const e = EXAMS.find(e => e.id === found.examId);
+    const found = attemptId ? all.find(a => a.id === attemptId) : all[0];
+    const target = found || all[0];
+    if (target) {
+      setAttempt(target);
+      const e = EXAMS.find(e => e.id === target.examId);
       if (e) setExam(e);
     }
   }, [attemptId]);
+
+
+
+  const grade = attempt
+    ? attempt.percentage >= 80 ? { label: 'Excellent', color: 'var(--accent)', bg: 'var(--accent-light)', icon: Trophy }
+      : attempt.percentage >= 60 ? { label: 'Good', color: 'var(--primary)', bg: 'var(--primary-light)', icon: ThumbsUp }
+      : attempt.percentage >= 40 ? { label: 'Average', color: 'var(--warning)', bg: 'var(--warning-light)', icon: BarChart3 }
+      : { label: 'Needs Work', color: 'var(--danger)', bg: 'var(--danger-light)', icon: TrendingDown }
+    : { label: 'Needs Work', color: 'var(--danger)', bg: 'var(--danger-light)', icon: TrendingDown };
+
+  const GradeIcon = grade.icon;
+
+  const correctCount = attempt ? Math.round(attempt.score / 2) : 0;
+  const unattemptedCount = attempt && exam ? exam.questions.length - attempt.answers.filter(a => a.chosen).length : 0;
+  const wrongCount = attempt && exam ? exam.questions.length - correctCount - unattemptedCount : 0;
+
+  const statItems = attempt ? [
+    { label: 'Score', value: `${attempt.score}/${attempt.maxScore}`, icon: Target, color: grade.color },
+    { label: 'Accuracy', value: `${attempt.accuracy}%`, icon: CheckCircle2, color: 'var(--accent)' },
+    { label: 'Avg Time/Q', value: `${attempt.avgTimePerQ}s`, icon: Clock, color: 'var(--primary)' },
+    { label: 'Correct', value: String(correctCount), icon: Check, color: 'var(--accent)' },
+    { label: 'Wrong', value: String(wrongCount), icon: X, color: 'var(--danger)' },
+    { label: 'Unattempted', value: String(unattemptedCount), icon: MinusCircle, color: 'var(--text-muted)' },
+  ] : [];
+
+  function readSolutionsAloud() {
+    if (!exam || !attempt) return;
+    setShowSolutions(true);
+    const text = exam.questions.map((q, idx) => {
+      const userAns = attempt.answers.find(a => a.questionId === q.id)?.chosen;
+      const isCorrect = userAns === q.correct;
+      return `Question ${idx + 1}: ${q.text}. Your answer: ${userAns ? 'Option ' + userAns : 'Unattempted'}. Correct answer: Option ${q.correct}. ${isCorrect ? 'Correct!' : 'Incorrect.'} Explanation: ${q.explanation}`;
+    }).join('. Next. ');
+
+    speechService.speak(`Reading solutions for all ${exam.questions.length} questions. ${text}`, { priority: true });
+  }
+
+  // Spoken Scorecard Briefing on Result Mount
+  useEffect(() => {
+    if (!attempt) return;
+    const summary = `Examination scorecard for ${attempt.examTitle}. Your overall score is ${attempt.score} out of ${attempt.maxScore}, which is ${attempt.percentage} percent with ${attempt.accuracy} percent accuracy. Result status: ${grade.label}. You answered ${correctCount} correctly, ${wrongCount} incorrectly, and left ${unattemptedCount} unattempted. Press R to hear the solution breakdown, or press T to retake the exam.`;
+
+    if (prefs.voiceMode || prefs.autoReadQuestion) {
+      const timer = setTimeout(() => {
+        try { audioCueService.select(); } catch {}
+        speechService.speak(summary, { priority: true });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [attempt?.id]);
+
+  // Universal Keyboard Accessibility in Results
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        readSolutionsAloud();
+        return;
+      }
+      if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        if (attempt?.examId) navigate(`/exam/${attempt.examId}`);
+        return;
+      }
+      if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault();
+        navigate('/performance');
+        return;
+      }
+      if (e.key === 'd' || e.key === 'D' || e.key === 'Escape') {
+        e.preventDefault();
+        navigate('/dashboard');
+        return;
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [attempt, exam]);
+
+  usePageVoice('Results', [
+    {
+      triggers: ['score', 'marks', 'kitne marks', 'result', 'mera score', 'percentage'],
+      answer: () => attempt ? `Aapko ${attempt.score} out of ${attempt.maxScore} marks mile hain, jo ki ${attempt.percentage} percent hai. Performance ${grade.label} hai.` : 'Result load ho raha hai.',
+    },
+    {
+      triggers: ['correct', 'sahi', 'kitne sahi', 'right'],
+      answer: () => `Aapne ${correctCount} questions sahi kiye hain.`,
+    },
+    {
+      triggers: ['wrong', 'galat', 'kitne galat'],
+      answer: () => `Aapke ${wrongCount} questions galat hue hain.`,
+    },
+    {
+      triggers: ['accuracy', 'accuracy kitni'],
+      answer: () => attempt ? `Aapki accuracy ${attempt.accuracy} percent rahi.` : 'Accuracy uplabdh nahi hai.',
+    },
+    {
+      triggers: ['time', 'kitna time', 'samay'],
+      answer: () => attempt ? `Average time per question ${attempt.avgTimePerQ} seconds tha.` : 'Time uplabdh nahi hai.',
+    },
+    {
+      triggers: ['solution', 'answers', 'uttar', 'solutions dikhao', 'show solution', 'read solution'],
+      answer: () => 'Solutions display kiye ja rahe hain.',
+      action: () => readSolutionsAloud(),
+    },
+    {
+      triggers: ['hide solution', 'solutions band karo', 'chupao'],
+      answer: () => 'Solutions hide kar diye gaye hain.',
+      action: () => setShowSolutions(false),
+    },
+    {
+      triggers: ['summary', 'batao', 'overview'],
+      answer: () => attempt ? `Exam summary: Score ${attempt.percentage} percent, ${correctCount} correct, ${wrongCount} wrong. Grade: ${grade.label}.` : 'Result uplabdh nahi hai.',
+    },
+    {
+      triggers: ['retake', 'try again', 'dobara', 'phir se'],
+      answer: () => 'Exam dobara shuru kiya ja raha hai.',
+      action: () => { if (attempt) navigate(`/exam/${attempt.examId}`); },
+    },
+  ]);
 
   if (!attempt) {
     return (
@@ -56,68 +185,6 @@ export default function Results() {
       </AppLayout>
     );
   }
-
-  const grade = attempt.percentage >= 80 ? { label: 'Excellent', color: 'var(--accent)', bg: 'var(--accent-light)', icon: Trophy }
-    : attempt.percentage >= 60 ? { label: 'Good', color: 'var(--primary)', bg: 'var(--primary-light)', icon: ThumbsUp }
-    : attempt.percentage >= 40 ? { label: 'Average', color: 'var(--warning)', bg: 'var(--warning-light)', icon: BarChart3 }
-    : { label: 'Needs Work', color: 'var(--danger)', bg: 'var(--danger-light)', icon: TrendingDown };
-
-  const GradeIcon = grade.icon;
-
-  const statItems = [
-    { label: 'Score', value: `${attempt.score}/${attempt.maxScore}`, icon: Target, color: grade.color },
-    { label: 'Accuracy', value: `${attempt.accuracy}%`, icon: CheckCircle2, color: 'var(--accent)' },
-    { label: 'Avg Time/Q', value: `${attempt.avgTimePerQ}s`, icon: Clock, color: 'var(--primary)' },
-    { label: 'Correct', value: String(Math.round(attempt.score / 2)), icon: Check, color: 'var(--accent)' },
-    { label: 'Wrong', value: String(exam.questions.length - Math.round(attempt.score / 2) - (exam.questions.length - attempt.answers.filter(a => a.chosen).length)), icon: X, color: 'var(--danger)' },
-    { label: 'Unattempted', value: String(exam.questions.length - attempt.answers.filter(a => a.chosen).length), icon: MinusCircle, color: 'var(--text-muted)' },
-  ];
-
-  const correctCount = Math.round(attempt.score / 2);
-  const unattemptedCount = exam.questions.length - attempt.answers.filter(a => a.chosen).length;
-  const wrongCount = exam.questions.length - correctCount - unattemptedCount;
-
-  usePageVoice('Results', [
-    {
-      triggers: ['score', 'marks', 'kitne marks', 'result', 'mera score', 'percentage'],
-      answer: () => `Aapko ${attempt.score} out of ${attempt.maxScore} marks mile hain, jo ki ${attempt.percentage} percent hai. Performance ${grade.label} hai.`,
-    },
-    {
-      triggers: ['correct', 'sahi', 'kitne sahi', 'right'],
-      answer: () => `Aapne ${correctCount} questions sahi kiye hain.`,
-    },
-    {
-      triggers: ['wrong', 'galat', 'kitne galat'],
-      answer: () => `Aapke ${wrongCount} questions galat hue hain.`,
-    },
-    {
-      triggers: ['accuracy', 'accuracy kitni'],
-      answer: () => `Aapki accuracy ${attempt.accuracy} percent rahi.`,
-    },
-    {
-      triggers: ['time', 'kitna time', 'samay'],
-      answer: () => `Average time per question ${attempt.avgTimePerQ} seconds tha.`,
-    },
-    {
-      triggers: ['solution', 'answers', 'uttar', 'solutions dikhao', 'show solution'],
-      answer: () => 'Solutions display kiye ja rahe hain.',
-      action: () => setShowSolutions(true),
-    },
-    {
-      triggers: ['hide solution', 'solutions band karo', 'chupao'],
-      answer: () => 'Solutions hide kar diye gaye hain.',
-      action: () => setShowSolutions(false),
-    },
-    {
-      triggers: ['summary', 'batao', 'overview'],
-      answer: () => `Exam summary: Score ${attempt.percentage} percent, ${correctCount} correct, ${wrongCount} wrong. Grade: ${grade.label}.`,
-    },
-    {
-      triggers: ['retake', 'try again', 'dobara', 'phir se'],
-      answer: () => 'Exam dobara shuru kiya ja raha hai.',
-      action: () => navigate(`/exam/${attempt.examId}`),
-    },
-  ]);
 
   return (
     <AppLayout title="Your Results">

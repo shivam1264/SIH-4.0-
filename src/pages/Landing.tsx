@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { speechService } from '../services/speechService';
-import { classifyVoiceCommand } from '../services/voiceCommandClassifier';
+import { classifyVoiceCommand, classifyVoiceIntent } from '../services/voiceCommandClassifier';
 import { globalVoiceService } from '../services/globalVoiceService';
 
 function FeatureCard({ icon: IconComponent, title, description }: { icon: React.ComponentType<{ size?: number; color?: string }>; title: string; description: string }) {
@@ -108,8 +108,14 @@ export default function Landing() {
       const transcript = rawText.trim().toLowerCase();
       setVoiceStatus(`Recognized: "${transcript}"`);
 
-      if (transcript.includes('help') || transcript.includes('madad')) {
-        speechService.speak('You can say Login, Register, Accessibility Settings or Start.', { priority: true });
+      const intent = classifyVoiceIntent(rawText, { route: '/' });
+      if (intent.isNegated) {
+        speechService.speak('Understood, action cancelled.', { priority: true });
+        return true;
+      }
+
+      if (intent.type === 'HELP' || transcript.includes('help') || transcript.includes('madad')) {
+        speechService.speak('You can say Login, Register, Accessibility Settings or Open Mock Test.', { priority: true });
         return true;
       } else if (transcript.includes('login') || transcript.includes('sign in')) {
         speechService.speak('Opening login page.', {
@@ -125,15 +131,15 @@ export default function Landing() {
         });
         setTimeout(() => navigate('/register'), 1200);
         return true;
-      } else if (transcript.includes('setting') || transcript.includes('accessibility')) {
+      } else if (intent.type === 'OPEN_SETTINGS' || transcript.includes('setting') || transcript.includes('accessibility')) {
         speechService.speak('Opening accessibility settings.', {
           priority: true,
           onEnd: () => navigate('/settings'),
         });
         setTimeout(() => navigate('/settings'), 1200);
         return true;
-      } else if (transcript.includes('start') || transcript.includes('exam') || transcript.includes('mock') || transcript.includes('ssc')) {
-        speechService.speak('Opening mock examination library.', {
+      } else if (intent.type === 'OPEN_MOCK_TESTS' || intent.type === 'START_EXAM') {
+        speechService.speak('Mock test opened.', {
           priority: true,
           onEnd: () => navigate('/exams'),
         });

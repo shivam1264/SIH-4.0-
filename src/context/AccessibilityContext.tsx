@@ -1,19 +1,20 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { AccessibilityPrefs, ThemeMode, FontSize, Spacing, FontFamily } from '../types';
+import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
 
 const DEFAULTS: AccessibilityPrefs = {
   theme: 'default',
   fontSize: 'default',
   spacing: 'default',
   fontFamily: 'inter',
-  voiceMode: false,
+  voiceMode: true,
   voiceRate: 0.96,
   voicePitch: 0.96,
   voiceName: '',
-  highFocus: false,
+  highFocus: true,
   reduceMotion: false,
   audioFeedback: true,
-  autoReadQuestion: false,
+  autoReadQuestion: true,
   timerWarnings: true,
 };
 
@@ -33,6 +34,9 @@ interface AccessibilityCtx {
   toggleAutoRead: () => void;
   toggleTimerWarnings: () => void;
   resetToDefaults: () => void;
+  announcePolite: (msg: string) => void;
+  announceAssertive: (msg: string) => void;
+  orientCurrentPage: (pathname: string, speakAloud?: boolean) => void;
 }
 
 const Ctx = createContext<AccessibilityCtx | null>(null);
@@ -77,6 +81,10 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
       toggleAutoRead: () => update({ autoReadQuestion: !prefs.autoReadQuestion }),
       toggleTimerWarnings: () => update({ timerWarnings: !prefs.timerWarnings }),
       resetToDefaults: () => setPrefs(DEFAULTS),
+      announcePolite: (msg: string) => screenReaderAnnouncer.announcePolite(msg),
+      announceAssertive: (msg: string) => screenReaderAnnouncer.announceAssertive(msg),
+      orientCurrentPage: (pathname: string, speakAloud?: boolean) =>
+        screenReaderAnnouncer.orientCurrentPage(pathname, speakAloud ?? prefs.voiceMode),
     }}>
       {children}
     </Ctx.Provider>

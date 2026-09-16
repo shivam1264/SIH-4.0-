@@ -8,6 +8,10 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "test:voice": "npx tsx scripts/verify-voice-intents.ts",
+    "test:notifications": "npx tsx scripts/verify-notifications.ts",
+    "test:accessibility": "npx tsx scripts/verify-accessibility.ts",
+    "test:e2e": "npx tsx scripts/test-e2e-api.ts",
     "server": "npm run dev --prefix server",
     "server:build": "npm run build --prefix server"
   },

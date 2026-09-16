@@ -34,6 +34,7 @@ class AudioCueService {
   error()         { this.tone(220, 0.3, 'square', 0.2); }
   wrong()         { this.error(); }
   timerWarning()  { this.tone(660, 0.2); setTimeout(() => this.tone(660, 0.2), 300); }
+  notification()  { this.tone(987, 0.1); setTimeout(() => this.tone(1318, 0.15), 100); }
   examStart()     { [523, 659, 784].forEach((f, i) => setTimeout(() => this.tone(f, 0.2), i * 150)); }
   examSubmit()    { [784, 659, 523].forEach((f, i) => setTimeout(() => this.tone(f, 0.2), i * 150)); }
   voiceActivate() { this.tone(1200, 0.1, 'triangle'); }

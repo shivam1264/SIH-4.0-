@@ -15,9 +15,17 @@ class SpeechService {
   private voices: SpeechSynthesisVoice[] = [];
   private preferredVoiceName: string = '';
   private _isSpeaking = false;
+  public lastSpeechEndTime = 0;
+  public lastSpokenText: string = '';
 
   constructor() {
     this.initVoices();
+  }
+
+  repeatLast(): boolean {
+    if (!this.lastSpokenText) return false;
+    this.speak(this.lastSpokenText, { priority: true });
+    return true;
   }
 
   private initVoices() {
@@ -170,6 +178,8 @@ class SpeechService {
       this._isSpeaking = false;
     }
 
+    this.lastSpokenText = text;
+
     if (!this.selectedVoice) {
       this.selectBestVoice();
     }
@@ -201,6 +211,7 @@ class SpeechService {
       finished = true;
       if (fallbackTimer) clearTimeout(fallbackTimer);
       this._isSpeaking = false;
+      this.lastSpeechEndTime = Date.now();
       try { delete (window as any).__activeUtterance; } catch {}
       onEnd?.();
     };
@@ -223,26 +234,75 @@ class SpeechService {
       delete (window as any).__activeUtterance;
     } catch {}
     this._isSpeaking = false;
+    this.lastSpeechEndTime = Date.now();
   }
 
-  private mathToPhonetic(text: string): string {
+  public mathToPhonetic(text: string): string {
+    if (!text) return '';
     return text
-      .replace(/(\d+)\s*%/g, '$1 percent')
+      // Currency and Percentages
       .replace(/₹\s*(\d[\d,]*)/g, '$1 rupees')
+      .replace(/Rs\.?\s*(\d[\d,]*)/gi, '$1 rupees')
+      .replace(/(\d+)\s*%/g, '$1 percent')
       .replace(/\$/g, 'dollars ')
-      .replace(/×/g, 'multiplied by')
-      .replace(/÷/g, 'divided by')
-      .replace(/≥/g, 'greater than or equal to')
-      .replace(/≤/g, 'less than or equal to')
+      // LaTeX math fractions & roots
+      .replace(/\\frac\{1\}\{2\}/g, 'one half')
+      .replace(/\\frac\{1\}\{3\}/g, 'one third')
+      .replace(/\\frac\{2\}\{3\}/g, 'two thirds')
+      .replace(/\\frac\{1\}\{4\}/g, 'one fourth')
+      .replace(/\\frac\{3\}\{4\}/g, 'three fourths')
+      .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '$1 over $2')
+      .replace(/\\sqrt\{([^}]+)\}/g, 'square root of $1')
+      // Measurement units (must precede standalone ² and ³)
+      .replace(/cm³/g, ' cubic centimeters ')
+      .replace(/m³\b/g, ' cubic meters ')
+      .replace(/cm²\b/g, ' square centimeters ')
+      .replace(/m²\b/g, ' square meters ')
+      .replace(/km²\b/g, ' square kilometers ')
+      .replace(/m\/s²\b/g, ' meters per second squared ')
+      .replace(/m\/s\b/g, ' meters per second ')
+      .replace(/km\/h\b/g, ' kilometers per hour ')
+      .replace(/p\.a\.?/gi, ' per annum ')
+      // Fractions & ratios
+      .replace(/\b1\/2\b/g, 'one half')
+      .replace(/\b1\/3\b/g, 'one third')
+      .replace(/\b2\/3\b/g, 'two thirds')
+      .replace(/\b1\/4\b/g, 'one fourth')
+      .replace(/\b3\/4\b/g, 'three fourths')
+      .replace(/(\d+)\/(\d+)/g, '$1 over $2')
+      // Subscripts and powers
+      .replace(/([a-zA-Z0-9])\^2\b/g, '$1 squared')
+      .replace(/([a-zA-Z0-9])\^3\b/g, '$1 cubed')
+      .replace(/([a-zA-Z0-9])\^([a-zA-Z0-9]+)/g, '$1 to the power $2')
       .replace(/²/g, ' squared')
       .replace(/³/g, ' cubed')
-      .replace(/√/g, 'square root of')
-      .replace(/π/g, 'pi')
-      .replace(/cm²/g, 'centimeter squared')
-      .replace(/m\/s/g, 'meters per second')
-      .replace(/km\/h/g, 'kilometers per hour')
-      .replace(/p\.a\./g, 'per annum')
-      .replace(/(\d+)\/(\d+)/g, '$1 over $2');
+      .replace(/⁴/g, ' to the power 4')
+      // Roots & operators
+      .replace(/√\s*(\w+)/g, 'square root of $1')
+      .replace(/√/g, 'square root of ')
+      .replace(/±/g, ' plus or minus ')
+      .replace(/×/g, ' multiplied by ')
+      .replace(/÷/g, ' divided by ')
+      .replace(/≠/g, ' is not equal to ')
+      .replace(/≈/g, ' is approximately equal to ')
+      .replace(/≥/g, ' greater than or equal to ')
+      .replace(/≤/g, ' less than or equal to ')
+      .replace(/∞/g, ' infinity ')
+      .replace(/∑/g, ' sum of ')
+      // Greek variables in competitive exams
+      .replace(/π/g, ' pi ')
+      .replace(/θ/g, ' theta ')
+      .replace(/α/g, ' alpha ')
+      .replace(/β/g, ' beta ')
+      .replace(/Δ/g, ' delta ')
+      .replace(/λ/g, ' lambda ')
+      // Question Roman numbering
+      .replace(/\(i\)/gi, ' part 1 ')
+      .replace(/\(ii\)/gi, ' part 2 ')
+      .replace(/\(iii\)/gi, ' part 3 ')
+      .replace(/\(iv\)/gi, ' part 4 ')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
   isAvailable() { return typeof window !== 'undefined' && 'speechSynthesis' in window; }

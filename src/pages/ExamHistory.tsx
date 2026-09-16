@@ -21,6 +21,7 @@ import {
 import AppLayout from '../components/AppLayout';
 import { attemptsApi } from '../services/api';
 import { speechService } from '../services/speechService';
+import { usePageVoice } from '../hooks/usePageVoice';
 import type { CandidateAttemptLog } from '../types';
 
 export default function ExamHistory() {
@@ -87,6 +88,65 @@ export default function ExamHistory() {
   const avgScore = totalAttempts ? Math.round(attempts.reduce((sum, a) => sum + a.percentage, 0) / totalAttempts) : 0;
   const totalVoiceCmds = attempts.reduce((sum, a) => sum + (a.audioAlertsCount || 0), 0);
   const passedCount = attempts.filter(a => a.percentage >= 40).length;
+
+  usePageVoice('ExamHistory', [
+    {
+      triggers: ['take new mock test', 'take new test', 'new mock test', 'start new test', 'new exam'],
+      answer: () => 'Opening mock exams library.',
+      action: () => navigate('/exams'),
+    },
+    {
+      triggers: ['show all exams', 'show all', 'filter all', 'all attempts', 'all exams'],
+      answer: () => 'Showing all examination attempts.',
+      action: () => setStatusFilter('All'),
+    },
+    {
+      triggers: ['show completed', 'completed exams', 'filter completed', 'completed attempts'],
+      answer: () => 'Filtering by completed exams.',
+      action: () => setStatusFilter('Completed'),
+    },
+    {
+      triggers: ['show flagged', 'flagged exams', 'filter flagged', 'flagged attempts'],
+      answer: () => 'Filtering by flagged exams.',
+      action: () => setStatusFilter('Flagged'),
+    },
+    {
+      triggers: ['listen to latest attempt', 'listen to latest', 'listen to attempt', 'listen', 'play audio record'],
+      answer: () => {
+        if (attempts.length > 0) {
+          handlePlayAudio(attempts[0]);
+          return '';
+        }
+        return 'No attempts recorded yet.';
+      },
+    },
+    {
+      triggers: ['review solutions', 'review solution', 'show solutions', 'view solutions'],
+      answer: () => {
+        if (attempts.length > 0) {
+          navigate(`/results/${attempts[0].id}`);
+          return 'Opening solutions for your latest exam attempt.';
+        }
+        return 'No attempts recorded to review.';
+      },
+    },
+    {
+      triggers: ['how many exams', 'total exams', 'total attempts', 'exams attempted', 'kitne exam'],
+      answer: () => `You have completed ${totalAttempts} mock examinations, with ${passedCount} passing evaluations.`,
+    },
+    {
+      triggers: ['average score', 'average performance', 'avg score', 'mera average'],
+      answer: () => `Your average performance across all mock attempts is ${avgScore} percent.`,
+    },
+    {
+      triggers: ['voice interactions', 'voice commands used', 'voice count', 'how many voice commands'],
+      answer: () => `You have used ${totalVoiceCmds} verified speech recognition commands across your exam attempts.`,
+    },
+    {
+      triggers: ['summary', 'read history', 'history summary', 'overview'],
+      answer: () => `Exam History Overview: Total exams attempted ${totalAttempts}. Average performance ${avgScore} percent. Voice interactions used ${totalVoiceCmds}. PwD Compensatory accommodation status is active with extra time allocated.`,
+    },
+  ]);
 
   return (
     <AppLayout title="Exam History">

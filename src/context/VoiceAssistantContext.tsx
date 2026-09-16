@@ -1,7 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { globalVoiceService, EngineType } from '../services/globalVoiceService';
+import { classifyVoiceIntent, ConversationalMemory } from '../services/voiceCommandClassifier';
 import { speechService } from '../services/speechService';
+import { useAccessibility } from './AccessibilityContext';
+import { useAuth } from './AuthContext';
+import { notificationService } from '../services/notificationService';
+import { audioCueService } from '../services/audioCueService';
+import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
 import { Mic, MicOff, Volume2, Sparkles, X } from 'lucide-react';
 
 export interface PageQAItem {
@@ -36,6 +42,18 @@ export function useVoiceAssistant() {
 export function VoiceAssistantProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const {
+    prefs,
+    setTheme,
+    setFontSize,
+    setVoiceRate,
+    resetToDefaults,
+  } = useAccessibility();
+  const { logout } = useAuth();
+
+  const accessRef = useRef({ prefs, setTheme, setFontSize, setVoiceRate, resetToDefaults, logout });
+  accessRef.current = { prefs, setTheme, setFontSize, setVoiceRate, resetToDefaults, logout };
 
   const [active, setActive] = useState(true);
   const [engine, setEngine] = useState<EngineType>('none');
@@ -74,200 +92,104 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
     if (globalVoiceService.isActive()) {
       globalVoiceService.stop();
       setActive(false);
+      try { audioCueService.voiceStop(); } catch (e) {}
+      screenReaderAnnouncer.announcePolite('Voice assistant deactivated.');
       speak('Voice assistant muted.');
     } else {
       await enableMicrophone();
       await globalVoiceService.start();
       setActive(true);
+      try { audioCueService.voiceActivate(); } catch (e) {}
+      screenReaderAnnouncer.announcePolite('Voice assistant activated.');
       speak('Voice assistant active. Listening now.');
     }
   }, [speak]);
 
   const registerPageContext = useCallback((pageName: string, items: PageQAItem[]) => {
     pageRegistryRef.current.set(pageName, items);
-    setCurrentPage(pageName);
+    if (currentPageRef.current !== pageName) {
+      setCurrentPage(pageName);
+    }
 
     return () => {
       pageRegistryRef.current.delete(pageName);
     };
   }, []);
 
-  // ── Unified Single Dispatcher: Page Q&A First, then Global Nav ──
+  const conversationalMemoryRef = useRef<ConversationalMemory>({});
+
+  // ── Unified Intent Dispatcher: Context-aware Navigation, Controls & Q&A ──
   useEffect(() => {
     const unregister = globalVoiceService.register((rawText: string) => {
-      const text = rawText.toLowerCase().trim();
       const activePage = currentPageRef.current;
       const currentItems = pageRegistryRef.current.get(activePage) || [];
+      const currentRoute = location.pathname;
 
-      console.log(`[VoiceAssistant] Testing transcript "${text}" on page [${activePage}] with ${currentItems.length} items`);
+      console.log(`[VoiceAssistant] Transcript: "${rawText}" on [${activePage}] (route=${currentRoute})`);
 
-      const isQuestion =
-        text.includes('kitne') ||
-        text.includes('kitna') ||
-        text.includes('kya') ||
-        text.includes('kaun') ||
-        text.includes('how') ||
-        text.includes('what') ||
-        text.includes('batao') ||
-        text.includes('sunao') ||
-        text.includes('padho');
+      // 1. Pass to semantic intent classifier with conversational memory
+      const intent = classifyVoiceIntent(rawText, {
+        route: currentRoute,
+        activePage,
+        conversationalState: conversationalMemoryRef.current,
+      });
 
-      // ── PRIORITY 1: Sidebar & Page Navigation Commands ──
-      // 1. Mock Tests / Exam Library
-      if (
-        !isQuestion &&
-        (text.includes('mock test') ||
-          text.includes('mock tests') ||
-          text.includes('exam library') ||
-          text.includes('exams') ||
-          text.includes('pariksha') ||
-          text === 'mock tests' ||
-          text === 'mock test')
-      ) {
-        speak('Opening Mock Exam Library');
-        navigate('/exams');
-        return true;
-      }
-      if (
-        text.includes('open mock') ||
-        text.includes('go to mock') ||
-        text.includes('open exam') ||
-        text.includes('show exam') ||
-        text.includes('mock test par jao') ||
-        text.includes('mock test kholo')
-      ) {
-        speak('Opening Mock Exam Library');
-        navigate('/exams');
+      console.log('[VoiceAssistant] Classified Intent:', intent.type, intent);
+
+      // Handle unsupported sequential commands safely without unpredictable execution
+      if (intent.type === 'SEQUENTIAL_UNSUPPORTED') {
+        speak(intent.speechFeedback, true);
         return true;
       }
 
-      // 2. AI Practice Drills
-      if (
-        !isQuestion &&
-        (text.includes('practice drill') ||
-          text.includes('practice') ||
-          text.includes('abhyas') ||
-          text.includes('drills') ||
-          text === 'ai practice' ||
-          text === 'practice')
-      ) {
-        speak('Opening AI Practice Drills');
-        navigate('/practice');
-        return true;
-      }
-      if (
-        text.includes('open practice') ||
-        text.includes('go to practice') ||
-        text.includes('start practice') ||
-        text.includes('practice kholo') ||
-        text.includes('practice par jao')
-      ) {
-        speak('Opening AI Practice Drills');
-        navigate('/practice');
+      // If command was negated (e.g. "Don't open results", "Don't start it") and has no positive alternative
+      if (intent.isNegated) {
+        speak('Understood, action cancelled.', true);
         return true;
       }
 
-      // 3. Performance Analytics
-      if (
-        !isQuestion &&
-        (text.includes('performance') ||
-          text.includes('analytics') ||
-          text.includes('pradarshan') ||
-          text === 'performance')
-      ) {
-        speak('Opening Performance Analytics');
-        navigate('/performance');
+      // Handle Voice / Speech control
+      if (intent.type === 'STOP_SPEAKING') {
+        speechService.stop();
         return true;
       }
-      if (
-        text.includes('open performance') ||
-        text.includes('go to performance') ||
-        text.includes('performance kholo') ||
-        text.includes('performance par jao') ||
-        text.includes('show performance')
-      ) {
-        speak('Opening Performance Analytics');
-        navigate('/performance');
+      if (intent.type === 'STOP_VOICE') {
+        toggleVoice();
         return true;
       }
 
-      // 4. Candidate Profile
-      if (
-        !isQuestion &&
-        (text.includes('profile') ||
-          text.includes('meri profile') ||
-          text === 'profile')
-      ) {
-        speak('Opening Candidate Profile');
-        navigate('/profile');
-        return true;
-      }
-      if (
-        text.includes('open profile') ||
-        text.includes('go to profile') ||
-        text.includes('profile kholo') ||
-        text.includes('profile par jao')
-      ) {
-        speak('Opening Candidate Profile');
-        navigate('/profile');
+      // Handle Repeat
+      if (intent.type === 'REPEAT_QUESTION' && !currentRoute.startsWith('/exam/')) {
+        const last = globalVoiceService.getLastSpoken();
+        if (last) {
+          speak(last, true);
+        } else {
+          speak('Nothing to repeat yet.');
+        }
         return true;
       }
 
-      // 5. Accessibility Settings
-      if (
-        !isQuestion &&
-        (text.includes('setting') ||
-          text.includes('accessibility') ||
-          text === 'settings')
-      ) {
-        speak('Opening Accessibility Settings');
-        navigate('/settings');
-        return true;
-      }
-      if (
-        text.includes('open setting') ||
-        text.includes('go to setting') ||
-        text.includes('settings kholo') ||
-        text.includes('settings par jao')
-      ) {
-        speak('Opening Accessibility Settings');
-        navigate('/settings');
+      // Handle Help & Feature Guidance
+      if (intent.type === 'HELP') {
+        const sampleQuestions = currentItems.map(i => i.triggers[0]).slice(0, 3).join(', ');
+        const helpMsg = sampleQuestions
+          ? `You can say Open Mock Tests, Open Dashboard, Practice Drills, or on this screen say: ${sampleQuestions}.`
+          : intent.speechFeedback || 'You can say Open Mock Tests, Open Dashboard, AI Practice, Show Results, or Accessibility Settings.';
+        speak(helpMsg, true);
         return true;
       }
 
-      // 6. Dashboard / Home
-      if (
-        text.includes('dashboard') ||
-        text.includes('go home') ||
-        text.includes('main page') ||
-        text.includes('home jao') ||
-        text === 'home'
-      ) {
-        speak('Opening Dashboard');
-        navigate('/dashboard');
-        return true;
-      }
-
-      // 7. Go Back
-      if (
-        text.includes('go back') ||
-        text.includes('piche jao') ||
-        text.includes('peeche') ||
-        text.includes('previous page') ||
-        text === 'back'
-      ) {
-        speak('Going back');
-        navigate(-1);
-        return true;
-      }
-
-      // ── PRIORITY 2: Check Current Page Q&A ──
+      // ── Priority: Check Current Page Registered Sub-features & Q&A Items ──
+      // This ensures page-specific sub-features (e.g. "listen", "review solutions", "take new test",
+      // "set extra time 1.5x", "save changes", "benchmark", "accuracy") execute immediately.
+      const cleanText = rawText.toLowerCase().trim();
       for (const item of currentItems) {
         const matched = item.triggers.some(trig => {
           const t = trig.toLowerCase().trim();
-          if (text.includes(t)) return true;
+          if (cleanText === t) return true;
+          if (cleanText.includes(t)) return true;
           const trigWords = t.split(' ');
-          if (trigWords.length > 1 && trigWords.every(w => text.includes(w))) {
+          if (trigWords.length > 1 && trigWords.every(w => cleanText.includes(w))) {
             return true;
           }
           return false;
@@ -278,7 +200,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
           try {
             const res = item.answer();
             if (typeof res === 'string') {
-              speak(res, true);
+              if (res) speak(res, true);
             } else if (res && typeof res.then === 'function') {
               res.then(ans => {
                 if (ans) speak(ans, true);
@@ -299,49 +221,298 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         }
       }
 
-      // Repeat
-      if (
-        text.includes('repeat') ||
-        text.includes('phir se bolo') ||
-        text.includes('dobara bolo') ||
-        text.includes('again')
-      ) {
-        const last = globalVoiceService.getLastSpoken();
-        if (last) {
-          speak(last, true);
+      // ── Handle Context-Aware Help ──
+      if (intent.type === 'HELP') {
+        if (currentRoute.startsWith('/exam/')) {
+          speak('You are in an examination. You can say Read Question, Option A, B, C, or D, Next Question, Previous Question, Time Remaining, What question am I on, How many left, or Submit Exam.', true);
+        } else if (currentRoute === '/dashboard') {
+          speak('You are on the Dashboard. You can say Open Mock Tests, Practice, Study Materials, Results, or Notifications.', true);
+        } else if (currentRoute === '/settings') {
+          speak('You are in Settings. You can say Dark Mode, Light Mode, Yellow on Black, Huge Font, Speak Faster, or Speak Slower.', true);
         } else {
+          speak('Available sections: Open Dashboard, Mock Tests, Practice Drills, Study Materials, Exam History, Notifications, Settings, or Profile. You can also say Switch to Dark Mode, or Make text huge.', true);
+        }
+        return true;
+      }
+
+      // ── Handle Exam Status Queries ──
+      if (intent.type === 'EXAM_STATUS') {
+        if (!currentRoute.startsWith('/exam/') && !currentRoute.startsWith('/practice/')) {
+          speak('You are not currently in an active exam.', true);
+          return true;
+        }
+        // Exam state is stored in localStorage by the ExamEngine (or we could fetch from DOM if needed)
+        // Since we don't have direct access to ExamEngine state in this context easily, we can read the ARIA status or simple DOM elements.
+        const progressEl = document.querySelector('[role="progressbar"][aria-valuenow]') as HTMLElement;
+        const totalTextEl = document.querySelector('[aria-label^="Question"]'); // Fallback logic
+        
+        let msg = 'I cannot determine your exact question number right now.';
+        if (progressEl) {
+          const current = progressEl.getAttribute('aria-valuenow');
+          const max = progressEl.getAttribute('aria-valuemax');
+          if (current && max) {
+            msg = `You are on question ${current} out of ${max}.`;
+          }
+        }
+        speak(msg, true);
+        return true;
+      }
+
+      if (intent.type === 'UNANSWERED_COUNT') {
+        if (!currentRoute.startsWith('/exam/') && !currentRoute.startsWith('/practice/')) {
+          speak('You are not currently in an active exam.', true);
+          return true;
+        }
+        // Count unanswered questions by counting un-answered buttons in the palette
+        // The palette buttons usually have an aria-label like "Question 5, unanswered"
+        const unansweredButtons = document.querySelectorAll('button[aria-label*="unanswered"], button[aria-label*="not answered"]');
+        const answeredButtons = document.querySelectorAll('button[aria-label*="answered"]:not([aria-label*="unanswered"]):not([aria-label*="not answered"])');
+        
+        if (unansweredButtons.length > 0) {
+          speak(`You have ${unansweredButtons.length} unanswered questions remaining.`, true);
+        } else if (answeredButtons.length > 0) {
+          speak('You have answered all questions. You can review your answers or say Submit Exam.', true);
+        } else {
+          speak('I cannot determine the number of unanswered questions right now.', true);
+        }
+        return true;
+      }
+
+      // ── Handle Global Navigation Intents ──
+      if (intent.type === 'OPEN_DASHBOARD') {
+        speak(intent.speechFeedback);
+        navigate('/dashboard');
+        return true;
+      }
+
+      // ── Handle Specific Exam Overview Open (without auto-starting) ──
+      if (intent.type === 'OPEN_EXAM_OVERVIEW') {
+        const targetId = intent.targetExamId || 'ssc-reasoning-01';
+        conversationalMemoryRef.current.lastTargetExamId = targetId;
+        conversationalMemoryRef.current.lastTargetExamTitle = intent.targetExamTitle || 'Mock Test';
+        speak(intent.speechFeedback);
+        navigate(intent.targetPage || `/exam/${targetId}`);
+        return true;
+      }
+
+      if (intent.type === 'OPEN_MOCK_TESTS') {
+        conversationalMemoryRef.current.lastSubject = 'Mock Tests';
+        speak(intent.speechFeedback);
+        navigate('/exams');
+        return true;
+      }
+
+      if (intent.type === 'OPEN_PRACTICE') {
+        speak(intent.speechFeedback);
+        navigate('/practice');
+        return true;
+      }
+
+      if (intent.type === 'OPEN_STUDY_MATERIALS') {
+        speak(intent.speechFeedback);
+        navigate('/study-materials');
+        return true;
+      }
+
+      if (intent.type === 'OPEN_PYQS') {
+        speak(intent.speechFeedback);
+        navigate('/pyqs');
+        return true;
+      }
+
+      if (intent.type === 'OPEN_RESULTS') {
+        try {
+          const liveAttempts = JSON.parse(localStorage.getItem('sight-exam-attempts') ?? '[]');
+          if (liveAttempts && liveAttempts.length > 0 && liveAttempts[0]?.id) {
+            speak(intent.speechFeedback);
+            navigate(`/results/${liveAttempts[0].id}`);
+            return true;
+          }
+        } catch {}
+        speak(intent.speechFeedback);
+        navigate('/history');
+        return true;
+      }
+
+      if (intent.type === 'OPEN_PERFORMANCE') {
+        speak(intent.speechFeedback);
+        navigate('/performance');
+        return true;
+      }
+
+      if (intent.type === 'OPEN_EXAM_HISTORY') {
+        speak(intent.speechFeedback);
+        navigate('/history');
+        return true;
+      }
+
+      if (intent.type === 'OPEN_PROFILE') {
+        speak(intent.speechFeedback);
+        navigate('/profile');
+        return true;
+      }
+
+      if (intent.type === 'OPEN_SETTINGS') {
+        speak(intent.speechFeedback);
+        navigate('/settings');
+        return true;
+      }
+
+      if (intent.type === 'OPEN_NOTIFICATIONS') {
+        const wantsToRead = /\b(read|sunao|bol\s*kar|padho)\b/i.test(transcript);
+        const notifBtn = document.getElementById('drishtix-notifications-trigger') as HTMLButtonElement | null;
+
+        if (wantsToRead) {
+          const allNotifs = notificationService.getAll();
+          const unread = allNotifs.filter(n => !n.read);
+
+          if (unread.length === 0) {
+            speak('You have no unread notifications.');
+          } else {
+            let text = `You have ${unread.length} unread notification${unread.length > 1 ? 's' : ''}. `;
+            unread.forEach((n, i) => {
+              text += `Notification ${i + 1}: ${n.title}. ${n.message}. `;
+              notificationService.markAsRead(n.id);
+            });
+            speak(text, true);
+          }
+        } else {
+          if (notifBtn) {
+            notifBtn.click();
+          } else {
+            speak(intent.speechFeedback);
+          }
+        }
+        return true;
+      }
+
+      if (intent.type === 'LOGOUT') {
+        speak('Logging out. Goodbye.', true);
+        accessRef.current.logout();
+        navigate('/login');
+        return true;
+      }
+
+      if (intent.type === 'NAVIGATE_BACK') {
+        // If in full exam screen, previous question is handled by ExamInterface.
+        // On non-exam screens, navigate back.
+        if (!currentRoute.startsWith('/exam/')) {
+          speak(intent.speechFeedback);
+          navigate(-1);
+          return true;
+        }
+      }
+
+      // Explicit Start Mock Test command when NOT already taking an exam
+      if (intent.type === 'START_EXAM' && !currentRoute.startsWith('/exam/')) {
+        const targetId = intent.targetExamId || conversationalMemoryRef.current.lastTargetExamId || 'ssc-reasoning-01';
+        const targetTitle = intent.targetExamTitle || conversationalMemoryRef.current.lastTargetExamTitle || 'mock';
+        conversationalMemoryRef.current.lastTargetExamId = targetId;
+        conversationalMemoryRef.current.lastTargetExamTitle = targetTitle;
+        speak(intent.speechFeedback || `Starting the ${targetTitle} mock test.`, true);
+        navigate(`/exam/${targetId}`);
+        return true;
+      }
+
+      // Universal Repeat Last spoken text
+      if (intent.type === 'REPEAT_LAST') {
+        const ok = speechService.repeatLast();
+        if (!ok) {
           speak('Nothing to repeat yet.');
         }
         return true;
       }
 
-      // Stop Audio
-      if (
-        text.includes('stop speaking') ||
-        text.includes('chup') ||
-        text.includes('quiet') ||
-        text.includes('shant') ||
-        text.includes('mute audio')
-      ) {
-        speechService.stop();
+      // ── Handle Universal Accessibility & Theme Controls ──
+      if (intent.type === 'THEME_LIGHT') {
+        accessRef.current.setTheme('default');
+        speak('Light mode activated.', true);
         return true;
       }
 
-      // Help
-      if (
-        text.includes('help') ||
-        text.includes('madad') ||
-        text.includes('what can i say') ||
-        text.includes('kya bol sakta') ||
-        text.includes('commands')
-      ) {
-        const pageItems = pageRegistryRef.current.get(currentPageRef.current) || [];
-        const sampleQuestions = pageItems
-          .map(i => i.triggers[0])
-          .slice(0, 3)
-          .join(', ');
-        const helpMsg = `Aap Dashboard, Exams, Practice ya Profile bol sakte hain. Is page par pooch sakte hain: ${sampleQuestions || 'kuch bhi'}.`;
-        speak(helpMsg, true);
+      if (intent.type === 'THEME_DARK') {
+        accessRef.current.setTheme('dark');
+        speak('Dark mode activated.', true);
+        return true;
+      }
+
+      if (intent.type === 'THEME_CONTRAST') {
+        accessRef.current.setTheme('high-contrast');
+        speak('High contrast theme activated.', true);
+        return true;
+      }
+
+      if (intent.type === 'THEME_YELLOW') {
+        accessRef.current.setTheme('yellow-black');
+        speak('Yellow on black theme activated.', true);
+        return true;
+      }
+
+      if (intent.type === 'FONT_NORMAL') {
+        accessRef.current.setFontSize('default');
+        speak('Font size set to normal 100 percent.', true);
+        return true;
+      }
+
+      if (intent.type === 'FONT_LARGE') {
+        accessRef.current.setFontSize('large');
+        speak('Font size set to large 115 percent.', true);
+        return true;
+      }
+
+      if (intent.type === 'FONT_XLARGE') {
+        accessRef.current.setFontSize('xlarge');
+        speak('Font size set to extra large 135 percent.', true);
+        return true;
+      }
+
+      if (intent.type === 'FONT_HUGE') {
+        accessRef.current.setFontSize('xxlarge');
+        speak('Font size set to huge 150 percent.', true);
+        return true;
+      }
+
+      if (intent.type === 'VOICE_FASTER') {
+        const curRate = accessRef.current.prefs.voiceRate;
+        const newRate = Math.min(1.8, Number((curRate + 0.15).toFixed(2)));
+        accessRef.current.setVoiceRate(newRate);
+        speak(`Voice speed increased to ${newRate}x.`, true);
+        return true;
+      }
+
+      if (intent.type === 'VOICE_SLOWER') {
+        const curRate = accessRef.current.prefs.voiceRate;
+        const newRate = Math.max(0.6, Number((curRate - 0.15).toFixed(2)));
+        accessRef.current.setVoiceRate(newRate);
+        speak(`Voice speed decreased to ${newRate}x.`, true);
+        return true;
+      }
+
+      if (intent.type === 'VOICE_SAMPLE') {
+        speechService.configure(
+          accessRef.current.prefs.voiceRate,
+          accessRef.current.prefs.voicePitch,
+          accessRef.current.prefs.voiceName
+        );
+        speak('Welcome to DrishtiX. Beyond Barriers, Brighter Futures. Audio guidance is active and calibrated.', true);
+        return true;
+      }
+
+      if (intent.type === 'RESET_SETTINGS') {
+        accessRef.current.resetToDefaults();
+        speak('Accessibility preferences reset to default values.', true);
+        return true;
+      }
+
+      if (intent.type === 'VOICE_BRIEFING' && !currentRoute.startsWith('/performance')) {
+        speak('Opening performance diagnostics for voice briefing.');
+        navigate('/performance');
+        return true;
+      }
+
+      // If utterance was genuinely ambiguous (e.g. "open it", "start it", "do that")
+      if (intent.type === 'CLARIFY_AMBIGUOUS') {
+        speak(intent.speechFeedback, true);
         return true;
       }
 
@@ -351,7 +522,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
     return () => {
       unregister();
     };
-  }, [navigate, speak]);
+  }, [navigate, speak, location.pathname, toggleVoice]);
 
   // Subscriptions & User Gesture Unlock
   useEffect(() => {

@@ -543,6 +543,96 @@ export default function ExamSelection() {
     };
   }, []);
 
+  // Universal Keyboard Accessibility in Exam Catalogue
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.key >= '1' && e.key <= '4') {
+        const idx = parseInt(e.key, 10) - 1;
+        if (examsList[idx]) {
+          e.preventDefault();
+          navigate(`/exam/${examsList[idx].id}`);
+        }
+        return;
+      }
+      if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        setShowCalibrationWizard(true);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        navigate('/dashboard');
+        return;
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [examsList]);
+
+  usePageVoice('ExamSelection', [
+    {
+      triggers: ['start ssc exam', 'start ssc', 'start reasoning exam', 'open ssc'],
+      answer: () => 'Starting SSC CGL General Intelligence and Reasoning mock test.',
+      action: () => navigate('/exam/ssc-reasoning-01'),
+    },
+    {
+      triggers: ['start banking exam', 'start banking', 'banking test', 'open banking'],
+      answer: () => 'Starting Banking Quantitative Aptitude mock test.',
+      action: () => navigate('/exam/banking-quant-01'),
+    },
+    {
+      triggers: ['start railway exam', 'start railway', 'open railway'],
+      answer: () => 'Starting Railway RRB NTPC mock test.',
+      action: () => navigate('/exam/railway-rrb-01'),
+    },
+    {
+      triggers: ['start upsc exam', 'start upsc', 'open upsc'],
+      answer: () => 'Starting UPSC Prelims General Studies mock test.',
+      action: () => navigate('/exam/upsc-prelims-01'),
+    },
+    {
+      triggers: ['start mock test', 'start exam', 'begin test', 'begin exam', 'start first test'],
+      answer: () => 'Starting mock examination.',
+      action: () => navigate(`/exam/${examsList[0]?.id || 'ssc-reasoning-01'}`),
+    },
+    {
+      triggers: ['show ssc', 'filter ssc', 'ssc exams'],
+      answer: () => 'Filtering by SSC examination series.',
+      action: () => setCat('SSC'),
+    },
+    {
+      triggers: ['show banking', 'filter banking', 'banking exams'],
+      answer: () => 'Filtering by Banking examination series.',
+      action: () => setCat('Banking'),
+    },
+    {
+      triggers: ['show upsc', 'filter upsc', 'upsc exams'],
+      answer: () => 'Filtering by UPSC examination series.',
+      action: () => setCat('UPSC'),
+    },
+    {
+      triggers: ['show railway', 'filter railway', 'railway exams'],
+      answer: () => 'Filtering by Railway examination series.',
+      action: () => setCat('Railway'),
+    },
+    {
+      triggers: ['show all exams', 'all exams', 'reset filter', 'all categories'],
+      answer: () => 'Showing all available mock examinations.',
+      action: () => {
+        setCat('All');
+        setDiff('All');
+        setSearch('');
+      },
+    },
+    {
+      triggers: ['summary', 'available exams', 'list exams', 'kitne exam hai'],
+      answer: () => `Mock Test Library contains ${examsList.length} live examinations across SSC, Banking, Railway, and UPSC with full voice accessibility and compensatory time support.`,
+    },
+  ]);
+
   // Voice recognition keyboard shortcuts
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -584,7 +674,15 @@ export default function ExamSelection() {
 
   usePageVoice('ExamSelection', [
     {
-      triggers: ['ssc', 'cgl', 'first', 'pehla', 'open ssc', 'start ssc', '1'],
+      triggers: ['start the mock test', 'start mock test', 'start exam', 'shuru karo', 'start test'],
+      answer: () => 'Starting mock examination.',
+      action: () => {
+        const exam = examsList.find(x => x.category === (cat === 'All' ? 'SSC' : cat)) || examsList[0];
+        startExamWithAnnouncement(exam);
+      },
+    },
+    {
+      triggers: ['start ssc', 'ssc shuru karo', 'start ssc exam', 'start ssc mock test'],
       answer: () => 'Starting SSC Mock Examination.',
       action: () => {
         const exam = examsList.find(x => x.category === 'SSC') || examsList[0];
@@ -592,7 +690,7 @@ export default function ExamSelection() {
       },
     },
     {
-      triggers: ['bank', 'banking', 'ibps', 'po', 'second', 'dusra', 'open banking', 'open bank', '2'],
+      triggers: ['start banking', 'banking shuru karo', 'start bank exam', 'start banking mock test'],
       answer: () => 'Starting Banking Quantitative Aptitude Examination.',
       action: () => {
         const exam = examsList.find(x => x.category === 'Banking') || examsList[1];
@@ -600,7 +698,7 @@ export default function ExamSelection() {
       },
     },
     {
-      triggers: ['upsc', 'civil', 'prelims', 'third', 'teesra', 'open upsc', '3'],
+      triggers: ['start upsc', 'upsc shuru karo', 'start upsc exam', 'start upsc mock test'],
       answer: () => 'Starting UPSC General Studies Examination.',
       action: () => {
         const exam = examsList.find(x => x.category === 'UPSC') || examsList[2];
@@ -608,12 +706,32 @@ export default function ExamSelection() {
       },
     },
     {
-      triggers: ['railway', 'rrb', 'ntpc', 'fourth', 'chautha', 'open railway', '4'],
+      triggers: ['start railway', 'railway shuru karo', 'start railway exam', 'start railway mock test'],
       answer: () => 'Starting Railway Mock Examination.',
       action: () => {
         const exam = examsList.find(x => x.category === 'Railway') || examsList[3];
         startExamWithAnnouncement(exam);
       },
+    },
+    {
+      triggers: ['open ssc', 'show ssc', 'ssc details'],
+      answer: () => 'Showing SSC examinations. Say start the mock test to begin.',
+      action: () => setCat('SSC'),
+    },
+    {
+      triggers: ['open banking', 'show banking', 'banking details'],
+      answer: () => 'Showing Banking examinations. Say start banking to begin.',
+      action: () => setCat('Banking'),
+    },
+    {
+      triggers: ['open upsc', 'show upsc', 'upsc details'],
+      answer: () => 'Showing UPSC examinations. Say start upsc to begin.',
+      action: () => setCat('UPSC'),
+    },
+    {
+      triggers: ['open railway', 'show railway', 'railway details'],
+      answer: () => 'Showing Railway examinations. Say start railway to begin.',
+      action: () => setCat('Railway'),
     },
     {
       triggers: ['kitne exam', 'total exam', 'available exam', 'list', 'konsa exam', 'exams batao'],

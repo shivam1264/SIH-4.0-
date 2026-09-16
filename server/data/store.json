@@ -8,6 +8,24 @@
       "passwordHash": "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi"
     },
     {
+      "id": "usr_admin_drishtix",
+      "name": "DrishtiX Administrator",
+      "email": "admin@drishtix.in",
+      "role": "admin",
+      "passwordHash": "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi"
+    },
+    {
+      "id": "usr_aryan",
+      "name": "Aryan Sharma",
+      "email": "aryan@example.com",
+      "role": "student",
+      "impairmentTier": "low-vision",
+      "extraTimeMultiplier": 1.5,
+      "highContrastDefault": false,
+      "screenReaderOptimized": true,
+      "passwordHash": "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi"
+    },
+    {
       "id": "usr_rahul",
       "name": "Rahul Sharma",
       "email": "rahul@student.in",
@@ -28,6 +46,17 @@
       "highContrastDefault": true,
       "screenReaderOptimized": true,
       "passwordHash": "$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi"
+    },
+    {
+      "id": "usr_1789564395316",
+      "name": "Sujal Sahu",
+      "email": "sujalsahu196@gmail.com",
+      "role": "student",
+      "impairmentTier": "low-vision",
+      "extraTimeMultiplier": 1.5,
+      "highContrastDefault": false,
+      "screenReaderOptimized": true,
+      "passwordHash": "$2a$10$t1bS5QRzLn4pDes8xPZ06eaVk8N5KElv7cCcGSQGS8ajnzWkLacHm"
     }
   ],
   "students": [
@@ -88,6 +117,25 @@
       "avgScore": 74,
       "status": "Active",
       "registeredAt": "2026-08-15"
+    },
+    {
+      "id": "std_1789564395316",
+      "name": "Sujal Sahu",
+      "email": "sujalsahu196@gmail.com",
+      "rollNo": "PWD-2026-373",
+      "impairmentTier": "low-vision",
+      "accommodations": {
+        "extraTimeMinutes": 30,
+        "speechRate": 1,
+        "preferredTheme": "default",
+        "highContrast": false,
+        "assignedScribe": false
+      },
+      "examsAssigned": 2,
+      "examsCompleted": 0,
+      "avgScore": 0,
+      "status": "Active",
+      "registeredAt": "2026-09-16"
     }
   ],
   "exams": [
@@ -331,6 +379,94 @@
     }
   ],
   "attemptLogs": [
+    {
+      "id": "att-e2e-1789565962280",
+      "candidateName": "Aryan Sharma",
+      "studentName": "Aryan Sharma",
+      "rollNo": "PWD-2026-081",
+      "studentRoll": "PWD-2026-081",
+      "examTitle": "SSC CGL General Intelligence & Reasoning",
+      "examId": "ssc-reasoning-01",
+      "score": 18,
+      "maxScore": 20,
+      "totalMarks": 20,
+      "percentage": 90,
+      "passed": true,
+      "status": "Completed",
+      "completedAt": "2026-09-16 13:39",
+      "submittedAt": "2026-09-16 13:39",
+      "timeTakenMinutes": 7,
+      "timeSpentSeconds": 420,
+      "speechCommandsUsed": 0,
+      "audioAlertsCount": 0,
+      "audioIntegrityStatus": "Clean"
+    },
+    {
+      "id": "att-e2e-1789560502635",
+      "candidateName": "Aryan Sharma",
+      "studentName": "Aryan Sharma",
+      "rollNo": "PWD-2026-081",
+      "studentRoll": "PWD-2026-081",
+      "examTitle": "SSC CGL General Intelligence & Reasoning",
+      "examId": "ssc-reasoning-01",
+      "score": 18,
+      "maxScore": 20,
+      "totalMarks": 20,
+      "percentage": 90,
+      "passed": true,
+      "status": "Completed",
+      "completedAt": "2026-09-16 12:08",
+      "submittedAt": "2026-09-16 12:08",
+      "timeTakenMinutes": 7,
+      "timeSpentSeconds": 420,
+      "speechCommandsUsed": 0,
+      "audioAlertsCount": 0,
+      "audioIntegrityStatus": "Clean"
+    },
+    {
+      "id": "att-e2e-1789560357508",
+      "candidateName": "Aryan Sharma",
+      "studentName": "Aryan Sharma",
+      "rollNo": "PWD-2026-081",
+      "studentRoll": "PWD-2026-081",
+      "examTitle": "SSC CGL General Intelligence & Reasoning",
+      "examId": "ssc-reasoning-01",
+      "score": 18,
+      "maxScore": 20,
+      "totalMarks": 20,
+      "percentage": 90,
+      "passed": true,
+      "status": "Completed",
+      "completedAt": "2026-09-16 12:05",
+      "submittedAt": "2026-09-16 12:05",
+      "timeTakenMinutes": 7,
+      "timeSpentSeconds": 420,
+      "speechCommandsUsed": 0,
+      "audioAlertsCount": 0,
+      "audioIntegrityStatus": "Clean"
+    },
+    {
+      "id": "att-e2e-1789560301623",
+      "candidateName": "Aryan Sharma",
+      "studentName": "Aryan Sharma",
+      "rollNo": "PWD-2026-081",
+      "studentRoll": "PWD-2026-081",
+      "examTitle": "SSC CGL General Intelligence & Reasoning",
+      "examId": "ssc-reasoning-01",
+      "score": 18,
+      "maxScore": 20,
+      "totalMarks": 20,
+      "percentage": 90,
+      "passed": true,
+      "status": "Completed",
+      "completedAt": "2026-09-16 12:05",
+      "submittedAt": "2026-09-16 12:05",
+      "timeTakenMinutes": 7,
+      "timeSpentSeconds": 420,
+      "speechCommandsUsed": 0,
+      "audioAlertsCount": 0,
+      "audioIntegrityStatus": "Clean"
+    },
     {
       "id": "att_1789503966401",
       "candidateName": "Rahul Sharma",

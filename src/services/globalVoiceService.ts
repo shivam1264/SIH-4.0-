@@ -20,6 +20,8 @@ class GlobalVoiceService {
   private _chromeRec: any = null;
   private _chromeRestartTimer: any = null;
   private _chromeStopped = false;
+  private _interimDispatchTimer: any = null;
+  private _lastInterimText = '';
 
   private _engineListeners = new Set<(engine: EngineType) => void>();
   private _transcriptListeners = new Set<(text: string) => void>();
@@ -140,9 +142,17 @@ class GlobalVoiceService {
     const text = rawText.trim();
     if (!text) return;
 
-    // Debounce duplicate transcripts arriving within 600ms
+    // We don't drop transcripts here anymore to allow for Barge-in.
+    // If the transcript perfectly matches the last spoken text, we could drop it to prevent echo, 
+    // but the browser's echo cancellation usually handles it.
+    if (text.toLowerCase() === this._lastSpoken.toLowerCase()) {
+      console.log('[GlobalVoice] 🔇 Suppressed exact echo transcript:', text);
+      return;
+    }
+
+    // Debounce duplicate transcripts arriving within 800ms
     const now = Date.now();
-    if (text === this._lastDispatchedText && now - this._lastDispatchTime < 600) {
+    if (text === this._lastDispatchedText && now - this._lastDispatchTime < 800) {
       return;
     }
     this._lastDispatchedText = text;
@@ -193,17 +203,66 @@ class GlobalVoiceService {
         };
 
         rec.onresult = (e: any) => {
-          let phrase = '';
+          let finalPhrase = '';
+          let interimPhrase = '';
+
           for (let i = e.resultIndex; i < e.results.length; ++i) {
-            phrase += ' ' + e.results[i][0].transcript;
+            const res = e.results[i];
+            const trans = res[0]?.transcript || '';
+            if (res.isFinal) {
+              finalPhrase += ' ' + trans;
+            } else {
+              interimPhrase += ' ' + trans;
+            }
           }
-          const clean = phrase
+
+          finalPhrase = finalPhrase
             .trim()
             .toLowerCase()
             .replace(/[.,!?;:\-_'"`~।]/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
-          if (clean) this._dispatch(clean);
+
+          interimPhrase = interimPhrase
+            .trim()
+            .toLowerCase()
+            .replace(/[.,!?;:\-_'"`~।]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          // 1. If we have finalized transcript, dispatch for command execution
+          if (finalPhrase) {
+            if (this._interimDispatchTimer) {
+              clearTimeout(this._interimDispatchTimer);
+              this._interimDispatchTimer = null;
+            }
+            this._lastInterimText = '';
+            this._dispatch(finalPhrase);
+            return;
+          }
+
+          // 2. If we only have interim transcript:
+          // Update live visual indicator ONLY (shows candidate what is currently being heard)
+          if (interimPhrase) {
+            // ── BARGE-IN: Stop AI speech if user starts talking ──
+            if (speechService.isSpeaking) {
+              console.log('[GlobalVoice] 🛑 Barge-in: User interrupted, stopping AI speech.');
+              speechService.stop();
+            }
+
+            this._transcriptListeners.forEach(cb => cb(interimPhrase));
+            this._lastInterimText = interimPhrase;
+
+            // Silence debounce fallback: if browser delays isFinal for > 600ms after speech pause, finalize it
+            if (this._interimDispatchTimer) clearTimeout(this._interimDispatchTimer);
+            this._interimDispatchTimer = setTimeout(() => {
+              if (this._lastInterimText) {
+                const toSend = this._lastInterimText;
+                this._lastInterimText = '';
+                this._dispatch(toSend);
+              }
+            }, 600);
+          }
         };
 
         rec.onerror = (e: any) => {
@@ -232,6 +291,11 @@ class GlobalVoiceService {
 
   private _stopChrome() {
     this._chromeStopped = true;
+    if (this._interimDispatchTimer) {
+      clearTimeout(this._interimDispatchTimer);
+      this._interimDispatchTimer = null;
+    }
+    this._lastInterimText = '';
     if (this._chromeRestartTimer) {
       clearTimeout(this._chromeRestartTimer);
       this._chromeRestartTimer = null;

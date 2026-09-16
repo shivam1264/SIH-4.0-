@@ -19,6 +19,7 @@ import {
 import AppLayout from '../components/AppLayout';
 import { pyqsApi } from '../services/api';
 import { speechService } from '../services/speechService';
+import { usePageVoice } from '../hooks/usePageVoice';
 import type { PYQPaper } from '../types';
 
 export default function PreviousYearPapers() {
@@ -87,8 +88,90 @@ export default function PreviousYearPapers() {
     });
   }, [papers, selectedCategory, selectedYear, searchQuery]);
 
+  // Universal Keyboard Accessibility in Previous Year Papers
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.key >= '1' && e.key <= '4') {
+        const idx = parseInt(e.key, 10) - 1;
+        const target = filteredPapers[idx];
+        if (target) {
+          e.preventDefault();
+          navigate(`/exam/${target.linkedExamId || 'ssc-reasoning-01'}`);
+        }
+        return;
+      }
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        if (filteredPapers.length > 0) {
+          handlePlayAudio(filteredPapers[0]);
+        }
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        navigate('/dashboard');
+        return;
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [filteredPapers]);
+
   const categories = ['All', 'SSC', 'UPSC', 'Banking', 'Railway'];
   const years = ['All', '2024', '2023', '2022'];
+
+  usePageVoice('PreviousYearPapers', [
+    {
+      triggers: ['start paper', 'start pyq', 'attempt paper', 'start past year paper', 'start exam'],
+      answer: () => 'Starting previous year paper mock examination.',
+      action: () => navigate('/exam/ssc-reasoning-01'),
+    },
+    {
+      triggers: ['listen to paper', 'listen', 'play paper audio', 'audio summary'],
+      answer: () => {
+        if (papers.length > 0) {
+          handlePlayAudio(papers[0]);
+          return '';
+        }
+        return 'No previous year papers available to narrate.';
+      },
+    },
+    {
+      triggers: ['show ssc papers', 'filter ssc', 'ssc pyq', 'ssc papers'],
+      answer: () => 'Filtering by SSC previous year question papers.',
+      action: () => setSelectedCategory('SSC'),
+    },
+    {
+      triggers: ['show upsc papers', 'filter upsc', 'upsc pyq', 'upsc papers'],
+      answer: () => 'Filtering by UPSC previous year question papers.',
+      action: () => setSelectedCategory('UPSC'),
+    },
+    {
+      triggers: ['show banking papers', 'filter banking', 'bank pyq', 'banking papers'],
+      answer: () => 'Filtering by Banking previous year question papers.',
+      action: () => setSelectedCategory('Banking'),
+    },
+    {
+      triggers: ['show railway papers', 'filter railway', 'rrb pyq', 'railway papers'],
+      answer: () => 'Filtering by Railway RRB previous year question papers.',
+      action: () => setSelectedCategory('Railway'),
+    },
+    {
+      triggers: ['show all papers', 'all pyqs', 'reset filter', 'all papers'],
+      answer: () => 'Showing all previous year question papers across all examination categories.',
+      action: () => {
+        setSelectedCategory('All');
+        setSelectedYear('All');
+      },
+    },
+    {
+      triggers: ['summary', 'overview', 'how many papers', 'read summary'],
+      answer: () => `Previous year papers library contains ${papers.length} verified past exam papers with full solution keys, compensatory time support, and voice navigation.`,
+    },
+  ]);
 
   return (
     <AppLayout title="Previous Year Papers">

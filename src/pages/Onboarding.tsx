@@ -198,19 +198,19 @@ export default function Onboarding() {
     const unregister = globalVoiceService.register((rawText: string) => {
       const text = rawText.trim().toLowerCase();
       setLastSpoken(text);
-      if (text.includes('yes') || text.includes('haan') || text.includes('enable')) {
+      if (/\b(?:yes|haan|enable|haa|ha|theek hai|bilkul)\b/i.test(text)) {
         handleAnswer('yes');
         return true;
-      } else if (text.includes('no') || text.includes('nahin') || text.includes('disable')) {
+      } else if (/\b(?:no|nahin|nahi|disable|mat|band)\b/i.test(text) && !/\b(?:normal)\b/i.test(text)) {
         handleAnswer('no');
         return true;
-      } else if (text.includes('normal') || text.includes('medium') || text.includes('standard')) {
+      } else if (/\b(?:normal|medium|standard|default|one|1)\b/i.test(text)) {
         handleAnswer('normal');
         return true;
-      } else if (text.includes('large') && !text.includes('extra')) {
+      } else if (/\b(?:large|bada|two|2)\b/i.test(text) && !/\b(?:extra|xlarge)\b/i.test(text)) {
         handleAnswer('large');
         return true;
-      } else if (text.includes('extra') || text.includes('huge') || text.includes('maximum')) {
+      } else if (/\b(?:extra|huge|maximum|xlarge|three|3)\b/i.test(text)) {
         handleAnswer('xlarge');
         return true;
       } else if (text.includes('repeat') || text.includes('read again')) {

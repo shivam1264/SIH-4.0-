@@ -77,29 +77,73 @@ export default function Profile() {
 
   usePageVoice('Profile', [
     {
-      triggers: ['name', 'naam', 'mera naam', 'candidate name'],
-      answer: () => `Aapka registered naam ${name || user?.name || 'Candidate'} hai.`,
+      triggers: ['name', 'naam', 'mera naam', 'candidate name', 'who am i'],
+      answer: () => `Candidate name is ${name || user?.name || 'Rahul Sharma'}. Role: Student, WCAG Ready.`,
     },
     {
       triggers: ['email', 'mera email', 'mail id'],
-      answer: () => `Aapka email address ${user?.email || 'shivam@example.com'} hai.`,
+      answer: () => `Registered email address is ${user?.email || 'shivam@example.com'}.`,
     },
     {
-      triggers: ['target exam', 'target', 'lakshya', 'kis exam ki taiyari'],
-      answer: () => `Aapke target exams ${user?.examInterests?.join(', ') || 'SSC CGL, Banking PO aur Railways'} hain.`,
+      triggers: ['target exam', 'target', 'target exams', 'lakshya'],
+      answer: () => `Target competitive exams: ${user?.examInterests?.join(', ') || 'SSC CGL, UPSC Prelims'}.`,
     },
     {
-      triggers: ['disability', 'accommodation', 'suvidha', 'extra time'],
-      answer: () => `Aapke profile me visual accessibility modes aur speech guidance support active hai.`,
+      triggers: ['udid', 'udid number', 'disability certificate', 'certificate number', 'udid card'],
+      answer: () => `Your Government UDID Certificate Number is ${udidNumber}, verified under Rights of Persons with Disabilities Act 2016.`,
+    },
+    {
+      triggers: ['extra time 1.5', 'extra time 1.5x', 'pwd default', 'default extra time', 'compensatory time 1.5'],
+      answer: () => 'Compensatory extra time set to 1.5x PwD default (+30 minutes per hour). Say save changes to apply.',
+      action: () => setExtraTimeMultiplier(1.5),
+    },
+    {
+      triggers: ['extra time 1.33', 'extra time 1.33x', 'extra time 20 minutes', 'compensatory time 1.33'],
+      answer: () => 'Compensatory extra time set to 1.33x (+20 minutes per hour). Say save changes to apply.',
+      action: () => setExtraTimeMultiplier(1.33),
+    },
+    {
+      triggers: ['extra time 2', 'extra time 2x', 'extra time double', 'double time', 'compensatory time 2'],
+      answer: () => 'Compensatory extra time set to 2.0x Double Time. Say save changes to apply.',
+      action: () => setExtraTimeMultiplier(2.0),
+    },
+    {
+      triggers: ['extra time standard', 'standard time', 'extra time 1.0', '1x time', 'normal time'],
+      answer: () => 'Compensatory time set to 1.0x standard time. Say save changes to apply.',
+      action: () => setExtraTimeMultiplier(1.0),
+    },
+    {
+      triggers: ['autonomous mode', 'scribe mode', 'scribe free', 'toggle scribe', 'toggle autonomous'],
+      answer: () => `Autonomous Scribe-Free Mode ${!autonomousMode ? 'enabled' : 'disabled'}. Say save changes to apply.`,
+      action: () => setAutonomousMode(prev => !prev),
+    },
+    {
+      triggers: ['save changes', 'save profile', 'save accommodations', 'save preferences', 'save'],
+      answer: () => 'Saving accommodation profile changes now.',
+      action: () => saveAccommodations(),
+    },
+    {
+      triggers: ['start ssc exam', 'start ready exam', 'start reasoning exam', 'start exam'],
+      answer: () => 'Starting SSC CGL General Intelligence and Reasoning mock exam.',
+      action: () => navigate('/exam/ssc-reasoning-01'),
+    },
+    {
+      triggers: ['view all exams', 'all exams', 'all mock tests', 'exam library'],
+      answer: () => 'Opening mock exams catalog.',
+      action: () => navigate('/exams'),
     },
     {
       triggers: ['score', 'average score', 'performance', 'level'],
-      answer: () => `Aapka average score ${avg} percent hai. Aapne ${attempts.length} exams complete kiye hain.`,
+      answer: () => `Average evaluation score is ${avg} percent across ${attempts.length} attempted mock examinations.`,
     },
     {
       triggers: ['settings', 'accessibility settings', 'preference'],
-      answer: () => 'Accessibility settings kholi ja rahi hain.',
+      answer: () => 'Opening accessibility settings.',
       action: () => navigate('/settings'),
+    },
+    {
+      triggers: ['summary', 'profile summary', 'read profile', 'overview'],
+      answer: () => `Candidate profile for ${name || user?.name || 'Rahul Sharma'}. Impairment tier: ${impairmentTier}. UDID: ${udidNumber}. Compensatory time: ${extraTimeMultiplier}x. Autonomous scribe mode: ${autonomousMode ? 'active' : 'inactive'}. Total exams attempted: ${attempts.length}. Average score: ${avg} percent.`,
     },
   ]);
 

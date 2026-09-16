@@ -31,7 +31,7 @@ import { speechService } from '../services/speechService';
 import { audioCueService } from '../services/audioCueService';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { usePageVoice } from '../hooks/usePageVoice';
-import { classifyVoiceCommand } from '../services/voiceCommandClassifier';
+import { classifyVoiceCommand, classifyVoiceIntent } from '../services/voiceCommandClassifier';
 import { globalVoiceService } from '../services/globalVoiceService';
 
 interface QuestionItem {
@@ -405,6 +405,76 @@ export default function Practice() {
   }
   nextRef.current = next;
 
+  // Universal Keyboard Accessibility for Visually Impaired Candidates in Practice Drills
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      // 1. Topic Selection Screen (Press 1 to 5 to pick a topic)
+      if (!selectedTopic) {
+        if (e.key >= '1' && e.key <= '5') {
+          e.preventDefault();
+          const topicIdx = parseInt(e.key, 10) - 1;
+          const topicNames = ['Indian History', 'Pipes & Cisterns', 'Compound Interest', 'Blood Relations', 'Mensuration'];
+          if (topicNames[topicIdx]) {
+            startTopic(topicNames[topicIdx]);
+          }
+        }
+        return;
+      }
+
+      // 2. Active Drill Shortcuts
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        startTopic('');
+        speechService.speak('Returned to topics catalogue.');
+        return;
+      }
+
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        readQuestionAloud(qiRef.current);
+        return;
+      }
+
+      if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        readExplanationAloud();
+        return;
+      }
+
+      if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        if (revealedRef.current) {
+          next();
+        } else {
+          reveal();
+        }
+        return;
+      }
+
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (!revealedRef.current && chosenRef.current !== null) {
+          reveal();
+        } else if (revealedRef.current) {
+          next();
+        }
+        return;
+      }
+
+      if (e.key >= '1' && e.key <= '4') {
+        e.preventDefault();
+        const optIdx = parseInt(e.key, 10) - 1;
+        selectOptionByIndex(optIdx);
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedTopic, qi]);
+
   function finishDrill() {
     setDone(true);
     triggerConfetti();
@@ -642,34 +712,59 @@ export default function Practice() {
         return true;
       }
 
-      // 1. Primary check via comprehensive classifier
-      const match = classifyVoiceCommand(clean);
-      if (match) {
-        console.log('[Practice Voice] ✅ CLASSIFIER MATCH:', match.action, 'from:', clean);
-        if (match.action === 'SELECT_A') { selectOptionByIndexRef.current(0); return true; }
-        if (match.action === 'SELECT_B') { selectOptionByIndexRef.current(1); return true; }
-        if (match.action === 'SELECT_C') { selectOptionByIndexRef.current(2); return true; }
-        if (match.action === 'SELECT_D') { selectOptionByIndexRef.current(3); return true; }
-        if (match.action === 'NEXT')     { nextRef.current(); return true; }
-        if (match.action === 'READ')     { readQuestionAloudRef.current(qiRef.current); return true; }
-        if (match.action === 'SUBMIT')   { revealRef.current(); return true; }
+      // 1. Semantic Intent Recognition
+      const intent = classifyVoiceIntent(clean, {
+        examState: 'in-progress',
+        route: '/practice',
+        currentQuestionIndex: qiRef.current,
+      });
+
+      if (intent.type === 'SEQUENTIAL_UNSUPPORTED') {
+        speechService.speak('Please give one command at a time.');
+        return true;
       }
 
-      // 2. Direct Letter & Hindi matching
-      if (/\b(?:option\s+a|a\s+option|select\s+a|option\s+1|pehla|first|alpha)\b/i.test(clean) || clean === 'a' || clean === 'one' || clean === '1') {
-        selectOptionByIndexRef.current(0); return true;
-      }
-      if (/\b(?:option\s+b|b\s+option|select\s+b|option\s+2|dusra|second|bravo)\b/i.test(clean) || clean === 'b' || clean === 'two' || clean === '2') {
-        selectOptionByIndexRef.current(1); return true;
-      }
-      if (/\b(?:option\s+c|c\s+option|select\s+c|option\s+3|teesra|third|charlie)\b/i.test(clean) || clean === 'c' || clean === 'three' || clean === '3') {
-        selectOptionByIndexRef.current(2); return true;
-      }
-      if (/\b(?:option\s+d|d\s+option|select\s+d|option\s+4|chautha|fourth|delta)\b/i.test(clean) || clean === 'd' || clean === 'four' || clean === '4') {
-        selectOptionByIndexRef.current(3); return true;
+      if (intent.isNegated) {
+        speechService.speak('Understood, action cancelled.');
+        return true;
       }
 
-      // 3. Option text fuzzy matching
+      if (intent.type === 'SELECT_OPTION' || intent.type === 'CHANGE_ANSWER') {
+        if (intent.targetOption) {
+          const mapIdx: Record<string, number> = { A: 0, B: 1, C: 2, D: 3 };
+          const idx = mapIdx[intent.targetOption];
+          if (idx !== undefined) {
+            selectOptionByIndexRef.current(idx);
+            return true;
+          }
+        }
+      }
+
+      if (intent.type === 'NEXT_QUESTION') {
+        setVoiceStatus('Moving to next question...');
+        nextRef.current();
+        return true;
+      }
+
+      if (intent.type === 'READ_QUESTION' || intent.type === 'REPEAT_QUESTION') {
+        setVoiceStatus('Reading question aloud...');
+        readQuestionAloudRef.current(qiRef.current);
+        return true;
+      }
+
+      if (intent.type === 'INITIATE_SUBMIT') {
+        setVoiceStatus('Checking answer...');
+        revealRef.current();
+        return true;
+      }
+
+      if (intent.type === 'OPEN_PRACTICE' || intent.type === 'NAVIGATE_BACK') {
+        setVoiceStatus('Showing all practice topics...');
+        startTopicRef.current('');
+        return true;
+      }
+
+      // 2. Option text fuzzy matching
       const curQ = topicDataRef.current?.questions[qiRef.current];
       if (curQ && curQ.options) {
         for (let i = 0; i < curQ.options.length; i++) {
@@ -681,31 +776,10 @@ export default function Practice() {
         }
       }
 
-      // 4. Regex fallback
-      const fallbackMatch = clean.match(/\b(?:options?|tap|select|choose|click|mark|tick|ans|answer|wala|pe|par|number|no\.?)?\s*([abcd1-4])\b/i);
-      if (fallbackMatch) {
-        const rawChar = fallbackMatch[1].toUpperCase();
-        const mapIdx: Record<string, number> = { 'A': 0, '1': 0, 'B': 1, '2': 1, 'C': 2, '3': 2, 'D': 3, '4': 3 };
-        if (mapIdx[rawChar] !== undefined) {
-          selectOptionByIndexRef.current(mapIdx[rawChar]);
-          return true;
-        }
-      }
-
-      // 5. Actions
+      // 3. Fallback reveal actions
       if (/\b(?:check|submit|lock|verify|reveal|check answer|lock answer|sahi hai|batao|ans|answer)\b/i.test(clean)) {
         setVoiceStatus('Checking answer...');
         revealRef.current();
-        return true;
-      }
-      if (/\b(?:next|aage|forward|skip|next question|agla|agla sawal)\b/i.test(clean)) {
-        setVoiceStatus('Moving to next question...');
-        nextRef.current();
-        return true;
-      }
-      if (/\b(?:read|repeat|listen|sunao|padho|bolo|read question|repeat question|dubara|dobara|fir se)\b/i.test(clean)) {
-        setVoiceStatus('Reading question aloud...');
-        readQuestionAloudRef.current(qiRef.current);
         return true;
       }
 

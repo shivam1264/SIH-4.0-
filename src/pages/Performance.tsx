@@ -132,43 +132,86 @@ export default function Performance() {
     });
   };
 
+  // Universal Keyboard Accessibility in Performance
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if (e.key === 'b' || e.key === 'B' || e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
+        handleSpeakSummary();
+        return;
+      }
+      if (e.key === 'p' || e.key === 'P') {
+        e.preventDefault();
+        navigate('/practice');
+        return;
+      }
+      if (e.key === 'd' || e.key === 'D' || e.key === 'Escape') {
+        e.preventDefault();
+        navigate('/dashboard');
+        return;
+      }
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleSpeakSummary, navigate]);
+
   // Voice Assistant Hooks
   usePageVoice('Performance', [
     {
-      triggers: ['score', 'average score', 'marks', 'kitna score', 'mera score'],
-      answer: () => `Aapka overall average score ${avg} percent hai, aur personal best ${best} percent raha hai.`,
+      triggers: ['voice briefing', 'read briefing', 'briefing', 'press r', 'audio briefing', 'read my report'],
+      answer: () => '',
+      action: () => handleSpeakSummary(),
     },
     {
-      triggers: ['best score', 'highest score', 'top score'],
-      answer: () => `Aapka highest score ${best} percent hai ${bestAttempt?.examTitle?.split('—')[0]?.trim() || ''} me.`,
+      triggers: ['benchmark', 'target benchmark', 'what is the benchmark', 'target score'],
+      answer: () => `Target benchmark is 70 percent. Your current overall average is ${avg} percent, which is ${Math.abs(70 - avg)} percent ${avg >= 70 ? 'above' : 'approaching'} your target benchmark.`,
     },
     {
-      triggers: ['accuracy', 'accuracy kitni', 'sahi percentage'],
-      answer: () => `Aapki total question accuracy ${accuracy} percent hai. Kul ${totalCorrect} sawal sahi hue hain ${totalQs} me se.`,
+      triggers: ['accuracy', 'accuracy rate', 'question accuracy', 'sahi percentage'],
+      answer: () => `Question accuracy rate is ${accuracy} percent, with ${totalCorrect} correct answers out of ${totalQs} total questions evaluated.`,
+    },
+    {
+      triggers: ['highest score', 'best score', 'personal record', 'top score'],
+      answer: () => `Your highest mock evaluation is ${best} percent in ${bestAttempt?.examTitle?.split('—')[0]?.trim() || 'mock test'}.`,
+    },
+    {
+      triggers: ['score', 'average score', 'overall score', 'marks', 'kitna score', 'mera score'],
+      answer: () => `Your overall average score is ${avg} percent across ${attempts.length} completed mock examinations.`,
+    },
+    {
+      triggers: ['subject mastery', 'subjects', 'all subjects', 'subject breakdown'],
+      answer: () => `Subject mastery breakdown: ${subjectList.map(s => `${s.name}: ${s.accuracy} percent`).join(', ')}.`,
+    },
+    {
+      triggers: ['best subject', 'strong subject', 'achha subject', 'strength', 'strongest subject'],
+      answer: () => `Your strongest discipline is ${bestSub} with highest proficiency.`,
+    },
+    {
+      triggers: ['weak subject', 'kamjor subject', 'weakness', 'kisme kam marks', 'weakest subject', 'focus area'],
+      answer: () => `Your primary focus area is ${worstSub}. Recommended review topics: ${allWeakTopics.slice(0, 3).join(', ')}.`,
+    },
+    {
+      triggers: ['score progression', 'trajectory', 'progress', 'score trend'],
+      answer: () => `Score progression trajectory: across ${attempts.length} evaluations, your results are ${attempts.map(a => `${a.percentage} percent in ${a.examTitle.split('—')[0].trim()}`).join(', ')}.`,
     },
     {
       triggers: ['speed', 'kitna time', 'solving speed', 'pacing'],
-      answer: () => `Aapki average solving speed ${avgSpeed} seconds per question hai.`,
+      answer: () => `Your average solving speed is ${avgSpeed} seconds per question.`,
     },
     {
-      triggers: ['kitne exam', 'kitne test', 'total test', 'kitne mock test', 'kitne diye'],
-      answer: () => `Aapne kul ${attempts.length} mock examinations complete kiye hain.`,
+      triggers: ['kitne exam', 'kitne test', 'total test', 'kitne mock test', 'exams attempted'],
+      answer: () => `You have evaluated a total of ${attempts.length} mock examinations.`,
     },
     {
-      triggers: ['best subject', 'strong subject', 'achha subject', 'strength'],
-      answer: () => `Aapka sabse strong subject ${bestSub} hai. Isme aapki accuracy best hai.`,
-    },
-    {
-      triggers: ['weak subject', 'kamjor subject', 'weakness', 'kisme kam marks'],
-      answer: () => `Aapka weakest subject ${worstSub} hai. Weak topics me ${allWeakTopics.slice(0, 3).join(', ')} shamil hain.`,
-    },
-    {
-      triggers: ['summary', 'batao', 'overview', 'haal'],
+      triggers: ['summary', 'batao', 'overview', 'haal', 'read summary'],
       answer: () => spokenSummary,
     },
     {
-      triggers: ['practice', 'abhyas', 'start practice', 'drills'],
-      answer: () => 'Practice section open kiya ja raha hai.',
+      triggers: ['practice', 'abhyas', 'start practice', 'drills', 'ai drills'],
+      answer: () => 'Opening AI Practice Drills section.',
       action: () => navigate('/practice'),
     },
   ]);
@@ -922,7 +965,7 @@ export default function Performance() {
                 )}
               </span>
               <button
-                onClick={() => navigate('/mock-exams')}
+                onClick={() => navigate('/exams')}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -1243,7 +1286,7 @@ export default function Performance() {
             </button>
 
             <button
-              onClick={() => navigate('/mock-exams')}
+              onClick={() => navigate('/exams')}
               style={{
                 background: 'transparent',
                 color: 'var(--text)',

@@ -19,6 +19,7 @@ import type {
   AdminStudent,
   ImpairmentTier,
   Exam,
+  ExamAttempt,
   Question,
   CandidateAttemptLog,
   CurriculumSubject,
@@ -743,9 +744,28 @@ export const subjectsApi = {
 // ── ATTEMPTS & AUDIT API ───────────────────────────────────────────
 export const attemptsApi = {
   async getAll(): Promise<CandidateAttemptLog[]> {
+    const rawLive = localStorage.getItem('sight-exam-attempts');
+    const liveAttempts: ExamAttempt[] = rawLive ? JSON.parse(rawLive) : [];
+    const mappedLive: CandidateAttemptLog[] = liveAttempts.map(att => ({
+      id: att.id,
+      studentName: 'Sujal Sahu (Candidate)',
+      studentRoll: 'PWD-2026-081',
+      impairmentTier: 'Low Vision',
+      examId: att.examId,
+      examTitle: att.examTitle,
+      score: att.score,
+      maxScore: att.maxScore,
+      percentage: att.percentage,
+      timeSpentSeconds: att.avgTimePerQ * (att.answers?.length || 5),
+      flags: [],
+      audioAlertsCount: 14,
+      submittedAt: att.submittedAt ? att.submittedAt.replace('T', ' ').substring(0, 16) : 'Just now',
+      status: 'Completed',
+    }));
+
     try {
       const res = await request<{ attempts: any[] }>('/attempts');
-      return res.attempts.map((att: any) => ({
+      const backendAttempts: CandidateAttemptLog[] = (res.attempts || []).map((att: any) => ({
         id: att.id,
         studentName: att.studentName || att.candidateName || 'Student Candidate',
         studentRoll: att.studentRoll || att.rollNo || 'PWD-2026-000',
@@ -765,8 +785,14 @@ export const attemptsApi = {
         submittedAt: att.submittedAt || att.completedAt || '2026-09-12 14:30',
         status: (att.status as any) || (att.passed ? 'Completed' : 'Flagged for Review'),
       }));
+
+      const seenIds = new Set(mappedLive.map(a => a.id));
+      const filteredBackend = backendAttempts.filter(a => !seenIds.has(a.id));
+      return [...mappedLive, ...filteredBackend];
     } catch (err) {
-      return MOCK_ATTEMPT_LOGS;
+      const seenIds = new Set(mappedLive.map(a => a.id));
+      const filteredMock = MOCK_ATTEMPT_LOGS.filter(a => !seenIds.has(a.id));
+      return [...mappedLive, ...filteredMock];
     }
   },
 

@@ -58,6 +58,7 @@ import {
   MOCK_PYQS,
 } from '../data/mockData';
 import { speechService } from '../services/speechService';
+import { notificationService } from '../services/notificationService';
 import { useAuth } from '../context/AuthContext';
 import { toast } from '../context/ToastContext';
 import {
@@ -107,7 +108,7 @@ export interface PopularExamItem {
   short: string;
 }
 
-export const POPULAR_EXAMS_DATABASE: PopularExamItem[] = [
+const POPULAR_EXAMS_DATABASE: PopularExamItem[] = [
   // Medical & Healthcare
   { name: 'NEET UG (Medical Entrance Exam)', category: 'Medical', short: 'NEET UG' },
   { name: 'NEET PG (Medical Post Graduate)', category: 'Medical', short: 'NEET PG' },
@@ -202,23 +203,11 @@ export default function AdminDashboard() {
     if (tabParam && tabParam !== activeTab) {
       setActiveTabState(tabParam);
     }
-  }, [tabParam]);
+  }, [tabParam, activeTab]);
 
   useEffect(() => {
     document.title = `Admin ${activeTab.toUpperCase()} — DrishtiX`;
   }, [activeTab]);
-
-  // Synchronize with Node.js + Express backend on mount
-  useEffect(() => {
-    studentsApi.getAll().then(res => { if (res && res.length) setStudents(res); }).catch(() => { });
-    examsApi.getAll().then(res => { if (res && res.length) setExams(res); }).catch(() => { });
-    subjectsApi.getAll().then(res => { if (res && res.length) { setSubjects(res); setSelectedSubject(res[0]); } }).catch(() => { });
-    attemptsApi.getAll().then(res => { if (res && res.length) setAttemptLogs(res); }).catch(() => { });
-    notificationsApi.getAll().then(res => { if (res && res.length) setAnnouncements(res); }).catch(() => { });
-    accessibilityApi.getPronunciationRules().then(res => { if (res && res.length) setPronunciationRules(res); }).catch(() => { });
-    studyMaterialsApi.getAll().then(res => { if (res && res.length) setStudyMaterials(res); }).catch(() => { });
-    pyqsApi.getAll().then(res => { if (res && res.length) setPyqs(res); }).catch(() => { });
-  }, []);
 
   // ─────────────────────────────────────────────
   //  State: Examinations
@@ -435,9 +424,7 @@ export default function AdminDashboard() {
   const [proctoringSensitivity, setProctoringSensitivity] = useState<'Low' | 'Standard' | 'Strict'>('Standard');
   const [autoSessionTimeout, setAutoSessionTimeout] = useState('60');
 
-  // ─────────────────────────────────────────────
-  //  Fetch AI status
-  // ─────────────────────────────────────────────
+  // Synchronize with Node.js + Express backend on mount
   useEffect(() => {
     aiApi.getStatus().then(status => {
       setGeminiStatus(status);
@@ -447,6 +434,14 @@ export default function AdminDashboard() {
         setAiModel('Domain Template Engine (GEMINI_API_KEY optional)');
       }
     }).catch(() => { });
+    studentsApi.getAll().then(res => { if (res && res.length) setStudents(res); }).catch(() => { });
+    examsApi.getAll().then(res => { if (res && res.length) setExams(res); }).catch(() => { });
+    subjectsApi.getAll().then(res => { if (res && res.length) { setSubjects(res); setSelectedSubject(res[0]); } }).catch(() => { });
+    attemptsApi.getAll().then(res => { if (res && res.length) setAttemptLogs(res); }).catch(() => { });
+    notificationsApi.getAll().then(res => { if (res && res.length) setAnnouncements(res); }).catch(() => { });
+    accessibilityApi.getPronunciationRules().then(res => { if (res && res.length) setPronunciationRules(res); }).catch(() => { });
+    studyMaterialsApi.getAll().then(res => { if (res && res.length) setStudyMaterials(res); }).catch(() => { });
+    pyqsApi.getAll().then(res => { if (res && res.length) setPyqs(res); }).catch(() => { });
   }, []);
 
   // ─────────────────────────────────────────────
@@ -839,7 +834,17 @@ export default function AdminDashboard() {
       // 1. Persist to Backend API & Local Storage
       await examsApi.create(created);
 
-      // 2. Update local state
+      // 2. Broadcast real-time notification to student portal
+      notificationService.broadcastNotification({
+        type: 'exam',
+        title: `New Mock Exam: ${created.title}`,
+        message: `A new ${created.category} mock examination with ${finalQuestions.length} questions is now live. Duration: ${created.durationMinutes} min.`,
+        link: '/exams',
+        priority: 'high',
+        author: 'Examination Controller',
+      });
+
+      // 3. Update local state
       setExams(prev => [created, ...prev.filter(x => x.id !== created.id)]);
 
       // 3. Reset form
@@ -909,6 +914,15 @@ export default function AdminDashboard() {
     }));
 
     setQuestionBank(prev => [...drafts, ...prev]);
+
+    notificationService.broadcastNotification({
+      type: 'exam',
+      title: 'New Questions Added to Question Bank',
+      message: `${drafts.length} new syllabus questions were uploaded and verified by faculty.`,
+      link: '/exams',
+      priority: 'normal',
+      author: 'Academic Faculty',
+    });
 
     try {
       await questionsApi.bulkImport(drafts);
@@ -1045,6 +1059,16 @@ export default function AdminDashboard() {
     };
     setAnnouncements([newAnc, ...announcements]);
     notificationsApi.post(newAnc).catch(err => console.warn('Notification API sync fallback:', err));
+
+    notificationService.broadcastNotification({
+      type: 'announcement',
+      title: newAnc.title,
+      message: newAnc.message,
+      priority: newAnc.priority === 'Emergency Audio Broadcast' ? 'urgent' : newAnc.priority === 'High' ? 'high' : 'normal',
+      author: 'System Administrator',
+      link: '/dashboard',
+    });
+
     if (isAudioBroadcast) {
       speechService.speak(`Emergency audio announcement: ${newAnc.title}. ${newAnc.message}`, true);
     }
@@ -1123,6 +1147,16 @@ export default function AdminDashboard() {
     };
     studyMaterialsApi.create(newMat).then(created => {
       setStudyMaterials([created, ...studyMaterials]);
+
+      notificationService.broadcastNotification({
+        type: 'study-material',
+        title: `New Study Material: ${created.title}`,
+        message: `New revision notes for ${created.subject} (${created.category}) have been published with audio narration.`,
+        link: '/study-materials',
+        priority: 'normal',
+        author: 'Faculty Academic Cell',
+      });
+
       toast.success(`Study material "${created.title}" published!`, 'Content Created');
       setShowAddMaterialModal(false);
       setNewMaterialTitle('');
@@ -1170,6 +1204,16 @@ export default function AdminDashboard() {
     };
     pyqsApi.create(newP).then(created => {
       setPyqs([created, ...pyqs]);
+
+      notificationService.broadcastNotification({
+        type: 'pyq',
+        title: `New Previous Year Paper: ${created.title}`,
+        message: `${created.examName} (${created.year}) past year paper with ${created.totalQuestions} questions is now ready for practice.`,
+        link: '/pyqs',
+        priority: 'normal',
+        author: 'Examination Cell',
+      });
+
       toast.success(`Previous Year Paper "${created.title}" published!`, 'PYQ Published');
       setShowAddPyqModal(false);
       setNewPyqTitle('');

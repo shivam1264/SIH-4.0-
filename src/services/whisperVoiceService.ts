@@ -2,6 +2,8 @@
 // Optimized for noisy environments: hackathon, presentations, crowds
 // Uses client-side VAD + energy gate + clean PCM Int16 streaming
 
+import { speechService } from './speechService';
+
 export type WhisperTranscriptCallback = (text: string) => void;
 export type WhisperStatusCallback = (
   status: 'connecting' | 'ready' | 'listening' | 'error' | 'disconnected'
@@ -9,11 +11,11 @@ export type WhisperStatusCallback = (
 
 const WHISPER_WS_URL        = 'ws://localhost:8765/ws/voice';
 const SAMPLE_RATE           = 16000;
-const BUFFER_SIZE           = 4096;   // ~256ms per audio frame
-const SPEECH_RMS_THRESHOLD   = 0.0045; // High sensitivity to quiet speech without picking up noise floor
-const SILENCE_FRAMES_TRIGGER = 3;      // 3 silence frames (~768ms) triggers natural end-of-utterance
-const MIN_UTTERANCE_MS       = 350;    // Minimum 350ms to ignore brief room clicks
-const MAX_UTTERANCE_MS       = 7000;   // Safety cap: dispatch if continuous speech exceeds 7s
+const BUFFER_SIZE           = 2048;   // ~128ms per audio frame (ultra-responsive streaming)
+const BASE_SPEECH_RMS       = 0.012;  // Robust baseline speech threshold (ambient noise floor is ~0.003-0.007)
+const SILENCE_FRAMES_TRIGGER = 3;      // 3 silence frames (~384ms) triggers natural end-of-utterance (was 768ms)
+const MIN_UTTERANCE_MS       = 240;    // Minimum 240ms for fast commands like 'yes', 'no', 'option B'
+const MAX_UTTERANCE_MS       = 4500;   // Safety cap: dispatch if continuous speech exceeds 4.5s
 
 class WhisperVoiceService {
   private ws: WebSocket | null = null;
@@ -34,6 +36,7 @@ class WhisperVoiceService {
   private isSpeaking = false;
   private silenceFrameCount = 0;
   private speechDurationMs = 0;
+  private noiseFloor = 0.005;
 
   async isServerAvailable(): Promise<boolean> {
     try {
@@ -195,6 +198,11 @@ class WhisperVoiceService {
       this.processor.onaudioprocess = (e) => {
         if (this.ws?.readyState !== WebSocket.OPEN) return;
 
+        // ── Echo Cancellation & BARGE-IN ──
+        // If the microphone picks up voice while TTS is speaking, it might be echo or user barge-in.
+        // We rely on browser echo cancellation (enabled in getUserMedia) to filter out the TTS voice.
+        // If rms still crosses dynamicThreshold, we assume it's the user interrupting.
+
         const float32 = e.inputBuffer.getChannelData(0);
 
         // ── Calculate RMS Energy ──
@@ -209,16 +217,28 @@ class WhisperVoiceService {
           int16[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
         }
 
-        const frameDurationMs = (float32.length / SAMPLE_RATE) * 1000; // ~256ms
+        const frameDurationMs = (float32.length / SAMPLE_RATE) * 1000; // ~128ms
 
-        if (rms >= SPEECH_RMS_THRESHOLD) {
+        // Dynamic noise floor tracking: learn ambient room noise floor when idle
+        if (!this.isSpeaking) {
+          this.noiseFloor = this.noiseFloor * 0.95 + rms * 0.05;
+        }
+        const dynamicThreshold = Math.max(BASE_SPEECH_RMS, this.noiseFloor * 2.4);
+
+        if (rms >= dynamicThreshold) {
+          // ── BARGE-IN: Stop AI speech if user starts talking ──
+          if (speechService.isSpeaking) {
+            console.log('[Whisper] 🛑 Barge-in: User interrupted, stopping AI speech.');
+            speechService.stop();
+          }
+
           // Voice detected!
           this.isSpeaking = true;
           this.silenceFrameCount = 0;
           this.speechDurationMs += frameDurationMs;
           this.pcmBuffer.push(int16);
 
-          // If speech continues uninterrupted for > 7s, dispatch current chunk
+          // If speech continues uninterrupted for > 4.5s, dispatch current chunk
           if (this.speechDurationMs >= MAX_UTTERANCE_MS) {
             this._dispatchBufferedUtterance();
           }

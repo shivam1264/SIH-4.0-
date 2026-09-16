@@ -21,34 +21,54 @@ router.get('/', (req, res) => {
 // Record new attempt
 router.post('/', (req, res) => {
   const {
-    candidateName = 'Rahul Sharma',
-    rollNo = 'PWD-2026-081',
+    id,
+    candidateName,
+    studentName,
+    rollNo,
+    studentRoll,
     examTitle = 'Mock Examination',
     examId = 'exam-1',
     score = 0,
-    totalMarks = 100,
+    totalMarks,
+    maxScore,
     percentage,
-    passed = true,
-    timeTakenMinutes = 20,
-    speechCommandsUsed = 0,
+    passed,
+    status,
+    timeTakenMinutes,
+    timeSpentSeconds,
+    speechCommandsUsed,
+    audioAlertsCount,
     audioIntegrityStatus = 'Clean',
   } = req.body;
 
-  const calculatedPercentage = percentage ?? Math.round((Number(score) / Number(totalMarks)) * 100);
+  const actualName = studentName || candidateName || 'Aryan Sharma';
+  const actualRoll = studentRoll || rollNo || 'PWD-2026-081';
+  const actualMaxScore = Number(maxScore || totalMarks || 100);
+  const actualScore = Number(score ?? 0);
+  const calculatedPercentage = percentage ?? Math.round((actualScore / actualMaxScore) * 100);
+  const actualMinutes = timeTakenMinutes ? Number(timeTakenMinutes) : timeSpentSeconds ? Math.round(Number(timeSpentSeconds) / 60) : 15;
+  const actualCommands = Number(audioAlertsCount ?? speechCommandsUsed ?? 0);
 
   const newLog = {
-    id: `att_${Date.now()}`,
-    candidateName,
-    rollNo,
+    id: id || `att_${Date.now()}`,
+    candidateName: actualName,
+    studentName: actualName,
+    rollNo: actualRoll,
+    studentRoll: actualRoll,
     examTitle,
     examId,
-    score: Number(score),
-    totalMarks: Number(totalMarks),
+    score: actualScore,
+    maxScore: actualMaxScore,
+    totalMarks: actualMaxScore,
     percentage: calculatedPercentage,
-    passed: passed ?? calculatedPercentage >= 40,
+    passed: passed ?? (status === 'Completed' || calculatedPercentage >= 40),
+    status: status || (calculatedPercentage >= 40 ? 'Completed' : 'Flagged for Review'),
     completedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
-    timeTakenMinutes: Number(timeTakenMinutes),
-    speechCommandsUsed: Number(speechCommandsUsed),
+    submittedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+    timeTakenMinutes: actualMinutes,
+    timeSpentSeconds: timeSpentSeconds ? Number(timeSpentSeconds) : actualMinutes * 60,
+    speechCommandsUsed: actualCommands,
+    audioAlertsCount: actualCommands,
     audioIntegrityStatus: audioIntegrityStatus || 'Clean',
   };
 

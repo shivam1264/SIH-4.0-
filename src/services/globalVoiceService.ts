@@ -2,11 +2,12 @@
 // ONE Whisper/Chrome connection for the ENTIRE app.
 // Pages don't manage low-level mic streaming — they register Q&A handlers.
 
+import { groqVoiceService } from './groqVoiceService';
 import { whisperVoiceService } from './whisperVoiceService';
 import { speechService } from './speechService';
 
 export type TranscriptHandler = (text: string) => boolean; // return true = handled
-export type EngineType = 'whisper' | 'chrome' | 'none';
+export type EngineType = 'groq' | 'whisper' | 'chrome' | 'none';
 
 class GlobalVoiceService {
   private _active = false;
@@ -97,12 +98,49 @@ class GlobalVoiceService {
     console.log('[GlobalVoice] 🎙️ Starting Voice Assistant...');
     this._setStatus('Connecting...');
 
+    // 1. Priority 1: Groq Cloud Whisper Large-v3 (Ultra-accurate ~200ms)
+    if (groqVoiceService.isAvailable()) {
+      console.log('[GlobalVoice] ⚡ Connecting to Groq Whisper Large-v3 cloud engine...');
+      this._stopChrome();
+      whisperVoiceService.stop();
+      this._setEngine('groq');
+      this._setStatus('Listening (Groq Whisper Large-v3)');
+
+      await groqVoiceService.start(
+        (text) => this._dispatch(text),
+        (status) => {
+          console.log('[GlobalVoice] Groq status:', status);
+          if (status === 'ready' || status === 'listening') {
+            this._stopChrome();
+            this._setEngine('groq');
+            this._setStatus('Listening (Groq AI)');
+          } else if (status === 'transcribing') {
+            this._setStatus('Processing voice (Groq AI)...');
+          } else if (status === 'error') {
+            if (this._engine !== 'whisper' && this._engine !== 'chrome') {
+              console.warn('[GlobalVoice] Groq error → falling back to local Whisper or Chrome');
+              this._startLocalOrChrome(myId);
+            }
+          }
+        }
+      );
+      return;
+    }
+
+    // 2. Fallback to local or browser
+    await this._startLocalOrChrome(myId);
+  }
+
+  private async _startLocalOrChrome(myId: number) {
+    if (!this._active || myId !== this._startId) return;
+
     const available = await whisperVoiceService.isServerAvailable();
     if (!this._active || myId !== this._startId) return;
 
     if (available) {
       console.log('[GlobalVoice] ✅ Using Python Whisper engine');
       this._stopChrome();
+      groqVoiceService.stop();
       this._setEngine('whisper');
       this._setStatus('Listening (Whisper AI)');
       whisperVoiceService.start(
@@ -123,6 +161,7 @@ class GlobalVoiceService {
       );
     } else {
       console.log('[GlobalVoice] ⚠️ Whisper unavailable → Chrome Speech API fallback');
+      groqVoiceService.stop();
       this._startChrome();
     }
   }
@@ -132,6 +171,7 @@ class GlobalVoiceService {
     this._active = false;
     this._startId++;
     this._chromeStopped = true;
+    groqVoiceService.stop();
     whisperVoiceService.stop();
     this._stopChrome();
     this._setEngine('none');

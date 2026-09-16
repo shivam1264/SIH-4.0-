@@ -13,10 +13,11 @@ dist/
 dist-ssr/
 *.local
 
-# Environment variables & secrets (User requested to include .env)
-# .env
-# .env.*
-# *.env
+# Environment variables & secrets
+.env
+.env.*
+*.env
+server/.env
 
 
 # Python & Virtual Environments

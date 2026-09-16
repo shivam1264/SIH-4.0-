@@ -385,6 +385,35 @@ const testCases: TestCase[] = [
     expectedType: 'OPEN_NOTIFICATIONS',
     expectedAction: 'OPEN_NOTIFICATIONS',
   },
+  {
+    name: '55. Hindi Devanagari: "अगला सवाल" in exam -> NEXT_QUESTION',
+    input: 'अगला सवाल',
+    context: { route: '/exam/mock-1', examState: 'in-progress', currentQuestionIndex: 2, totalQuestions: 10 },
+    expectedType: 'NEXT_QUESTION',
+    expectedAction: 'NEXT',
+  },
+  {
+    name: '56. Hindi Devanagari: "पिछला सवाल" in exam -> PREV_QUESTION',
+    input: 'पिछला सवाल',
+    context: { route: '/exam/mock-1', examState: 'in-progress', currentQuestionIndex: 2, totalQuestions: 10 },
+    expectedType: 'PREV_QUESTION',
+    expectedAction: 'PREV',
+  },
+  {
+    name: '57. Hindi Devanagari: "ऑप्शन बी" in exam -> SELECT_OPTION (B)',
+    input: 'ऑप्शन बी',
+    context: { route: '/exam/mock-1', examState: 'in-progress', currentQuestionIndex: 2, totalQuestions: 10 },
+    expectedType: 'SELECT_OPTION',
+    expectedAction: 'SELECT_B',
+    expectedOption: 'B',
+  },
+  {
+    name: '58. Hindi Devanagari: "सबमिट करो" in exam -> INITIATE_SUBMIT',
+    input: 'सबमिट करो',
+    context: { route: '/exam/mock-1', examState: 'in-progress', currentQuestionIndex: 2, totalQuestions: 10 },
+    expectedType: 'INITIATE_SUBMIT',
+    expectedAction: 'SUBMIT',
+  },
 ];
 
 console.log('═══════════════════════════════════════════════════════════════');

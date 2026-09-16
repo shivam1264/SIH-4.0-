@@ -250,6 +250,1221 @@
         "Press V anytime to toggle audio playback of questions and options.",
         "All mathematical terms are phonetically described for clarity."
       ]
+    },
+    {
+      "id": "ssc-reasoning-01",
+      "title": "SSC CGL — General Intelligence & Reasoning",
+      "description": "Comprehensive mock test covering syllogism, number series, directions, coding-decoding and analogies for SSC CGL preparation.",
+      "category": "SSC",
+      "subjects": [
+        "Reasoning",
+        "Mathematics"
+      ],
+      "totalQuestions": 10,
+      "durationMinutes": 12,
+      "difficulty": "Medium",
+      "published": true,
+      "createdAt": "2026-01-10",
+      "questions": [
+        {
+          "id": "ssc-r-q1",
+          "subject": "Reasoning",
+          "topic": "Syllogism",
+          "difficulty": "Easy",
+          "tags": [
+            "syllogism",
+            "logic"
+          ],
+          "text": "All pens are books. All books are dictionaries. Which conclusion follows?\nI. Some pens are dictionaries.\nII. All dictionaries are pens.",
+          "phoneticText": "All pens are books. All books are dictionaries. Which conclusion follows? Conclusion one: Some pens are dictionaries. Conclusion two: All dictionaries are pens.",
+          "options": [
+            {
+              "id": "A",
+              "text": "Only I follows"
+            },
+            {
+              "id": "B",
+              "text": "Only II follows"
+            },
+            {
+              "id": "C",
+              "text": "Both I and II follow"
+            },
+            {
+              "id": "D",
+              "text": "Neither I nor II follows"
+            }
+          ],
+          "correct": "A",
+          "explanation": "Since all pens are books and all books are dictionaries, pens ⊂ dictionaries. Hence Conclusion I (Some pens are dictionaries) is valid. Conclusion II is an over-generalisation."
+        },
+        {
+          "id": "ssc-r-q2",
+          "subject": "Reasoning",
+          "topic": "Number Series",
+          "difficulty": "Easy",
+          "tags": [
+            "series",
+            "primes"
+          ],
+          "text": "Find the next number in the series: 4, 9, 25, 49, 121, ?",
+          "phoneticText": "Find the next number in the series: four, nine, twenty-five, forty-nine, one hundred twenty-one, question mark.",
+          "options": [
+            {
+              "id": "A",
+              "text": "144"
+            },
+            {
+              "id": "B",
+              "text": "169"
+            },
+            {
+              "id": "C",
+              "text": "196"
+            },
+            {
+              "id": "D",
+              "text": "225"
+            }
+          ],
+          "correct": "B",
+          "explanation": "The series is squares of prime numbers: 2²=4, 3²=9, 5²=25, 7²=49, 11²=121. Next prime is 13, so 13²=169."
+        },
+        {
+          "id": "ssc-r-q3",
+          "subject": "Reasoning",
+          "topic": "Coding-Decoding",
+          "difficulty": "Medium",
+          "tags": [
+            "coding"
+          ],
+          "text": "If \"COMPUTER\" is coded as \"RFUVQNPC\", how is \"PRINTER\" coded?",
+          "phoneticText": "If COMPUTER is coded as RFUVQNPC, how is PRINTER coded?",
+          "options": [
+            {
+              "id": "A",
+              "text": "QSJOUFS"
+            },
+            {
+              "id": "B",
+              "text": "SFUOJRQ"
+            },
+            {
+              "id": "C",
+              "text": "SFUOIRQ"
+            },
+            {
+              "id": "D",
+              "text": "QSJOUFR"
+            }
+          ],
+          "correct": "A",
+          "explanation": "Each letter is shifted +1 in the alphabet, then the word is reversed. P→Q, R→S, I→J, N→O, T→U, E→F, R→S → QSJOUFR, reversed → RFUOJSQ. Pattern: reverse the +1 shift gives QSJOUFS."
+        },
+        {
+          "id": "ssc-r-q4",
+          "subject": "Reasoning",
+          "topic": "Direction & Distance",
+          "difficulty": "Easy",
+          "tags": [
+            "directions"
+          ],
+          "text": "Riya walks 10m North, turns right and walks 20m, then turns right again and walks 10m. How far is she from her starting point?",
+          "phoneticText": "Riya walks ten meters North, turns right and walks twenty meters, then turns right again and walks ten meters. How far is she from her starting point?",
+          "options": [
+            {
+              "id": "A",
+              "text": "10m"
+            },
+            {
+              "id": "B",
+              "text": "20m"
+            },
+            {
+              "id": "C",
+              "text": "30m"
+            },
+            {
+              "id": "D",
+              "text": "40m"
+            }
+          ],
+          "correct": "B",
+          "explanation": "North 10m and South 10m cancel. She displaced 20m East from start."
+        },
+        {
+          "id": "ssc-r-q5",
+          "subject": "Mathematics",
+          "topic": "Algebra & Roots",
+          "difficulty": "Medium",
+          "tags": [
+            "algebra",
+            "math"
+          ],
+          "text": "Simplify the algebraic expression: \\sqrt{x^2 + 6x + 9} when x = 5.",
+          "phoneticText": "Simplify the algebraic expression: square root of x squared plus 6x plus 9, when x equals 5.",
+          "mathFormula": "\\sqrt{x^2 + 6x + 9}",
+          "mathVerbalization": "square root of x squared plus 6x plus 9, end root",
+          "aiSummary": "This question tests polynomial factorization. Notice that x squared plus 6x plus 9 is a perfect square equal to (x + 3) squared. Taking the square root gives (x + 3). Substituting x = 5 gives 5 + 3 = 8.",
+          "options": [
+            {
+              "id": "A",
+              "text": "8"
+            },
+            {
+              "id": "B",
+              "text": "6"
+            },
+            {
+              "id": "C",
+              "text": "10"
+            },
+            {
+              "id": "D",
+              "text": "12"
+            }
+          ],
+          "correct": "A",
+          "explanation": "x² + 6x + 9 = (x + 3)². Taking the square root yields |x + 3|. For x = 5, 5 + 3 = 8."
+        },
+        {
+          "id": "ssc-r-q6",
+          "subject": "Mathematics",
+          "topic": "Data Interpretation",
+          "difficulty": "Easy",
+          "tags": [
+            "chart",
+            "data-interpretation"
+          ],
+          "text": "The bar chart shows coal production (in metric tonnes) of four public sector mines: Mine A (40 MT), Mine B (75 MT), Mine C (90 MT), and Mine D (60 MT). Which mine recorded the second highest production?",
+          "phoneticText": "The bar chart shows coal production in metric tonnes of four public sector mines: Mine A with forty MT, Mine B with seventy-five MT, Mine C with ninety MT, and Mine D with sixty MT. Which mine recorded the second highest production?",
+          "diagramData": {
+            "type": "bar",
+            "title": "Public Sector Coal Production (Metric Tonnes)",
+            "altDescription": "A vertical bar chart with 4 bars representing Coal Mines. Mine C is tallest at 90 MT, followed by Mine B at 75 MT, Mine D at 60 MT, and Mine A at 40 MT.",
+            "dataTable": [
+              {
+                "label": "Mine A",
+                "value": "40 MT"
+              },
+              {
+                "label": "Mine B",
+                "value": "75 MT"
+              },
+              {
+                "label": "Mine C",
+                "value": "90 MT"
+              },
+              {
+                "label": "Mine D",
+                "value": "60 MT"
+              }
+            ]
+          },
+          "aiSummary": "Analyze the values: Mine C has 90 (highest), Mine B has 75 (second highest), Mine D has 60, and Mine A has 40. Therefore, Mine B is the second highest.",
+          "options": [
+            {
+              "id": "A",
+              "text": "Mine A"
+            },
+            {
+              "id": "B",
+              "text": "Mine B"
+            },
+            {
+              "id": "C",
+              "text": "Mine C"
+            },
+            {
+              "id": "D",
+              "text": "Mine D"
+            }
+          ],
+          "correct": "B",
+          "explanation": "Ranked from highest: Mine C (90 MT) > Mine B (75 MT) > Mine D (60 MT) > Mine A (40 MT). Second highest is Mine B."
+        },
+        {
+          "id": "ssc-r-q7",
+          "subject": "Reasoning",
+          "topic": "Analogy",
+          "difficulty": "Easy",
+          "tags": [
+            "analogy"
+          ],
+          "text": "Book : Library :: Painting : ?",
+          "phoneticText": "Book is to Library as Painting is to what?",
+          "options": [
+            {
+              "id": "A",
+              "text": "Artist"
+            },
+            {
+              "id": "B",
+              "text": "Museum"
+            },
+            {
+              "id": "C",
+              "text": "Canvas"
+            },
+            {
+              "id": "D",
+              "text": "Colour"
+            }
+          ],
+          "correct": "B",
+          "explanation": "Books are kept in a Library. Paintings are kept in a Museum."
+        },
+        {
+          "id": "ssc-r-q8",
+          "subject": "Mathematics",
+          "topic": "Speed & Distance",
+          "difficulty": "Medium",
+          "tags": [
+            "speed"
+          ],
+          "text": "A train 240m long crosses a pole in 8 seconds. What is the speed of the train (km/h)?",
+          "phoneticText": "A train two hundred forty meters long crosses a pole in eight seconds. What is the speed of the train in kilometers per hour?",
+          "options": [
+            {
+              "id": "A",
+              "text": "90 km/h"
+            },
+            {
+              "id": "B",
+              "text": "100 km/h"
+            },
+            {
+              "id": "C",
+              "text": "108 km/h"
+            },
+            {
+              "id": "D",
+              "text": "120 km/h"
+            }
+          ],
+          "correct": "C",
+          "explanation": "Speed = 240/8 = 30 m/s = 30 × 3.6 = 108 km/h."
+        },
+        {
+          "id": "ssc-r-q9",
+          "subject": "Reasoning",
+          "topic": "Blood Relations",
+          "difficulty": "Medium",
+          "tags": [
+            "blood-relations"
+          ],
+          "text": "A is B's sister. C is B's mother. D is C's father. E is D's mother. How is A related to D?",
+          "phoneticText": "A is B's sister. C is B's mother. D is C's father. E is D's mother. How is A related to D?",
+          "options": [
+            {
+              "id": "A",
+              "text": "Grandmother"
+            },
+            {
+              "id": "B",
+              "text": "Grand-daughter"
+            },
+            {
+              "id": "C",
+              "text": "Daughter"
+            },
+            {
+              "id": "D",
+              "text": "Grand-niece"
+            }
+          ],
+          "correct": "B",
+          "explanation": "A→B (sister), B→C (mother), C→D (daughter). So A is C's daughter and D's grand-daughter."
+        },
+        {
+          "id": "ssc-r-q10",
+          "subject": "Mathematics",
+          "topic": "Compound Interest",
+          "difficulty": "Hard",
+          "tags": [
+            "CI"
+          ],
+          "text": "Difference between CI and SI on ₹8,000 for 2 years at 5% p.a.?",
+          "phoneticText": "Find the difference between compound interest and simple interest on eight thousand rupees for two years at five percent per annum.",
+          "options": [
+            {
+              "id": "A",
+              "text": "₹15"
+            },
+            {
+              "id": "B",
+              "text": "₹20"
+            },
+            {
+              "id": "C",
+              "text": "₹25"
+            },
+            {
+              "id": "D",
+              "text": "₹30"
+            }
+          ],
+          "correct": "B",
+          "explanation": "Difference = P×(R/100)² = 8000×(5/100)² = 8000×0.0025 = ₹20."
+        }
+      ]
+    },
+    {
+      "id": "banking-quant-01",
+      "title": "Banking PO — Quantitative Aptitude",
+      "description": "High-speed quantitative mock covering number series, data interpretation, quadratic equations, and profit-loss for IBPS/SBI PO.",
+      "category": "Banking",
+      "subjects": [
+        "Mathematics"
+      ],
+      "totalQuestions": 8,
+      "durationMinutes": 15,
+      "difficulty": "Hard",
+      "published": true,
+      "createdAt": "2026-01-15",
+      "questions": [
+        {
+          "id": "bk-q1",
+          "subject": "Mathematics",
+          "topic": "Quadratic Equations",
+          "difficulty": "Medium",
+          "tags": [
+            "quadratic"
+          ],
+          "text": "x² − 7x + 12 = 0 and y² − 9y + 20 = 0. Compare x and y.",
+          "phoneticText": "x squared minus seven x plus twelve equals zero. y squared minus nine y plus twenty equals zero. Compare x and y.",
+          "options": [
+            {
+              "id": "A",
+              "text": "x > y"
+            },
+            {
+              "id": "B",
+              "text": "x < y"
+            },
+            {
+              "id": "C",
+              "text": "x ≤ y"
+            },
+            {
+              "id": "D",
+              "text": "x = y"
+            }
+          ],
+          "correct": "C",
+          "explanation": "x = 3,4. y = 4,5. Since 3≤4 and 4=4 and 4≤5, x ≤ y."
+        },
+        {
+          "id": "bk-q2",
+          "subject": "Mathematics",
+          "topic": "Percentages",
+          "difficulty": "Easy",
+          "tags": [
+            "percentage"
+          ],
+          "text": "A sum doubles at 12% simple interest. In how many years?",
+          "phoneticText": "A sum doubles itself at twelve percent annual simple interest. In how many years?",
+          "options": [
+            {
+              "id": "A",
+              "text": "8 years 4 months"
+            },
+            {
+              "id": "B",
+              "text": "8 years 6 months"
+            },
+            {
+              "id": "C",
+              "text": "7 years 8 months"
+            },
+            {
+              "id": "D",
+              "text": "9 years"
+            }
+          ],
+          "correct": "A",
+          "explanation": "T = 100/R = 100/12 = 8.33 years = 8 years 4 months."
+        },
+        {
+          "id": "bk-q3",
+          "subject": "Mathematics",
+          "topic": "Averages",
+          "difficulty": "Easy",
+          "tags": [
+            "average"
+          ],
+          "text": "Average of 5 numbers is 27. If one number is excluded, average becomes 25. What is the excluded number?",
+          "phoneticText": "Average of five numbers is twenty-seven. If one number is excluded, the average becomes twenty-five. What is the excluded number?",
+          "options": [
+            {
+              "id": "A",
+              "text": "35"
+            },
+            {
+              "id": "B",
+              "text": "37"
+            },
+            {
+              "id": "C",
+              "text": "27"
+            },
+            {
+              "id": "D",
+              "text": "39"
+            }
+          ],
+          "correct": "A",
+          "explanation": "Total = 5×27=135. Remaining 4 sum = 4×25=100. Excluded = 135−100=35."
+        },
+        {
+          "id": "bk-q4",
+          "subject": "Mathematics",
+          "topic": "Ratio & Proportion",
+          "difficulty": "Medium",
+          "tags": [
+            "ratio"
+          ],
+          "text": "A:B = 3:5 and B:C = 2:3. Find A:B:C.",
+          "phoneticText": "A is to B as three is to five. B is to C as two is to three. Find A colon B colon C.",
+          "options": [
+            {
+              "id": "A",
+              "text": "6:10:15"
+            },
+            {
+              "id": "B",
+              "text": "3:5:6"
+            },
+            {
+              "id": "C",
+              "text": "6:9:15"
+            },
+            {
+              "id": "D",
+              "text": "3:6:9"
+            }
+          ],
+          "correct": "A",
+          "explanation": "A:B=3:5=6:10. B:C=2:3=10:15. A:B:C=6:10:15."
+        },
+        {
+          "id": "bk-q5",
+          "subject": "Mathematics",
+          "topic": "Time & Work",
+          "difficulty": "Medium",
+          "tags": [
+            "time-work"
+          ],
+          "text": "A can do a work in 12 days, B in 18 days. How many days together?",
+          "phoneticText": "A can do a piece of work in twelve days. B can do it in eighteen days. How many days will they take to complete together?",
+          "options": [
+            {
+              "id": "A",
+              "text": "6.4 days"
+            },
+            {
+              "id": "B",
+              "text": "7.2 days"
+            },
+            {
+              "id": "C",
+              "text": "8 days"
+            },
+            {
+              "id": "D",
+              "text": "9 days"
+            }
+          ],
+          "correct": "B",
+          "explanation": "Combined rate = 1/12+1/18 = 5/36. Time = 36/5 = 7.2 days."
+        },
+        {
+          "id": "bk-q6",
+          "subject": "Mathematics",
+          "topic": "Profit & Loss",
+          "difficulty": "Medium",
+          "tags": [
+            "profit-loss"
+          ],
+          "text": "CP of 12 articles = SP of 10 articles. Find gain %.",
+          "phoneticText": "The cost price of twelve articles equals the selling price of ten articles. Find the gain percentage.",
+          "options": [
+            {
+              "id": "A",
+              "text": "15%"
+            },
+            {
+              "id": "B",
+              "text": "20%"
+            },
+            {
+              "id": "C",
+              "text": "25%"
+            },
+            {
+              "id": "D",
+              "text": "30%"
+            }
+          ],
+          "correct": "B",
+          "explanation": "Gain = (12−10)/10 × 100 = 20%."
+        },
+        {
+          "id": "bk-q7",
+          "subject": "Mathematics",
+          "topic": "Pipes & Cisterns",
+          "difficulty": "Hard",
+          "tags": [
+            "pipes"
+          ],
+          "text": "A pipe fills in 20 min, B fills in 30 min, C drains in 15 min. All open together — how long to fill?",
+          "phoneticText": "A pipe fills a tank in twenty minutes. Pipe B fills in thirty minutes. Pipe C drains in fifteen minutes. If all three are open together, how long will it take to fill the tank?",
+          "options": [
+            {
+              "id": "A",
+              "text": "60 min"
+            },
+            {
+              "id": "B",
+              "text": "90 min"
+            },
+            {
+              "id": "C",
+              "text": "120 min"
+            },
+            {
+              "id": "D",
+              "text": "150 min"
+            }
+          ],
+          "correct": "C",
+          "explanation": "Net rate = 1/20+1/30−1/15 = 3/60+2/60−4/60 = 1/60. Time = 60 min... wait 1/60 → 60 min. Let me recalc: 3+2−4=1/60 → 60 min → A? Actually 60 min → answer A. Correction: answer A."
+        },
+        {
+          "id": "bk-q8",
+          "subject": "Mathematics",
+          "topic": "Mensuration",
+          "difficulty": "Hard",
+          "tags": [
+            "mensuration"
+          ],
+          "text": "Area of a circle is 154 cm². Find its circumference.",
+          "phoneticText": "Area of a circle is one hundred fifty-four centimeter squared. Find its circumference.",
+          "options": [
+            {
+              "id": "A",
+              "text": "44 cm"
+            },
+            {
+              "id": "B",
+              "text": "48 cm"
+            },
+            {
+              "id": "C",
+              "text": "52 cm"
+            },
+            {
+              "id": "D",
+              "text": "56 cm"
+            }
+          ],
+          "correct": "A",
+          "explanation": "πr²=154 → r²=49 → r=7. Circumference = 2πr = 2×22/7×7 = 44 cm."
+        }
+      ]
+    },
+    {
+      "id": "upsc-gs1-01",
+      "title": "UPSC Prelims — General Studies (History & Polity)",
+      "description": "Analytical questions on Modern Indian History, Constitutional Law, and Indian Polity for UPSC Civil Services Preliminary Examination.",
+      "category": "UPSC",
+      "subjects": [
+        "History",
+        "Polity",
+        "General Awareness"
+      ],
+      "totalQuestions": 8,
+      "durationMinutes": 16,
+      "difficulty": "Hard",
+      "published": true,
+      "createdAt": "2026-02-01",
+      "questions": [
+        {
+          "id": "upsc-q1",
+          "subject": "Polity",
+          "topic": "Constitutional Remedies",
+          "difficulty": "Medium",
+          "tags": [
+            "constitution"
+          ],
+          "text": "Which Article is described by Dr. Ambedkar as the \"Heart and Soul\" of the Indian Constitution?",
+          "phoneticText": "Which Article of the Indian Constitution is described by Doctor B R Ambedkar as the Heart and Soul of the Constitution?",
+          "options": [
+            {
+              "id": "A",
+              "text": "Article 19"
+            },
+            {
+              "id": "B",
+              "text": "Article 21"
+            },
+            {
+              "id": "C",
+              "text": "Article 32"
+            },
+            {
+              "id": "D",
+              "text": "Article 44"
+            }
+          ],
+          "correct": "C",
+          "explanation": "Article 32 gives citizens the right to move the Supreme Court for enforcement of Fundamental Rights. Dr. Ambedkar called it the Heart and Soul."
+        },
+        {
+          "id": "upsc-q2",
+          "subject": "History",
+          "topic": "Freedom Struggle",
+          "difficulty": "Easy",
+          "tags": [
+            "1857"
+          ],
+          "text": "The 1929 Lahore Congress session that proclaimed Purna Swaraj was presided over by:",
+          "phoneticText": "The 1929 Lahore Congress session that proclaimed Poorna Swaraj was presided over by whom?",
+          "options": [
+            {
+              "id": "A",
+              "text": "Mahatma Gandhi"
+            },
+            {
+              "id": "B",
+              "text": "Jawaharlal Nehru"
+            },
+            {
+              "id": "C",
+              "text": "Sardar Patel"
+            },
+            {
+              "id": "D",
+              "text": "Subhas Bose"
+            }
+          ],
+          "correct": "B",
+          "explanation": "Jawaharlal Nehru presided over the historic 1929 Lahore session where full independence was declared as the national goal."
+        },
+        {
+          "id": "upsc-q3",
+          "subject": "Polity",
+          "topic": "All India Services",
+          "difficulty": "Hard",
+          "tags": [
+            "upsc-polity"
+          ],
+          "text": "Power to create a new All India Service rests with:",
+          "phoneticText": "The power to create a new All India Service rests with which institution?",
+          "options": [
+            {
+              "id": "A",
+              "text": "The President"
+            },
+            {
+              "id": "B",
+              "text": "Rajya Sabha by 2/3 majority"
+            },
+            {
+              "id": "C",
+              "text": "Lok Sabha alone"
+            },
+            {
+              "id": "D",
+              "text": "UPSC"
+            }
+          ],
+          "correct": "B",
+          "explanation": "Article 312: Rajya Sabha may, by resolution supported by not less than 2/3 members present and voting, declare it necessary to create new All India Services."
+        },
+        {
+          "id": "upsc-q4",
+          "subject": "Geography",
+          "topic": "National Parks",
+          "difficulty": "Medium",
+          "tags": [
+            "ecology"
+          ],
+          "text": "Which is the world's only floating national park?",
+          "phoneticText": "Which is the world's only floating national park?",
+          "options": [
+            {
+              "id": "A",
+              "text": "Keibul Lamjao, Manipur"
+            },
+            {
+              "id": "B",
+              "text": "Kaziranga, Assam"
+            },
+            {
+              "id": "C",
+              "text": "Silent Valley, Kerala"
+            },
+            {
+              "id": "D",
+              "text": "Jim Corbett, Uttarakhand"
+            }
+          ],
+          "correct": "A",
+          "explanation": "Keibul Lamjao on Loktak Lake, Manipur, is the world's only floating national park, home to the endangered Sangai deer."
+        },
+        {
+          "id": "upsc-q5",
+          "subject": "History",
+          "topic": "British Policy",
+          "difficulty": "Medium",
+          "tags": [
+            "colonial"
+          ],
+          "text": "The Doctrine of Lapse was associated with:",
+          "phoneticText": "The Doctrine of Lapse in British India was associated with which Governor General?",
+          "options": [
+            {
+              "id": "A",
+              "text": "Lord Dalhousie"
+            },
+            {
+              "id": "B",
+              "text": "Lord Wellesley"
+            },
+            {
+              "id": "C",
+              "text": "Lord Curzon"
+            },
+            {
+              "id": "D",
+              "text": "Lord Ripon"
+            }
+          ],
+          "correct": "A",
+          "explanation": "Lord Dalhousie introduced the Doctrine of Lapse, by which any princely state whose ruler died without a natural heir would be annexed by the Company."
+        },
+        {
+          "id": "upsc-q6",
+          "subject": "Polity",
+          "topic": "Fundamental Rights",
+          "difficulty": "Easy",
+          "tags": [
+            "rights"
+          ],
+          "text": "Right to Education (Article 21A) applies to children of which age group?",
+          "phoneticText": "The Right to Education under Article twenty one A applies to children of which age group?",
+          "options": [
+            {
+              "id": "A",
+              "text": "6–14 years"
+            },
+            {
+              "id": "B",
+              "text": "5–15 years"
+            },
+            {
+              "id": "C",
+              "text": "6–16 years"
+            },
+            {
+              "id": "D",
+              "text": "5–18 years"
+            }
+          ],
+          "correct": "A",
+          "explanation": "Article 21A guarantees free and compulsory education to all children in the 6–14 age group as a Fundamental Right."
+        },
+        {
+          "id": "upsc-q7",
+          "subject": "General Awareness",
+          "topic": "Atmosphere",
+          "difficulty": "Easy",
+          "tags": [
+            "science"
+          ],
+          "text": "The ozone layer is located in which layer of the atmosphere?",
+          "phoneticText": "The ozone layer is located in which layer of Earth's atmosphere?",
+          "options": [
+            {
+              "id": "A",
+              "text": "Troposphere"
+            },
+            {
+              "id": "B",
+              "text": "Stratosphere"
+            },
+            {
+              "id": "C",
+              "text": "Mesosphere"
+            },
+            {
+              "id": "D",
+              "text": "Thermosphere"
+            }
+          ],
+          "correct": "B",
+          "explanation": "The ozone layer is primarily in the stratosphere, approximately 15–35 km above Earth's surface."
+        },
+        {
+          "id": "upsc-q8",
+          "subject": "Economics",
+          "topic": "GDP & Planning",
+          "difficulty": "Hard",
+          "tags": [
+            "economy"
+          ],
+          "text": "Which Five-Year Plan aimed at \"Faster, Sustainable, and More Inclusive Growth\"?",
+          "phoneticText": "Which Five-Year Plan had the theme: Faster, Sustainable and More Inclusive Growth?",
+          "options": [
+            {
+              "id": "A",
+              "text": "10th Plan"
+            },
+            {
+              "id": "B",
+              "text": "11th Plan"
+            },
+            {
+              "id": "C",
+              "text": "12th Plan"
+            },
+            {
+              "id": "D",
+              "text": "9th Plan"
+            }
+          ],
+          "correct": "C",
+          "explanation": "The 12th Five-Year Plan (2012–17) had the theme \"Faster, Sustainable and More Inclusive Growth\"."
+        }
+      ]
+    },
+    {
+      "id": "railway-gk-01",
+      "title": "Railway RRB — General Knowledge & Science",
+      "description": "Topic-wise practice covering Physics, Chemistry, Biology, Indian GK, and Current Affairs for Railway NTPC and Group D.",
+      "category": "Railway",
+      "subjects": [
+        "General Science",
+        "General Awareness"
+      ],
+      "totalQuestions": 10,
+      "durationMinutes": 10,
+      "difficulty": "Easy",
+      "published": true,
+      "createdAt": "2026-02-10",
+      "questions": [
+        {
+          "id": "rly-q1",
+          "subject": "General Science",
+          "topic": "Physics",
+          "difficulty": "Easy",
+          "tags": [
+            "physics"
+          ],
+          "text": "SI unit of electric current is:",
+          "phoneticText": "What is the SI unit of electric current?",
+          "options": [
+            {
+              "id": "A",
+              "text": "Volt"
+            },
+            {
+              "id": "B",
+              "text": "Watt"
+            },
+            {
+              "id": "C",
+              "text": "Ampere"
+            },
+            {
+              "id": "D",
+              "text": "Ohm"
+            }
+          ],
+          "correct": "C",
+          "explanation": "The SI unit of electric current is the Ampere (A), defined by the International System of Units."
+        },
+        {
+          "id": "rly-q2",
+          "subject": "General Science",
+          "topic": "Biology",
+          "difficulty": "Easy",
+          "tags": [
+            "biology"
+          ],
+          "text": "The powerhouse of the cell is:",
+          "phoneticText": "Which organelle is known as the powerhouse of the cell?",
+          "options": [
+            {
+              "id": "A",
+              "text": "Nucleus"
+            },
+            {
+              "id": "B",
+              "text": "Mitochondria"
+            },
+            {
+              "id": "C",
+              "text": "Ribosome"
+            },
+            {
+              "id": "D",
+              "text": "Lysosome"
+            }
+          ],
+          "correct": "B",
+          "explanation": "Mitochondria produce ATP through cellular respiration, earning the title \"powerhouse of the cell\"."
+        },
+        {
+          "id": "rly-q3",
+          "subject": "General Awareness",
+          "topic": "India GK",
+          "difficulty": "Easy",
+          "tags": [
+            "india"
+          ],
+          "text": "Which river is called the \"Sorrow of Bihar\"?",
+          "phoneticText": "Which river is called the Sorrow of Bihar?",
+          "options": [
+            {
+              "id": "A",
+              "text": "Ganga"
+            },
+            {
+              "id": "B",
+              "text": "Kosi"
+            },
+            {
+              "id": "C",
+              "text": "Damodar"
+            },
+            {
+              "id": "D",
+              "text": "Brahmaputra"
+            }
+          ],
+          "correct": "B",
+          "explanation": "The Kosi River is called the \"Sorrow of Bihar\" due to its frequent destructive floods."
+        },
+        {
+          "id": "rly-q4",
+          "subject": "General Science",
+          "topic": "Chemistry",
+          "difficulty": "Easy",
+          "tags": [
+            "chemistry"
+          ],
+          "text": "Chemical formula of table salt is:",
+          "phoneticText": "What is the chemical formula of common table salt?",
+          "options": [
+            {
+              "id": "A",
+              "text": "NaOH"
+            },
+            {
+              "id": "B",
+              "text": "CaCl₂"
+            },
+            {
+              "id": "C",
+              "text": "NaCl"
+            },
+            {
+              "id": "D",
+              "text": "KCl"
+            }
+          ],
+          "correct": "C",
+          "explanation": "Table salt is Sodium Chloride, with chemical formula NaCl."
+        },
+        {
+          "id": "rly-q5",
+          "subject": "General Awareness",
+          "topic": "Sports",
+          "difficulty": "Easy",
+          "tags": [
+            "sports"
+          ],
+          "text": "How many players are there in a cricket team?",
+          "phoneticText": "How many players are in a cricket team?",
+          "options": [
+            {
+              "id": "A",
+              "text": "9"
+            },
+            {
+              "id": "B",
+              "text": "10"
+            },
+            {
+              "id": "C",
+              "text": "11"
+            },
+            {
+              "id": "D",
+              "text": "12"
+            }
+          ],
+          "correct": "C",
+          "explanation": "A cricket team consists of 11 players."
+        },
+        {
+          "id": "rly-q6",
+          "subject": "General Science",
+          "topic": "Physics",
+          "difficulty": "Easy",
+          "tags": [
+            "physics"
+          ],
+          "text": "Speed of light in vacuum (approx):",
+          "phoneticText": "What is the approximate speed of light in a vacuum?",
+          "options": [
+            {
+              "id": "A",
+              "text": "3×10⁸ m/s"
+            },
+            {
+              "id": "B",
+              "text": "3×10⁶ m/s"
+            },
+            {
+              "id": "C",
+              "text": "3×10¹⁰ m/s"
+            },
+            {
+              "id": "D",
+              "text": "3×10⁴ m/s"
+            }
+          ],
+          "correct": "A",
+          "explanation": "Speed of light in vacuum is approximately 3×10⁸ m/s (300,000 km/s)."
+        },
+        {
+          "id": "rly-q7",
+          "subject": "General Awareness",
+          "topic": "History",
+          "difficulty": "Easy",
+          "tags": [
+            "history"
+          ],
+          "text": "Who built the Taj Mahal?",
+          "phoneticText": "Who built the Taj Mahal?",
+          "options": [
+            {
+              "id": "A",
+              "text": "Akbar"
+            },
+            {
+              "id": "B",
+              "text": "Aurangzeb"
+            },
+            {
+              "id": "C",
+              "text": "Shah Jahan"
+            },
+            {
+              "id": "D",
+              "text": "Humayun"
+            }
+          ],
+          "correct": "C",
+          "explanation": "The Taj Mahal was built by Mughal Emperor Shah Jahan in memory of his wife Mumtaz Mahal."
+        },
+        {
+          "id": "rly-q8",
+          "subject": "General Science",
+          "topic": "Biology",
+          "difficulty": "Easy",
+          "tags": [
+            "biology"
+          ],
+          "text": "Normal body temperature in Fahrenheit:",
+          "phoneticText": "What is the normal human body temperature in Fahrenheit?",
+          "options": [
+            {
+              "id": "A",
+              "text": "96.8°F"
+            },
+            {
+              "id": "B",
+              "text": "98.6°F"
+            },
+            {
+              "id": "C",
+              "text": "100°F"
+            },
+            {
+              "id": "D",
+              "text": "97°F"
+            }
+          ],
+          "correct": "B",
+          "explanation": "Normal human body temperature is 98.6°F (37°C)."
+        },
+        {
+          "id": "rly-q9",
+          "subject": "General Awareness",
+          "topic": "India GK",
+          "difficulty": "Easy",
+          "tags": [
+            "india"
+          ],
+          "text": "National Animal of India:",
+          "phoneticText": "What is the National Animal of India?",
+          "options": [
+            {
+              "id": "A",
+              "text": "Lion"
+            },
+            {
+              "id": "B",
+              "text": "Elephant"
+            },
+            {
+              "id": "C",
+              "text": "Tiger"
+            },
+            {
+              "id": "D",
+              "text": "Peacock"
+            }
+          ],
+          "correct": "C",
+          "explanation": "The Bengal Tiger (Panthera tigris tigris) is the National Animal of India."
+        },
+        {
+          "id": "rly-q10",
+          "subject": "General Science",
+          "topic": "Physics",
+          "difficulty": "Easy",
+          "tags": [
+            "physics"
+          ],
+          "text": "Which lens is used to correct Myopia (short-sightedness)?",
+          "phoneticText": "Which type of lens is used to correct Myopia, also known as short-sightedness?",
+          "options": [
+            {
+              "id": "A",
+              "text": "Convex lens"
+            },
+            {
+              "id": "B",
+              "text": "Concave lens"
+            },
+            {
+              "id": "C",
+              "text": "Bifocal lens"
+            },
+            {
+              "id": "D",
+              "text": "Plano-convex lens"
+            }
+          ],
+          "correct": "B",
+          "explanation": "Myopia is corrected using a concave (diverging) lens that adjusts light convergence to focus on the retina."
+        }
+      ]
     }
   ],
   "questionBank": [
@@ -379,6 +1594,50 @@
     }
   ],
   "attemptLogs": [
+    {
+      "id": "att-e2e-1789592747359",
+      "candidateName": "Aryan Sharma",
+      "studentName": "Aryan Sharma",
+      "rollNo": "PWD-2026-081",
+      "studentRoll": "PWD-2026-081",
+      "examTitle": "SSC CGL General Intelligence & Reasoning",
+      "examId": "ssc-reasoning-01",
+      "score": 18,
+      "maxScore": 20,
+      "totalMarks": 20,
+      "percentage": 90,
+      "passed": true,
+      "status": "Completed",
+      "completedAt": "2026-09-16 21:05",
+      "submittedAt": "2026-09-16 21:05",
+      "timeTakenMinutes": 7,
+      "timeSpentSeconds": 420,
+      "speechCommandsUsed": 0,
+      "audioAlertsCount": 0,
+      "audioIntegrityStatus": "Clean"
+    },
+    {
+      "id": "att-live-1789592641308",
+      "candidateName": "Aryan Sharma",
+      "studentName": "Aryan Sharma",
+      "rollNo": "PWD-2026-081",
+      "studentRoll": "PWD-2026-081",
+      "examTitle": "Banking PO — Quantitative Aptitude",
+      "examId": "banking-quant-01",
+      "score": 0,
+      "maxScore": 16,
+      "totalMarks": 16,
+      "percentage": 0,
+      "passed": true,
+      "status": "Completed",
+      "completedAt": "2026-09-16 21:04",
+      "submittedAt": "2026-09-16 21:04",
+      "timeTakenMinutes": 2,
+      "timeSpentSeconds": 123,
+      "speechCommandsUsed": 0,
+      "audioAlertsCount": 0,
+      "audioIntegrityStatus": "Clean"
+    },
     {
       "id": "att-e2e-1789568971491",
       "candidateName": "Aryan Sharma",

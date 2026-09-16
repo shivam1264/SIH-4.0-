@@ -644,12 +644,16 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
             style={{
               pointerEvents: 'auto',
               background: active
-                ? engine === 'whisper'
+                ? engine === 'groq'
+                  ? 'linear-gradient(135deg, #1E1B4B, #312E81)'
+                  : engine === 'whisper'
                   ? 'linear-gradient(135deg, #0F172A, #1E293B)'
                   : 'linear-gradient(135deg, #064E3B, #0F172A)'
                 : '#1E293B',
               border: active
-                ? engine === 'whisper'
+                ? engine === 'groq'
+                  ? '1.5px solid #818CF8'
+                  : engine === 'whisper'
                   ? '1.5px solid #3B82F6'
                   : '1.5px solid #10B981'
                 : '1px solid #475569',
@@ -659,7 +663,9 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
               alignItems: 'center',
               gap: '10px',
               boxShadow: active
-                ? '0 6px 22px rgba(37, 99, 235, 0.4)'
+                ? engine === 'groq'
+                  ? '0 6px 22px rgba(99, 102, 241, 0.5)'
+                  : '0 6px 22px rgba(37, 99, 235, 0.4)'
                 : '0 4px 14px rgba(0,0,0,0.25)',
               color: '#fff',
               fontSize: '0.8rem',
@@ -679,14 +685,20 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
                 height: 28,
                 borderRadius: '50%',
                 background: active
-                  ? engine === 'whisper'
+                  ? engine === 'groq'
+                    ? 'linear-gradient(135deg, #6366F1, #A855F7)'
+                    : engine === 'whisper'
                     ? 'linear-gradient(135deg, #2563EB, #38BDF8)'
                     : 'linear-gradient(135deg, #059669, #34D399)'
                   : '#475569',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                boxShadow: active ? '0 0 10px rgba(59, 130, 246, 0.6)' : 'none',
+                boxShadow: active
+                  ? engine === 'groq'
+                    ? '0 0 10px rgba(168, 85, 247, 0.6)'
+                    : '0 0 10px rgba(59, 130, 246, 0.6)'
+                  : 'none',
               }}
             >
               {active ? <Mic size={15} color="#fff" /> : <MicOff size={15} color="#94A3B8" />}
@@ -696,7 +708,9 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <span style={{ fontWeight: 700, fontSize: '0.78rem', color: active ? '#F8FAFC' : '#94A3B8' }}>
                   {active
-                    ? engine === 'whisper'
+                    ? engine === 'groq'
+                      ? 'Groq Whisper AI'
+                      : engine === 'whisper'
                       ? 'Whisper AI Voice'
                       : 'Web Speech Voice'
                     : 'Voice Muted'}
@@ -707,16 +721,21 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
                       fontSize: '0.62rem',
                       padding: '0.1rem 0.35rem',
                       borderRadius: '999px',
-                      background: engine === 'whisper' ? '#1D4ED8' : '#065F46',
-                      color: '#E0F2FE',
+                      background:
+                        engine === 'groq'
+                          ? '#4338CA'
+                          : engine === 'whisper'
+                          ? '#1D4ED8'
+                          : '#065F46',
+                      color: engine === 'groq' ? '#EEF2FF' : '#E0F2FE',
                       fontWeight: 600,
                     }}
                   >
-                    {engine === 'whisper' ? 'LOCAL AI' : 'BROWSER'}
+                    {engine === 'groq' ? 'WHISPER LARGE-V3' : engine === 'whisper' ? 'LOCAL AI' : 'BROWSER'}
                   </span>
                 )}
               </div>
-              <span style={{ fontSize: '0.68rem', color: active ? '#93C5FD' : '#64748B' }}>
+              <span style={{ fontSize: '0.68rem', color: active ? (engine === 'groq' ? '#C7D2FE' : '#93C5FD') : '#64748B' }}>
                 {active ? `${currentPage} • Press V` : 'Click or Press V to listen'}
               </span>
             </div>
@@ -728,8 +747,18 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
                   width: 8,
                   height: 8,
                   borderRadius: '50%',
-                  background: engine === 'whisper' ? '#38BDF8' : '#34D399',
-                  boxShadow: engine === 'whisper' ? '0 0 8px #38BDF8' : '0 0 8px #34D399',
+                  background:
+                    engine === 'groq'
+                      ? '#A855F7'
+                      : engine === 'whisper'
+                      ? '#38BDF8'
+                      : '#34D399',
+                  boxShadow:
+                    engine === 'groq'
+                      ? '0 0 8px #A855F7'
+                      : engine === 'whisper'
+                      ? '0 0 8px #38BDF8'
+                      : '0 0 8px #34D399',
                 }}
               />
             )}

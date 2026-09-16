@@ -522,8 +522,7 @@ export default function Landing() {
               backgroundSize: '100% 100%',
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat',
-              aspectRatio: '1024 / 580',
-              minHeight: '520px',
+              aspectRatio: '1672 / 941',
               display: 'flex',
               alignItems: 'center',
             }}
@@ -533,7 +532,7 @@ export default function Landing() {
               style={{
                 position: 'absolute',
                 inset: 0,
-                background: 'linear-gradient(90deg, rgba(5, 8, 22, 0.95) 0%, rgba(5, 8, 22, 0.88) 44%, rgba(5, 8, 22, 0.20) 66%, transparent 100%)',
+                background: 'linear-gradient(90deg, rgba(5, 8, 22, 0.94) 0%, rgba(5, 8, 22, 0.82) 36%, rgba(5, 8, 22, 0.12) 50%, transparent 64%)',
                 zIndex: 1,
                 pointerEvents: 'none',
               }}
@@ -545,14 +544,14 @@ export default function Landing() {
               style={{
                 position: 'relative',
                 zIndex: 2,
-                maxWidth: 580,
+                maxWidth: 490,
                 textAlign: 'left',
-                padding: '2.5rem 3rem',
+                padding: '2rem 2.5rem',
               }}
             >
               {/* Groq AI Whisper announcement badge */}
-              <div className="badge-glow fade-in" style={{ marginBottom: '1.35rem', fontSize: '0.78rem', padding: '0.38rem 0.95rem' }}>
-                <Zap size={13} style={{ color: '#FBBF24' }} />
+              <div className="badge-glow fade-in" style={{ marginBottom: '0.85rem', fontSize: '0.75rem', padding: '0.35rem 0.85rem' }}>
+                <Zap size={12} style={{ color: '#FBBF24' }} />
                 <span>⚡ Powered by Groq AI Whisper Large-v3 · ~200ms Latency · 100% WCAG AAA</span>
               </div>
 
@@ -561,12 +560,12 @@ export default function Landing() {
                 id="hero-heading"
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: 'clamp(2.1rem, 4.2vw, 3.5rem)',
+                  fontSize: 'clamp(1.75rem, 2.9vw, 2.65rem)',
                   fontWeight: 900,
-                  lineHeight: 1.12,
+                  lineHeight: 1.15,
                   letterSpacing: '-0.03em',
                   color: '#FFFFFF',
-                  marginBottom: '1.15rem',
+                  marginBottom: '0.85rem',
                 }}
                 className="fade-in"
               >
@@ -587,11 +586,11 @@ export default function Landing() {
               {/* Sub-headline */}
               <p
                 style={{
-                  fontSize: 'clamp(0.92rem, 1.4vw, 1.05rem)',
+                  fontSize: 'clamp(0.85rem, 1.15vw, 0.96rem)',
                   color: '#CBD5E1',
-                  lineHeight: 1.6,
-                  marginBottom: '1.75rem',
-                  maxWidth: 520,
+                  lineHeight: 1.55,
+                  marginBottom: '1.25rem',
+                  maxWidth: 460,
                 }}
                 className="fade-in"
               >
@@ -603,7 +602,7 @@ export default function Landing() {
               <div
                 style={{
                   display: 'flex',
-                  gap: '0.85rem',
+                  gap: '0.75rem',
                   justifyContent: 'flex-start',
                   alignItems: 'center',
                   flexWrap: 'wrap',
@@ -614,26 +613,26 @@ export default function Landing() {
                   className="hero-btn-primary"
                   onClick={() => navigate('/exams')}
                   style={{
-                    padding: '0.85rem 1.9rem',
-                    fontSize: '0.94rem',
+                    padding: '0.75rem 1.6rem',
+                    fontSize: '0.9rem',
                   }}
                   aria-label="Launch interactive mock examination"
                 >
-                  <Sparkles size={17} />
+                  <Sparkles size={16} />
                   <span>Launch Mock Exam</span>
-                  <ArrowRight size={16} />
+                  <ArrowRight size={15} />
                 </button>
 
                 <button
                   className="hero-btn-secondary"
                   onClick={() => navigate('/login')}
                   style={{
-                    padding: '0.85rem 1.7rem',
-                    fontSize: '0.94rem',
+                    padding: '0.75rem 1.45rem',
+                    fontSize: '0.9rem',
                   }}
                   aria-label="Sign in with demo student account"
                 >
-                  <LogIn size={17} />
+                  <LogIn size={16} />
                   <span>Demo Login</span>
                 </button>
 
@@ -641,14 +640,14 @@ export default function Landing() {
                   className="hero-btn-secondary"
                   onClick={toggleVoice}
                   style={{
-                    padding: '0.85rem 1.45rem',
-                    fontSize: '0.94rem',
+                    padding: '0.75rem 1.25rem',
+                    fontSize: '0.9rem',
                     border: voiceActive ? '2px solid #22C55E' : '1.5px solid rgba(255, 255, 255, 0.18)',
                     boxShadow: voiceActive ? '0 0 25px rgba(34, 197, 94, 0.35)' : undefined,
                   }}
                   aria-label="Toggle voice guidance (or press key V)"
                 >
-                  {voiceActive ? <MicOff size={16} style={{ color: '#EF4444' }} /> : <Mic size={16} style={{ color: '#38BDF8' }} />}
+                  {voiceActive ? <MicOff size={15} style={{ color: '#EF4444' }} /> : <Mic size={15} style={{ color: '#38BDF8' }} />}
                   <span>{voiceActive ? 'Mute' : 'Voice (V)'}</span>
                 </button>
               </div>
@@ -656,12 +655,12 @@ export default function Landing() {
               {/* Quick Demo Credentials & Voice hint */}
               <div
                 style={{
-                  marginTop: '1.35rem',
-                  fontSize: '0.8rem',
+                  marginTop: '1rem',
+                  fontSize: '0.78rem',
                   color: '#94A3B8',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '0.85rem',
+                  gap: '0.75rem',
                   flexWrap: 'wrap',
                 }}
               >
@@ -671,8 +670,8 @@ export default function Landing() {
                 </span>
                 <span>·</span>
                 <span>
-                  Say <kbd style={{ background: 'rgba(30, 41, 59, 0.9)', color: '#38BDF8', padding: '2px 5px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.15)', fontSize: '0.75rem' }}>"Help"</kbd> or press{' '}
-                  <kbd style={{ background: 'rgba(30, 41, 59, 0.9)', color: '#38BDF8', padding: '2px 5px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.15)', fontSize: '0.75rem' }}>V</kbd>
+                  Say <kbd style={{ background: 'rgba(30, 41, 59, 0.9)', color: '#38BDF8', padding: '2px 5px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.15)', fontSize: '0.72rem' }}>"Help"</kbd> or press{' '}
+                  <kbd style={{ background: 'rgba(30, 41, 59, 0.9)', color: '#38BDF8', padding: '2px 5px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.15)', fontSize: '0.72rem' }}>V</kbd>
                 </span>
               </div>
             </div>

@@ -24,10 +24,7 @@ import {
   ChevronRight,
   Play,
   Headphones,
-  Sparkle,
   Layers,
-  Bot,
-  Activity,
   Check
 } from 'lucide-react';
 import { useAccessibility } from '../context/AccessibilityContext';
@@ -182,13 +179,15 @@ export default function Landing() {
     setSelectedOption('A');
   };
 
-  // 7 Core Pages Representations
+  // 7 Core Pages Ecosystem Showcase with Rich Themed Color Washes
   const PAGE_ECOSYSTEM = [
     {
       title: 'Live Examination Terminal',
       path: '/exams',
-      badge: 'Real-Time Exam Mode',
-      badgeColor: '#2563EB',
+      badge: 'Full Exam Hall Simulation',
+      badgeColor: '#38BDF8',
+      glowColor: 'rgba(56, 189, 248, 0.4)',
+      bgWash: 'radial-gradient(circle at top right, rgba(56, 189, 248, 0.16) 0%, rgba(99, 102, 241, 0.08) 50%, transparent 80%)',
       icon: Award,
       description:
         'Full-screen simulated exam hall with real-time countdown, question-palette navigation, audio earcons, and dual-layer voice control.',
@@ -200,7 +199,9 @@ export default function Landing() {
       title: 'Adaptive AI Practice Drills',
       path: '/practice',
       badge: 'Targeted Remediation',
-      badgeColor: '#8B5CF6',
+      badgeColor: '#C084FC',
+      glowColor: 'rgba(192, 132, 252, 0.4)',
+      bgWash: 'radial-gradient(circle at top right, rgba(168, 85, 247, 0.18) 0%, rgba(236, 72, 153, 0.08) 50%, transparent 80%)',
       icon: Target,
       description:
         'Continuous AI diagnostics track your weak chapters and immediately serve bite-sized 5 to 10 question targeted practice drills.',
@@ -212,7 +213,9 @@ export default function Landing() {
       title: 'Performance & Diagnostic Hub',
       path: '/performance',
       badge: 'Visual & Spoken Analytics',
-      badgeColor: '#059669',
+      badgeColor: '#34D399',
+      glowColor: 'rgba(52, 211, 153, 0.4)',
+      bgWash: 'radial-gradient(circle at top right, rgba(16, 185, 129, 0.18) 0%, rgba(6, 182, 212, 0.08) 50%, transparent 80%)',
       icon: BarChart3,
       description:
         'In-depth performance debriefs displaying subject-wise accuracy, time-spent analysis, national benchmarks, and auditory recaps.',
@@ -224,7 +227,9 @@ export default function Landing() {
       title: 'Audio & Text High-Yield Notes',
       path: '/study-materials',
       badge: 'Auditory Study Guides',
-      badgeColor: '#F59E0B',
+      badgeColor: '#FBBF24',
+      glowColor: 'rgba(251, 191, 36, 0.4)',
+      bgWash: 'radial-gradient(circle at top right, rgba(245, 158, 11, 0.18) 0%, rgba(234, 88, 12, 0.08) 50%, transparent 80%)',
       icon: BookOpen,
       description:
         'Comprehensive formula cheat-sheets, static GK briefs, and revision summaries engineered with one-click conversational text-to-speech.',
@@ -236,7 +241,9 @@ export default function Landing() {
       title: 'Previous Year Solved Papers',
       path: '/pyqs',
       badge: '10+ Years Official Archive',
-      badgeColor: '#EC4899',
+      badgeColor: '#F472B6',
+      glowColor: 'rgba(244, 114, 182, 0.4)',
+      bgWash: 'radial-gradient(circle at top right, rgba(244, 63, 94, 0.18) 0%, rgba(168, 85, 247, 0.08) 50%, transparent 80%)',
       icon: FileText,
       description:
         'Official archive of previous year SSC, IBPS, UPSC, and RRB questions with authentic answer keys and auditory step explanations.',
@@ -248,7 +255,9 @@ export default function Landing() {
       title: 'Universal Accessibility Suite',
       path: '/settings',
       badge: 'WCAG 2.1 AAA Controls',
-      badgeColor: '#06B6D4',
+      badgeColor: '#22D3EE',
+      glowColor: 'rgba(34, 211, 238, 0.4)',
+      bgWash: 'radial-gradient(circle at top right, rgba(6, 182, 212, 0.2) 0%, rgba(59, 130, 246, 0.08) 50%, transparent 80%)',
       icon: Sliders,
       description:
         'Configure the system for your exact vision and motor needs: 4 high-contrast themes, speech rate slider, cursor enlargement, and hotkeys.',
@@ -260,7 +269,9 @@ export default function Landing() {
       title: 'Live Notifications & Timelines',
       path: '/notifications',
       badge: 'Real-Time Exam Alerts',
-      badgeColor: '#EA580C',
+      badgeColor: '#FB923C',
+      glowColor: 'rgba(251, 146, 60, 0.4)',
+      bgWash: 'radial-gradient(circle at top right, rgba(249, 115, 22, 0.18) 0%, rgba(239, 68, 68, 0.08) 50%, transparent 80%)',
       icon: Bell,
       description:
         'Instant spoken and visual alerts for upcoming exam registration dates, admit card downloads, result announcements, and daily goals.',
@@ -271,31 +282,43 @@ export default function Landing() {
   ];
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', position: 'relative', overflowX: 'hidden' }}>
-      {/* Ambient Floating 3D Glowing Orbs */}
-      <div className="ambient-orb-1" style={{ top: -80, left: '10%' }} aria-hidden="true" />
-      <div className="ambient-orb-2" style={{ top: 240, right: '5%' }} aria-hidden="true" />
+    <div
+      style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(180deg, #050814 0%, #080D20 30%, #060A18 70%, #040711 100%)',
+        color: '#F8FAFC',
+        position: 'relative',
+        overflowX: 'hidden',
+      }}
+      className="cyber-grid"
+    >
+      {/* ── Dynamic Multi-Layer Aurora Glow Mesh (Fluidly Fades & Blends Across the Canvas) ── */}
+      <div className="aurora-orb-1" style={{ top: -60, left: '5%' }} aria-hidden="true" />
+      <div className="aurora-orb-2" style={{ top: 180, right: '3%' }} aria-hidden="true" />
+      <div className="aurora-orb-3" style={{ top: '38%', left: '15%' }} aria-hidden="true" />
+      <div className="aurora-orb-4" style={{ top: '65%', right: '10%' }} aria-hidden="true" />
 
       {/* Skip Navigation for Screen Readers */}
       <a href="#main-content" className="skip-nav">
         Skip to main content
       </a>
 
-      {/* ── Glassmorphism Navbar ── */}
+      {/* ── Luxury Glassmorphism Navbar ── */}
       <header
         style={{
           position: 'sticky',
           top: 0,
           zIndex: 100,
-          background: 'rgba(var(--bg-card), 0.82)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          borderBottom: '1px solid var(--border)',
+          background: 'rgba(5, 8, 20, 0.82)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 4px 30px rgba(0, 0, 0, 0.5)',
         }}
       >
         <div
           style={{
-            maxWidth: 1280,
+            maxWidth: 1300,
             margin: '0 auto',
             padding: '0.85rem 1.75rem',
             display: 'flex',
@@ -304,7 +327,7 @@ export default function Landing() {
             gap: '1rem',
           }}
         >
-          {/* Logo Brand */}
+          {/* Logo Brand with Glowing Halo */}
           <div
             onClick={() => navigate('/')}
             style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', cursor: 'pointer' }}
@@ -314,8 +337,8 @@ export default function Landing() {
                 width: 44,
                 height: 44,
                 borderRadius: '0.85rem',
-                background: '#FFFFFF',
-                boxShadow: '0 4px 14px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06)',
+                background: 'rgba(255, 255, 255, 0.95)',
+                boxShadow: '0 0 20px rgba(56, 189, 248, 0.4), 0 0 0 1px rgba(255,255,255,0.2)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -341,7 +364,7 @@ export default function Landing() {
                   alignItems: 'center',
                 }}
               >
-                <span style={{ color: 'var(--text)' }}>Drishti</span>
+                <span style={{ color: '#FFFFFF' }}>Drishti</span>
                 <span
                   style={{
                     background: 'linear-gradient(135deg, #F59E0B, #EF4444)',
@@ -356,7 +379,7 @@ export default function Landing() {
               <div
                 style={{
                   fontSize: '0.62rem',
-                  color: 'var(--text-muted)',
+                  color: '#94A3B8',
                   letterSpacing: '0.08em',
                   fontWeight: 800,
                   textTransform: 'uppercase',
@@ -374,20 +397,20 @@ export default function Landing() {
               style={{
                 display: 'flex',
                 gap: '0.4rem',
-                background: 'var(--bg-surface)',
+                background: 'rgba(15, 23, 42, 0.75)',
                 padding: '0.3rem 0.5rem',
                 borderRadius: '999px',
-                border: '1px solid var(--border)',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
               }}
               role="group"
               aria-label="Theme selector"
             >
               {(
                 [
-                  { id: 'default', label: 'Light', color: '#F8FAFC' },
-                  { id: 'dark', label: 'Dark', color: '#0F172A' },
+                  { id: 'dark', label: 'Dark Luxury', color: '#0F172A' },
                   { id: 'high-contrast', label: 'AAA Contrast', color: '#000000' },
                   { id: 'yellow-black', label: 'Yellow/Black', color: '#FFFF00' },
+                  { id: 'light', label: 'Light', color: '#F8FAFC' },
                 ] as const
               ).map((t) => (
                 <button
@@ -395,19 +418,20 @@ export default function Landing() {
                   title={`Switch to ${t.label} theme`}
                   aria-label={`Switch to ${t.label} theme`}
                   onClick={() => {
-                    setTheme(t.id);
-                    setActiveTheme(t.id);
+                    setTheme(t.id as any);
+                    setActiveTheme(t.id as any);
                   }}
                   style={{
                     width: 22,
                     height: 22,
                     borderRadius: '50%',
-                    border: `2px solid ${activeTheme === t.id ? 'var(--primary)' : 'var(--border)'}`,
+                    border: `2px solid ${activeTheme === t.id ? '#38BDF8' : 'rgba(255, 255, 255, 0.2)'}`,
                     cursor: 'pointer',
                     background: t.color,
-                    outline: activeTheme === t.id ? '2px solid var(--focus-ring)' : 'none',
+                    outline: activeTheme === t.id ? '2px solid #38BDF8' : 'none',
                     outlineOffset: 2,
-                    transition: 'transform 0.15s ease',
+                    boxShadow: activeTheme === t.id ? '0 0 10px rgba(56, 189, 248, 0.6)' : 'none',
+                    transition: 'all 0.15s ease',
                   }}
                 />
               ))}
@@ -418,7 +442,7 @@ export default function Landing() {
               className={voiceActive ? 'hero-btn-primary' : 'hero-btn-secondary'}
               onClick={toggleVoice}
               style={{
-                padding: '0.5rem 0.95rem',
+                padding: '0.5rem 1rem',
                 fontSize: '0.82rem',
                 borderRadius: '999px',
               }}
@@ -433,30 +457,41 @@ export default function Landing() {
                       height: 8,
                       borderRadius: '50%',
                       background: '#22C55E',
-                      boxShadow: '0 0 8px #22C55E',
+                      boxShadow: '0 0 10px #22C55E',
                     }}
                   />
                   <span>Voice Active (V)</span>
                 </>
               ) : (
                 <>
-                  <Mic size={14} style={{ color: 'var(--primary)' }} />
+                  <Mic size={14} style={{ color: '#38BDF8' }} />
                   <span>Voice Mode (V)</span>
                 </>
               )}
             </button>
 
             <button
-              className="btn-ghost"
               onClick={() => navigate('/login')}
-              style={{ fontSize: '0.875rem', fontWeight: 600 }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#CBD5E1',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: '0.5rem 0.75rem',
+                transition: 'color 0.2s',
+              }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = '#38BDF8')}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = '#CBD5E1')}
             >
               Sign In
             </button>
+
             <button
               className="hero-btn-primary"
               onClick={() => navigate('/register')}
-              style={{ padding: '0.55rem 1.25rem', fontSize: '0.875rem' }}
+              style={{ padding: '0.55rem 1.35rem', fontSize: '0.875rem' }}
             >
               Get Started Free
             </button>
@@ -468,31 +503,31 @@ export default function Landing() {
         {/* ── HERO SECTION ── */}
         <section
           style={{
-            padding: '5rem 1.5rem 3rem',
+            padding: '5.5rem 1.5rem 3.5rem',
             textAlign: 'center',
             position: 'relative',
             zIndex: 1,
           }}
           aria-labelledby="hero-heading"
         >
-          <div style={{ maxWidth: 940, margin: '0 auto' }}>
-            {/* Groq AI Whisper announcement badge */}
-            <div className="badge-glow fade-in" style={{ marginBottom: '1.75rem' }}>
-              <Zap size={14} style={{ color: '#F59E0B' }} />
+          <div style={{ maxWidth: 960, margin: '0 auto' }}>
+            {/* Groq AI Whisper announcement badge with vivid neon glow */}
+            <div className="badge-glow fade-in" style={{ marginBottom: '2rem' }}>
+              <Zap size={14} style={{ color: '#FBBF24' }} />
               <span>⚡ Powered by Groq AI Whisper Large-v3 · ~200ms Latency · 100% WCAG 2.1 AAA</span>
             </div>
 
-            {/* 3D Main Headline */}
+            {/* 3D Main Headline with rich blended gradient text */}
             <h1
               id="hero-heading"
               style={{
                 fontFamily: 'var(--font-display)',
-                fontSize: 'clamp(2.6rem, 6.2vw, 4.8rem)',
+                fontSize: 'clamp(2.75rem, 6.5vw, 5rem)',
                 fontWeight: 900,
                 lineHeight: 1.1,
-                letterSpacing: '-0.025em',
-                color: 'var(--text)',
-                marginBottom: '1.5rem',
+                letterSpacing: '-0.03em',
+                color: '#FFFFFF',
+                marginBottom: '1.75rem',
               }}
               className="fade-in"
             >
@@ -500,9 +535,10 @@ export default function Landing() {
               <br />
               <span
                 style={{
-                  background: 'linear-gradient(135deg, #2563EB 0%, #7C3AED 45%, #059669 100%)',
+                  background: 'linear-gradient(135deg, #38BDF8 0%, #818CF8 30%, #C084FC 65%, #34D399 100%)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
+                  filter: 'drop-shadow(0 4px 25px rgba(129, 140, 248, 0.35))',
                 }}
               >
                 Empowerment for Every Aspirant.
@@ -513,7 +549,7 @@ export default function Landing() {
             <p
               style={{
                 fontSize: 'clamp(1.05rem, 2.2vw, 1.25rem)',
-                color: 'var(--text-muted)',
+                color: '#94A3B8',
                 lineHeight: 1.7,
                 marginBottom: '2.5rem',
                 maxWidth: 720,
@@ -521,7 +557,7 @@ export default function Landing() {
               }}
               className="fade-in"
             >
-              India's premier AI-powered, accessible exam & practice platform for SSC, Banking, UPSC and Railways.
+              India's premier AI-powered accessible examination platform for SSC, Banking, UPSC and Railways.
               Engineered with voice commands, spoken math equations, audio earcons, and keyboard independence — no
               assistance required.
             </p>
@@ -541,7 +577,7 @@ export default function Landing() {
                 className="hero-btn-primary"
                 onClick={() => navigate('/exams')}
                 style={{
-                  padding: '0.95rem 2.25rem',
+                  padding: '1rem 2.4rem',
                   fontSize: '1.05rem',
                 }}
                 aria-label="Launch interactive mock examination"
@@ -555,26 +591,27 @@ export default function Landing() {
                 className="hero-btn-secondary"
                 onClick={() => navigate('/login')}
                 style={{
-                  padding: '0.95rem 2.25rem',
+                  padding: '1rem 2.4rem',
                   fontSize: '1.05rem',
                 }}
                 aria-label="Sign in with demo student account"
               >
                 <LogIn size={19} />
-                <span>Demo Account</span>
+                <span>Demo Student Login</span>
               </button>
 
               <button
                 className="hero-btn-secondary"
                 onClick={toggleVoice}
                 style={{
-                  padding: '0.95rem 1.8rem',
+                  padding: '1rem 2rem',
                   fontSize: '1.05rem',
-                  border: voiceActive ? '2px solid #22C55E' : '1.5px solid var(--border)',
+                  border: voiceActive ? '2px solid #22C55E' : '1.5px solid rgba(255, 255, 255, 0.18)',
+                  boxShadow: voiceActive ? '0 0 25px rgba(34, 197, 94, 0.35)' : undefined,
                 }}
                 aria-label="Toggle voice guidance (or press key V)"
               >
-                {voiceActive ? <MicOff size={19} style={{ color: '#EF4444' }} /> : <Mic size={19} style={{ color: 'var(--primary)' }} />}
+                {voiceActive ? <MicOff size={19} style={{ color: '#EF4444' }} /> : <Mic size={19} style={{ color: '#38BDF8' }} />}
                 <span>{voiceActive ? 'Mute Voice' : 'Voice (V)'}</span>
               </button>
             </div>
@@ -582,9 +619,9 @@ export default function Landing() {
             {/* Quick Demo Credentials & Voice hint */}
             <div
               style={{
-                marginTop: '1.5rem',
+                marginTop: '1.75rem',
                 fontSize: '0.85rem',
-                color: 'var(--text-muted)',
+                color: '#64748B',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -593,28 +630,28 @@ export default function Landing() {
               }}
             >
               <span>
-                Demo Login: <strong style={{ color: 'var(--text)' }}>aryan@example.com</strong> /{' '}
-                <strong style={{ color: 'var(--text)' }}>student123</strong>
+                Demo Account: <strong style={{ color: '#E2E8F0' }}>aryan@example.com</strong> /{' '}
+                <strong style={{ color: '#E2E8F0' }}>student123</strong>
               </span>
               <span>·</span>
               <span>
-                Say <kbd style={{ background: 'var(--bg-surface)', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)' }}>"Help"</kbd> or press{' '}
-                <kbd style={{ background: 'var(--bg-surface)', padding: '2px 6px', borderRadius: 4, border: '1px solid var(--border)' }}>V</kbd> for voice commands
+                Say <kbd style={{ background: 'rgba(30, 41, 59, 0.8)', color: '#38BDF8', padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.15)' }}>"Help"</kbd> or press{' '}
+                <kbd style={{ background: 'rgba(30, 41, 59, 0.8)', color: '#38BDF8', padding: '2px 6px', borderRadius: 4, border: '1px solid rgba(255,255,255,0.15)' }}>V</kbd> for voice guidance
               </span>
             </div>
           </div>
 
-          {/* ── 3D SIMULATED EXAM TERMINAL CARD PREVIEW ── */}
+          {/* ── 3D SIMULATED CYBER EXAM TERMINAL PREVIEW ── */}
           <div
             className="perspective-1000 fade-in"
-            style={{ maxWidth: 940, margin: '3.5rem auto 0', padding: '0 1rem' }}
+            style={{ maxWidth: 960, margin: '3.5rem auto 0', padding: '0 1rem' }}
           >
             <div
               className="card-3d glass-panel-glow"
               style={{
-                padding: '2rem',
+                padding: '2.2rem',
                 textAlign: 'left',
-                border: '1.5px solid rgba(99, 102, 241, 0.35)',
+                border: '1.5px solid rgba(129, 140, 248, 0.35)',
                 position: 'relative',
               }}
             >
@@ -624,63 +661,65 @@ export default function Landing() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  borderBottom: '1px solid var(--border)',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
                   paddingBottom: '1.25rem',
                   marginBottom: '1.5rem',
                   flexWrap: 'wrap',
                   gap: '1rem',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                   <div
                     style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '0.5rem',
-                      background: 'rgba(37, 99, 235, 0.12)',
-                      color: 'var(--primary)',
+                      width: 40,
+                      height: 40,
+                      borderRadius: '0.65rem',
+                      background: 'rgba(56, 189, 248, 0.15)',
+                      color: '#38BDF8',
+                      boxShadow: '0 0 15px rgba(56, 189, 248, 0.3)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                     aria-hidden="true"
                   >
-                    <Award size={20} />
+                    <Award size={22} />
                   </div>
                   <div>
                     <div
                       style={{
                         fontFamily: 'var(--font-display)',
                         fontWeight: 800,
-                        fontSize: '1rem',
-                        color: 'var(--text)',
+                        fontSize: '1.05rem',
+                        color: '#FFFFFF',
+                        letterSpacing: '0.01em',
                       }}
                     >
                       LIVE EXAM TERMINAL · {currentQ.subject}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    <div style={{ fontSize: '0.78rem', color: '#94A3B8' }}>
                       Question {currentQ.qNum} of {currentQ.total} · Section: Quantitative Aptitude
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                   {/* Countdown Timer Pill */}
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.45rem',
-                      background: 'var(--bg-surface)',
-                      padding: '0.4rem 0.85rem',
+                      background: 'rgba(15, 23, 42, 0.85)',
+                      padding: '0.45rem 0.95rem',
                       borderRadius: '999px',
-                      border: '1px solid var(--border)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
                       fontSize: '0.85rem',
                       fontWeight: 700,
-                      color: 'var(--text)',
+                      color: '#F8FAFC',
                     }}
                   >
-                    <Clock size={15} style={{ color: '#F59E0B' }} />
+                    <Clock size={15} style={{ color: '#FBBF24' }} />
                     <span>44:18 Left</span>
                   </div>
 
@@ -689,14 +728,15 @@ export default function Landing() {
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.5rem',
-                      background: voiceActive ? 'rgba(34, 197, 94, 0.12)' : 'rgba(99, 102, 241, 0.12)',
-                      border: `1px solid ${voiceActive ? 'rgba(34, 197, 94, 0.35)' : 'rgba(99, 102, 241, 0.35)'}`,
-                      padding: '0.4rem 0.85rem',
+                      gap: '0.55rem',
+                      background: voiceActive ? 'rgba(34, 197, 94, 0.18)' : 'rgba(99, 102, 241, 0.18)',
+                      border: `1px solid ${voiceActive ? 'rgba(34, 197, 94, 0.4)' : 'rgba(99, 102, 241, 0.4)'}`,
+                      padding: '0.45rem 0.95rem',
                       borderRadius: '999px',
                       fontSize: '0.78rem',
                       fontWeight: 700,
-                      color: voiceActive ? '#22C55E' : 'var(--primary)',
+                      color: voiceActive ? '#4ADE80' : '#A5B4FC',
+                      boxShadow: voiceActive ? '0 0 15px rgba(34, 197, 94, 0.3)' : '0 0 15px rgba(99, 102, 241, 0.2)',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 3, height: 16 }}>
@@ -710,14 +750,15 @@ export default function Landing() {
                 </div>
               </div>
 
-              {/* Simulated Question Card */}
+              {/* Simulated Question Card in Dark Slate Glass */}
               <div
                 style={{
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border)',
+                  background: 'rgba(10, 15, 32, 0.8)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
                   borderRadius: '1rem',
-                  padding: '1.5rem',
+                  padding: '1.6rem',
                   marginBottom: '1.5rem',
+                  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.08)',
                 }}
               >
                 <div
@@ -726,37 +767,37 @@ export default function Landing() {
                     alignItems: 'flex-start',
                     justifyContent: 'space-between',
                     gap: '1rem',
-                    marginBottom: '1rem',
+                    marginBottom: '1.25rem',
                   }}
                 >
                   <p
                     style={{
-                      fontSize: '1.1rem',
+                      fontSize: '1.15rem',
                       fontWeight: 600,
-                      color: 'var(--text)',
+                      color: '#F8FAFC',
                       lineHeight: 1.6,
                       margin: 0,
                     }}
                   >
-                    <strong style={{ color: 'var(--primary)' }}>Q{currentQ.qNum}.</strong> {currentQ.question}
+                    <strong style={{ color: '#38BDF8' }}>Q{currentQ.qNum}.</strong> {currentQ.question}
                   </p>
 
                   <button
                     onClick={handleReadDemoQuestion}
-                    className="btn-secondary"
+                    className="hero-btn-secondary"
                     style={{
-                      padding: '0.45rem 0.85rem',
+                      padding: '0.5rem 0.95rem',
                       fontSize: '0.78rem',
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '0.4rem',
+                      gap: '0.45rem',
                       flexShrink: 0,
-                      borderRadius: '0.5rem',
+                      borderRadius: '0.6rem',
                     }}
                     title="Read Question Aloud with Math Engine (R)"
                     aria-label="Read question aloud using Speech Engine"
                   >
-                    <Volume2 size={15} style={{ color: isQuestionSpeaking ? '#22C55E' : 'var(--primary)' }} />
+                    <Volume2 size={15} style={{ color: isQuestionSpeaking ? '#34D399' : '#38BDF8' }} />
                     <span>{isQuestionSpeaking ? 'Speaking…' : 'Read Aloud [R]'}</span>
                   </button>
                 </div>
@@ -791,24 +832,25 @@ export default function Landing() {
                             width: 32,
                             height: 32,
                             borderRadius: '50%',
-                            background: isSelected ? 'var(--primary)' : 'var(--bg-surface)',
-                            color: isSelected ? '#FFFFFF' : 'var(--text)',
-                            border: `2px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                            background: isSelected ? '#38BDF8' : 'rgba(30, 41, 59, 0.6)',
+                            color: isSelected ? '#0F172A' : '#F8FAFC',
+                            border: `2px solid ${isSelected ? '#38BDF8' : 'rgba(255, 255, 255, 0.18)'}`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                             fontWeight: 800,
                             fontSize: '0.9rem',
                             flexShrink: 0,
+                            boxShadow: isSelected ? '0 0 12px rgba(56, 189, 248, 0.6)' : 'none',
                           }}
                         >
                           {isSelected ? <Check size={16} /> : opt.key}
                         </div>
                         <span
                           style={{
-                            fontSize: '0.95rem',
+                            fontSize: '0.98rem',
                             fontWeight: isSelected ? 700 : 500,
-                            color: isSelected ? 'var(--primary)' : 'var(--text)',
+                            color: isSelected ? '#FFFFFF' : '#CBD5E1',
                           }}
                         >
                           {opt.text}
@@ -822,21 +864,22 @@ export default function Landing() {
               {/* Voice Recognition Simulated Pill */}
               <div
                 style={{
-                  background: 'rgba(15, 23, 42, 0.95)',
+                  background: 'rgba(5, 10, 24, 0.95)',
                   color: '#F8FAFC',
                   borderRadius: '0.85rem',
-                  padding: '0.85rem 1.25rem',
+                  padding: '0.95rem 1.35rem',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   flexWrap: 'wrap',
-                  gap: '0.75rem',
-                  border: '1px solid rgba(99, 102, 241, 0.35)',
+                  gap: '0.85rem',
+                  border: '1px solid rgba(129, 140, 248, 0.35)',
+                  boxShadow: '0 8px 25px rgba(0, 0, 0, 0.5)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                  <Mic size={18} style={{ color: '#22C55E' }} />
-                  <span style={{ fontSize: '0.82rem', color: '#94A3B8' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <Mic size={18} style={{ color: '#34D399' }} />
+                  <span style={{ fontSize: '0.84rem', color: '#94A3B8' }}>
                     Spoken Command:{' '}
                     <strong style={{ color: '#38BDF8' }}>"Select option {selectedOption}"</strong>
                   </span>
@@ -848,6 +891,7 @@ export default function Landing() {
                       borderRadius: 999,
                       fontSize: '0.72rem',
                       fontWeight: 700,
+                      boxShadow: '0 0 10px rgba(74, 222, 128, 0.25)',
                     }}
                   >
                     99.8% Groq Confidence
@@ -857,12 +901,10 @@ export default function Landing() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <button
                     onClick={handleNextDemoQ}
-                    className="btn-ghost"
+                    className="hero-btn-secondary"
                     style={{
                       fontSize: '0.78rem',
-                      color: '#F8FAFC',
-                      padding: '0.35rem 0.75rem',
-                      border: '1px solid rgba(255,255,255,0.2)',
+                      padding: '0.4rem 0.85rem',
                       borderRadius: '0.5rem',
                     }}
                   >
@@ -873,7 +915,7 @@ export default function Landing() {
                     className="hero-btn-primary"
                     style={{
                       fontSize: '0.78rem',
-                      padding: '0.35rem 0.85rem',
+                      padding: '0.4rem 0.95rem',
                       borderRadius: '0.5rem',
                     }}
                   >
@@ -885,13 +927,11 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ── 3D GLASS STATS COUNTERS ── */}
+        {/* ── 3D GLASS STATS COUNTERS (BLENDED LUXURY DARK BACKGROUND) ── */}
         <section
           style={{
-            padding: '3.5rem 1.5rem',
-            background: 'var(--bg-card)',
-            borderTop: '1px solid var(--border)',
-            borderBottom: '1px solid var(--border)',
+            padding: '4rem 1.5rem',
+            background: 'linear-gradient(180deg, transparent 0%, rgba(11, 18, 38, 0.7) 50%, transparent 100%)',
             position: 'relative',
             zIndex: 2,
           }}
@@ -899,10 +939,10 @@ export default function Landing() {
         >
           <div
             style={{
-              maxWidth: 1200,
+              maxWidth: 1240,
               margin: '0 auto',
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
               gap: '1.5rem',
             }}
           >
@@ -910,110 +950,109 @@ export default function Landing() {
               <div
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: '2.5rem',
+                  fontSize: '2.6rem',
                   fontWeight: 900,
-                  background: 'linear-gradient(135deg, #2563EB, #7C3AED)',
+                  background: 'linear-gradient(135deg, #38BDF8, #818CF8)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                 }}
               >
                 4 Verticals
               </div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>
+              <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#F8FAFC', marginTop: 4 }}>
                 SSC, Banking, UPSC & RRB
               </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Curated Syllabus & Mock Tests</div>
+              <div style={{ fontSize: '0.78rem', color: '#94A3B8' }}>Curated Syllabus & Mock Tests</div>
             </div>
 
             <div className="stat-card-3d">
               <div
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: '2.5rem',
+                  fontSize: '2.6rem',
                   fontWeight: 900,
-                  background: 'linear-gradient(135deg, #059669, #10B981)',
+                  background: 'linear-gradient(135deg, #34D399, #2DD4BF)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                 }}
               >
                 WCAG AAA
               </div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>
+              <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#F8FAFC', marginTop: 4 }}>
                 Zero Sensory Barriers
               </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>High Contrast & Screen Reader Certified</div>
+              <div style={{ fontSize: '0.78rem', color: '#94A3B8' }}>High Contrast & Screen Reader Certified</div>
             </div>
 
             <div className="stat-card-3d">
               <div
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: '2.5rem',
+                  fontSize: '2.6rem',
                   fontWeight: 900,
-                  background: 'linear-gradient(135deg, #F59E0B, #EA580C)',
+                  background: 'linear-gradient(135deg, #FBBF24, #FB923C)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                 }}
               >
                 ~200ms
               </div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>
+              <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#F8FAFC', marginTop: 4 }}>
                 Groq Voice Latency
               </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Whisper Large-v3 Real-Time ASR</div>
+              <div style={{ fontSize: '0.78rem', color: '#94A3B8' }}>Whisper Large-v3 Real-Time ASR</div>
             </div>
 
             <div className="stat-card-3d">
               <div
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: '2.5rem',
+                  fontSize: '2.6rem',
                   fontWeight: 900,
-                  background: 'linear-gradient(135deg, #EC4899, #8B5CF6)',
+                  background: 'linear-gradient(135deg, #F472B6, #C084FC)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                 }}
               >
                 Dual Earcons
               </div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>
+              <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#F8FAFC', marginTop: 4 }}>
                 Audio Feedback Cues
               </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Harmonic Chimes for Non-Visual Confirmation</div>
+              <div style={{ fontSize: '0.78rem', color: '#94A3B8' }}>Harmonic Chimes for Confirmation</div>
             </div>
 
             <div className="stat-card-3d">
               <div
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: '2.5rem',
+                  fontSize: '2.6rem',
                   fontWeight: 900,
-                  background: 'linear-gradient(135deg, #06B6D4, #2563EB)',
+                  background: 'linear-gradient(135deg, #22D3EE, #38BDF8)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                 }}
               >
                 100%
               </div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text)', marginTop: 4 }}>
+              <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#F8FAFC', marginTop: 4 }}>
                 Keyboard Navigable
               </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Zero Mouse Dependency Guaranteed</div>
+              <div style={{ fontSize: '0.78rem', color: '#94A3B8' }}>Zero Mouse Dependency Guaranteed</div>
             </div>
           </div>
         </section>
 
-        {/* ── THE DRISHTIX ECOSYSTEM: REPRESENTATION OF ALL PAGES ── */}
+        {/* ── THE DRISHTIX ECOSYSTEM: REPRESENTATION OF ALL PAGES (RICH COLOR BLENDS) ── */}
         <section
           style={{
-            padding: '6rem 1.5rem',
-            background: 'var(--bg)',
+            padding: '6.5rem 1.5rem',
             position: 'relative',
           }}
           aria-labelledby="ecosystem-heading"
         >
-          <div style={{ maxWidth: 1280, margin: '0 auto' }}>
-            <div style={{ textAlign: 'center', marginBottom: '3.5rem' }}>
+          <div style={{ maxWidth: 1300, margin: '0 auto' }}>
+            <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
               <div
                 className="badge-glow"
                 style={{
@@ -1021,24 +1060,25 @@ export default function Landing() {
                   display: 'inline-flex',
                 }}
               >
-                <Layers size={14} style={{ color: 'var(--primary)' }} />
-                <span>Complete Platform Walkthrough</span>
+                <Layers size={14} style={{ color: '#38BDF8' }} />
+                <span>Complete Platform Ecosystem</span>
               </div>
               <h2
                 id="ecosystem-heading"
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: 'clamp(2rem, 4.5vw, 3.2rem)',
+                  fontSize: 'clamp(2.1rem, 4.5vw, 3.4rem)',
                   fontWeight: 900,
-                  color: 'var(--text)',
+                  color: '#FFFFFF',
                   marginBottom: '1rem',
+                  letterSpacing: '-0.02em',
                 }}
               >
                 Explore the DrishtiX Ecosystem
               </h2>
               <p
                 style={{
-                  color: 'var(--text-muted)',
+                  color: '#94A3B8',
                   fontSize: '1.15rem',
                   maxWidth: 680,
                   margin: '0 auto',
@@ -1046,11 +1086,11 @@ export default function Landing() {
                 }}
               >
                 Every module is built with extreme attention to auditory precision, semantic structure, and visual clarity
-                to give you total autonomy.
+                to give you total independence.
               </p>
             </div>
 
-            {/* Page Representation Grid */}
+            {/* Page Representation Grid with Rich Color Washes */}
             <div
               style={{
                 display: 'grid',
@@ -1061,7 +1101,17 @@ export default function Landing() {
               {PAGE_ECOSYSTEM.map((page) => {
                 const IconComponent = page.icon;
                 return (
-                  <div key={page.title} className="page-card-3d">
+                  <div
+                    key={page.title}
+                    className="page-card-3d"
+                    style={
+                      {
+                        '--glow-color': page.glowColor,
+                        background: `${page.bgWash}, linear-gradient(135deg, rgba(20, 28, 56, 0.85) 0%, rgba(9, 14, 30, 0.92) 100%)`,
+                        borderTop: `2px solid ${page.badgeColor}`,
+                      } as React.CSSProperties
+                    }
+                  >
                     <div>
                       {/* Top Card Bar */}
                       <div
@@ -1069,32 +1119,35 @@ export default function Landing() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          marginBottom: '1.25rem',
+                          marginBottom: '1.35rem',
                         }}
                       >
                         <div
                           style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: '1rem',
-                            background: `rgba(${page.badgeColor === '#2563EB' ? '37, 99, 235' : page.badgeColor === '#8B5CF6' ? '139, 92, 246' : '5, 150, 105'}, 0.12)`,
+                            width: 50,
+                            height: 50,
+                            borderRadius: '1.1rem',
+                            background: `rgba(255, 255, 255, 0.06)`,
+                            border: `1px solid ${page.badgeColor}40`,
                             color: page.badgeColor,
+                            boxShadow: `0 0 20px ${page.glowColor}`,
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
                           }}
                         >
-                          <IconComponent size={24} />
+                          <IconComponent size={25} />
                         </div>
                         <span
                           style={{
-                            fontSize: '0.75rem',
+                            fontSize: '0.76rem',
                             fontWeight: 700,
-                            padding: '0.35rem 0.85rem',
+                            padding: '0.4rem 0.95rem',
                             borderRadius: '999px',
-                            background: 'var(--bg-surface)',
-                            border: '1px solid var(--border)',
+                            background: 'rgba(15, 23, 42, 0.85)',
+                            border: `1px solid ${page.badgeColor}50`,
                             color: page.badgeColor,
+                            boxShadow: `0 0 12px ${page.badgeColor}25`,
                           }}
                         >
                           {page.badge}
@@ -1106,19 +1159,19 @@ export default function Landing() {
                         style={{
                           fontFamily: 'var(--font-display)',
                           fontWeight: 800,
-                          fontSize: '1.35rem',
-                          color: 'var(--text)',
-                          marginBottom: '0.75rem',
+                          fontSize: '1.4rem',
+                          color: '#FFFFFF',
+                          marginBottom: '0.85rem',
                         }}
                       >
                         {page.title}
                       </h3>
                       <p
                         style={{
-                          fontSize: '0.92rem',
-                          color: 'var(--text-muted)',
-                          lineHeight: 1.6,
-                          marginBottom: '1.25rem',
+                          fontSize: '0.94rem',
+                          color: '#94A3B8',
+                          lineHeight: 1.65,
+                          marginBottom: '1.35rem',
                         }}
                       >
                         {page.description}
@@ -1129,13 +1182,13 @@ export default function Landing() {
                         style={{
                           display: 'flex',
                           flexWrap: 'wrap',
-                          gap: '0.5rem',
+                          gap: '0.55rem',
                           marginBottom: '1.5rem',
                         }}
                       >
                         {page.features.map((feat) => (
                           <div key={feat} className="page-preview-chip">
-                            <CheckCircle2 size={12} style={{ color: page.badgeColor }} />
+                            <CheckCircle2 size={13} style={{ color: page.badgeColor }} />
                             <span>{feat}</span>
                           </div>
                         ))}
@@ -1145,8 +1198,8 @@ export default function Landing() {
                     {/* Bottom Action Link */}
                     <div
                       style={{
-                        borderTop: '1px solid var(--border)',
-                        paddingTop: '1.25rem',
+                        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                        paddingTop: '1.35rem',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
@@ -1154,15 +1207,17 @@ export default function Landing() {
                     >
                       <button
                         onClick={() => navigate(page.path)}
-                        className="btn-ghost"
                         style={{
-                          fontSize: '0.9rem',
+                          background: 'transparent',
+                          border: 'none',
+                          fontSize: '0.92rem',
                           fontWeight: 700,
-                          color: 'var(--primary)',
+                          color: page.badgeColor,
                           padding: 0,
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '0.4rem',
+                          cursor: 'pointer',
                         }}
                         aria-label={`Navigate to ${page.title}`}
                       >
@@ -1172,11 +1227,12 @@ export default function Landing() {
 
                       <button
                         onClick={() => navigate(page.demoUrl)}
-                        className="btn-primary"
+                        className="hero-btn-secondary"
                         style={{
                           fontSize: '0.78rem',
-                          padding: '0.4rem 0.9rem',
-                          borderRadius: '0.6rem',
+                          padding: '0.45rem 1rem',
+                          borderRadius: '0.65rem',
+                          border: `1px solid ${page.badgeColor}60`,
                         }}
                       >
                         Instant Launch
@@ -1189,28 +1245,29 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ── INTERACTIVE AUDITORY SANDBOX ("TEST OUR AUDIO ENGINE") ── */}
+        {/* ── INTERACTIVE AUDITORY SANDBOX ("EXPERIENCE SOUND WITH LUXURY GLOW") ── */}
         <section
           style={{
-            padding: '5rem 1.5rem',
-            background: 'var(--bg-card)',
-            borderTop: '1px solid var(--border)',
-            borderBottom: '1px solid var(--border)',
+            padding: '5.5rem 1.5rem',
+            background: 'linear-gradient(180deg, rgba(8, 13, 29, 0.9) 0%, rgba(14, 22, 48, 0.85) 50%, rgba(8, 13, 29, 0.9) 100%)',
+            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            position: 'relative',
           }}
           aria-labelledby="audio-sandbox-heading"
         >
-          <div style={{ maxWidth: 940, margin: '0 auto', textAlign: 'center' }}>
-            <div className="badge-glow" style={{ marginBottom: '1rem' }}>
-              <Headphones size={14} style={{ color: '#22C55E' }} />
-              <span>Experience Audio Earcons in Real Time</span>
+          <div style={{ maxWidth: 960, margin: '0 auto', textAlign: 'center' }}>
+            <div className="badge-glow" style={{ marginBottom: '1.25rem' }}>
+              <Headphones size={14} style={{ color: '#34D399' }} />
+              <span>Real-Time Auditory Feedback Studio</span>
             </div>
             <h2
               id="audio-sandbox-heading"
               style={{
                 fontFamily: 'var(--font-display)',
-                fontSize: 'clamp(1.8rem, 4vw, 2.6rem)',
+                fontSize: 'clamp(1.9rem, 4vw, 2.75rem)',
                 fontWeight: 900,
-                color: 'var(--text)',
+                color: '#FFFFFF',
                 marginBottom: '1rem',
               }}
             >
@@ -1218,63 +1275,78 @@ export default function Landing() {
             </h2>
             <p
               style={{
-                color: 'var(--text-muted)',
-                fontSize: '1.05rem',
-                maxWidth: 620,
-                margin: '0 auto 2.5rem',
+                color: '#94A3B8',
+                fontSize: '1.08rem',
+                maxWidth: 640,
+                margin: '0 auto 2.75rem',
                 lineHeight: 1.6,
               }}
             >
               Visually impaired aspirants shouldn't have to guess if their click registered. Our dual-tier earcons provide
-              instant acoustic confirmations. Click below to test each sound:
+              instant acoustic confirmations. Click below to test each harmonic tone:
             </p>
 
             <div
               style={{
                 display: 'flex',
                 flexWrap: 'wrap',
-                gap: '1rem',
+                gap: '1.25rem',
                 justifyContent: 'center',
               }}
             >
               <button
                 onClick={() => playEarcon('success')}
                 className="hero-btn-secondary"
-                style={{ padding: '0.8rem 1.5rem', fontSize: '0.9rem' }}
+                style={{
+                  padding: '0.9rem 1.65rem',
+                  fontSize: '0.92rem',
+                  borderColor: 'rgba(52, 211, 153, 0.4)',
+                  boxShadow: '0 0 20px rgba(52, 211, 153, 0.2)',
+                }}
                 aria-label="Play option select earcon chime"
               >
-                <Play size={16} style={{ color: '#22C55E' }} />
-                <span>Test Option Select Earcon (D5-A5)</span>
+                <Play size={16} style={{ color: '#34D399' }} />
+                <span>Test Option Select (D5–A5)</span>
               </button>
 
               <button
                 onClick={() => playEarcon('nav')}
                 className="hero-btn-secondary"
-                style={{ padding: '0.8rem 1.5rem', fontSize: '0.9rem' }}
+                style={{
+                  padding: '0.9rem 1.65rem',
+                  fontSize: '0.92rem',
+                  borderColor: 'rgba(56, 189, 248, 0.4)',
+                  boxShadow: '0 0 20px rgba(56, 189, 248, 0.2)',
+                }}
                 aria-label="Play question navigation chime"
               >
-                <Play size={16} style={{ color: '#3B82F6' }} />
-                <span>Test Question Next Earcon (A4-E5)</span>
+                <Play size={16} style={{ color: '#38BDF8' }} />
+                <span>Test Question Next (A4–E5)</span>
               </button>
 
               <button
                 onClick={() => playEarcon('flag')}
                 className="hero-btn-secondary"
-                style={{ padding: '0.8rem 1.5rem', fontSize: '0.9rem' }}
+                style={{
+                  padding: '0.9rem 1.65rem',
+                  fontSize: '0.92rem',
+                  borderColor: 'rgba(251, 191, 36, 0.4)',
+                  boxShadow: '0 0 20px rgba(251, 191, 36, 0.2)',
+                }}
                 aria-label="Play flag question earcon chime"
               >
-                <Play size={16} style={{ color: '#F59E0B' }} />
-                <span>Test Flag Question Earcon (G5)</span>
+                <Play size={16} style={{ color: '#FBBF24' }} />
+                <span>Test Flag Earcon (G5)</span>
               </button>
 
               <button
                 onClick={() => speechService.speak('Welcome to DrishtiX. Voice engine operational. Ready for exam navigation.', { priority: true })}
                 className="hero-btn-primary"
-                style={{ padding: '0.8rem 1.75rem', fontSize: '0.9rem' }}
+                style={{ padding: '0.9rem 1.9rem', fontSize: '0.92rem' }}
                 aria-label="Trigger AI spoken greeting test"
               >
                 <Volume2 size={16} />
-                <span>Test Speech Narration</span>
+                <span>Test Voice Narration</span>
               </button>
             </div>
           </div>
@@ -1282,25 +1354,25 @@ export default function Landing() {
 
         {/* ── KEYBOARD SHORTCUTS MATRIX ── */}
         <section
-          style={{ padding: '5rem 1.5rem', background: 'var(--bg)' }}
+          style={{ padding: '5.5rem 1.5rem', position: 'relative' }}
           aria-labelledby="keyboard-heading"
         >
-          <div style={{ maxWidth: 940, margin: '0 auto' }}>
-            <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+          <div style={{ maxWidth: 960, margin: '0 auto' }}>
+            <div style={{ textAlign: 'center', marginBottom: '3.25rem' }}>
               <h2
                 id="keyboard-heading"
                 style={{
                   fontFamily: 'var(--font-display)',
                   fontWeight: 900,
-                  fontSize: '2.2rem',
-                  color: 'var(--text)',
+                  fontSize: '2.3rem',
+                  color: '#FFFFFF',
                   marginBottom: '0.75rem',
                 }}
               >
                 Complete Keyboard Mastery
               </h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem' }}>
-                Every single action can be executed in a fraction of a second without ever reaching for a mouse.
+              <p style={{ color: '#94A3B8', fontSize: '1.05rem' }}>
+                Every single action can be executed in a fraction of a second without ever touching a mouse.
               </p>
             </div>
 
@@ -1308,7 +1380,7 @@ export default function Landing() {
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                gap: '1rem',
+                gap: '1.1rem',
               }}
             >
               {[
@@ -1327,30 +1399,31 @@ export default function Landing() {
                     display: 'flex',
                     gap: '1rem',
                     alignItems: 'center',
-                    padding: '0.85rem 1.25rem',
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '0.85rem',
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+                    padding: '0.95rem 1.35rem',
+                    background: 'linear-gradient(135deg, rgba(24, 34, 62, 0.7) 0%, rgba(11, 17, 34, 0.85) 100%)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '0.95rem',
+                    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.4)',
+                    backdropFilter: 'blur(16px)',
                   }}
                 >
                   <kbd
                     style={{
-                      background: 'var(--bg-surface)',
-                      border: '1.5px solid var(--border)',
-                      borderRadius: '0.45rem',
-                      padding: '0.25rem 0.75rem',
+                      background: 'rgba(15, 23, 42, 0.95)',
+                      border: '1.5px solid rgba(56, 189, 248, 0.4)',
+                      borderRadius: '0.5rem',
+                      padding: '0.3rem 0.8rem',
                       fontFamily: 'monospace',
                       fontWeight: 800,
-                      fontSize: '0.9rem',
-                      color: 'var(--primary)',
+                      fontSize: '0.92rem',
+                      color: '#38BDF8',
                       whiteSpace: 'nowrap',
-                      boxShadow: '0 2px 0 var(--border)',
+                      boxShadow: '0 3px 0 rgba(2, 132, 199, 0.6), 0 0 10px rgba(56, 189, 248, 0.25)',
                     }}
                   >
                     {key}
                   </kbd>
-                  <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                  <span style={{ fontSize: '0.92rem', color: '#CBD5E1', lineHeight: 1.4 }}>
                     {desc}
                   </span>
                 </div>
@@ -1359,24 +1432,24 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* ── HIGH-IMPACT 3D GLOWING CALL TO ACTION ── */}
+        {/* ── HIGH-IMPACT GLOWING CALL TO ACTION ── */}
         <section
           style={{
             padding: '5.5rem 1.5rem',
             position: 'relative',
-            overflow: 'hidden',
           }}
           aria-labelledby="cta-heading"
         >
           <div
             style={{
-              maxWidth: 1060,
+              maxWidth: 1100,
               margin: '0 auto',
-              background: 'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 45%, #7C3AED 100%)',
-              borderRadius: '2rem',
-              padding: '4rem 2rem',
+              background: 'linear-gradient(135deg, #1E1B4B 0%, #312E81 40%, #1E3A8A 80%, #0F172A 100%)',
+              border: '1.5px solid rgba(129, 140, 248, 0.35)',
+              borderRadius: '2.25rem',
+              padding: '4.5rem 2rem',
               textAlign: 'center',
-              boxShadow: '0 25px 60px -15px rgba(37, 99, 235, 0.45)',
+              boxShadow: '0 30px 80px -15px rgba(0, 0, 0, 0.9), 0 0 50px rgba(99, 102, 241, 0.3)',
               position: 'relative',
               overflow: 'hidden',
             }}
@@ -1384,12 +1457,13 @@ export default function Landing() {
             <div
               style={{
                 position: 'absolute',
-                top: -50,
-                right: -50,
-                width: 200,
-                height: 200,
+                top: -60,
+                right: -60,
+                width: 250,
+                height: 250,
                 borderRadius: '50%',
-                background: 'rgba(255,255,255,0.1)',
+                background: 'radial-gradient(circle, rgba(168, 85, 247, 0.3) 0%, transparent 70%)',
+                filter: 'blur(40px)',
               }}
               aria-hidden="true"
             />
@@ -1397,7 +1471,7 @@ export default function Landing() {
               id="cta-heading"
               style={{
                 fontFamily: 'var(--font-display)',
-                fontSize: 'clamp(2rem, 4.5vw, 3.2rem)',
+                fontSize: 'clamp(2.1rem, 4.8vw, 3.4rem)',
                 fontWeight: 900,
                 color: '#FFFFFF',
                 marginBottom: '1.25rem',
@@ -1408,12 +1482,12 @@ export default function Landing() {
             </h2>
             <p
               style={{
-                color: 'rgba(255, 255, 255, 0.9)',
-                marginBottom: '2.5rem',
-                fontSize: '1.15rem',
-                maxWidth: 620,
-                margin: '0 auto 2.5rem',
-                lineHeight: 1.6,
+                color: '#CBD5E1',
+                marginBottom: '2.75rem',
+                fontSize: '1.18rem',
+                maxWidth: 640,
+                margin: '0 auto 2.75rem',
+                lineHeight: 1.65,
               }}
             >
               Join hundreds of aspirants cracking SSC, Banking, UPSC and Railways with zero visual or physical barriers.
@@ -1422,7 +1496,7 @@ export default function Landing() {
             <div
               style={{
                 display: 'flex',
-                gap: '1.25rem',
+                gap: '1.35rem',
                 justifyContent: 'center',
                 alignItems: 'center',
                 flexWrap: 'wrap',
@@ -1430,43 +1504,27 @@ export default function Landing() {
             >
               <button
                 onClick={() => navigate('/register')}
+                className="hero-btn-primary"
                 style={{
-                  background: '#FFFFFF',
-                  color: '#1D4ED8',
-                  border: 'none',
-                  borderRadius: '0.85rem',
-                  padding: '1rem 2.5rem',
-                  fontWeight: 800,
-                  fontSize: '1.05rem',
-                  cursor: 'pointer',
-                  boxShadow: '0 8px 25px rgba(0,0,0,0.2)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.6rem',
+                  padding: '1.1rem 2.8rem',
+                  fontSize: '1.1rem',
+                  borderRadius: '1rem',
                 }}
               >
-                <Sparkles size={18} />
+                <Sparkles size={20} />
                 <span>Create Free Student Account</span>
               </button>
 
               <button
                 onClick={() => navigate('/login')}
+                className="hero-btn-secondary"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  color: '#FFFFFF',
-                  border: '1.5px solid rgba(255, 255, 255, 0.4)',
-                  borderRadius: '0.85rem',
-                  padding: '1rem 2.25rem',
-                  fontWeight: 800,
-                  fontSize: '1.05rem',
-                  cursor: 'pointer',
-                  backdropFilter: 'blur(8px)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.6rem',
+                  padding: '1.1rem 2.5rem',
+                  fontSize: '1.1rem',
+                  borderRadius: '1rem',
                 }}
               >
-                <LogIn size={18} />
+                <LogIn size={20} />
                 <span>Try Demo Account</span>
               </button>
             </div>
@@ -1477,10 +1535,12 @@ export default function Landing() {
       {/* ── FOOTER ── */}
       <footer
         style={{
-          background: 'var(--bg-card)',
-          borderTop: '1px solid var(--border)',
-          padding: '3rem 1.5rem',
+          background: 'rgba(5, 8, 20, 0.95)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          padding: '3.5rem 1.5rem',
           textAlign: 'center',
+          position: 'relative',
+          zIndex: 2,
         }}
       >
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
@@ -1493,19 +1553,19 @@ export default function Landing() {
               marginBottom: '1rem',
             }}
           >
-            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.2rem', color: 'var(--text)' }}>
+            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 900, fontSize: '1.3rem', color: '#FFFFFF' }}>
               Drishti<span style={{ color: '#F59E0B' }}>X</span>
             </span>
-            <span style={{ color: 'var(--text-muted)' }}>·</span>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+            <span style={{ color: '#64748B' }}>·</span>
+            <span style={{ fontSize: '0.88rem', color: '#94A3B8', fontWeight: 600 }}>
               Smart India Hackathon (SIH 4.0) Submission
             </span>
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: 700, margin: '0 auto 1rem', lineHeight: 1.6 }}>
+          <p style={{ color: '#64748B', fontSize: '0.875rem', maxWidth: 720, margin: '0 auto 1.25rem', lineHeight: 1.65 }}>
             Designed and built for 100% accessible, independent examination preparation. Conforms to WCAG 2.1 AAA standards,
             RPwD Act 2016 guidelines, and Section 508 accessibility criteria.
           </p>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+          <div style={{ fontSize: '0.8rem', color: '#475569' }}>
             © 2026 DrishtiX Platform. Dedicated to barrier-free educational empowerment.
           </div>
         </div>

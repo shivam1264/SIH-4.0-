@@ -3,7 +3,7 @@ import type { AccessibilityPrefs, ThemeMode, FontSize, Spacing, FontFamily } fro
 import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
 
 const DEFAULTS: AccessibilityPrefs = {
-  theme: 'default',
+  theme: 'dark',
   fontSize: 'default',
   spacing: 'default',
   fontFamily: 'inter',

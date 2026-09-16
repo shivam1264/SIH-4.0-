@@ -221,19 +221,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         }
       }
 
-      // ── Handle Context-Aware Help ──
-      if (intent.type === 'HELP') {
-        if (currentRoute.startsWith('/exam/')) {
-          speak('You are in an examination. You can say Read Question, Option A, B, C, or D, Next Question, Previous Question, Time Remaining, What question am I on, How many left, or Submit Exam.', true);
-        } else if (currentRoute === '/dashboard') {
-          speak('You are on the Dashboard. You can say Open Mock Tests, Practice, Study Materials, Results, or Notifications.', true);
-        } else if (currentRoute === '/settings') {
-          speak('You are in Settings. You can say Dark Mode, Light Mode, Yellow on Black, Huge Font, Speak Faster, or Speak Slower.', true);
-        } else {
-          speak('Available sections: Open Dashboard, Mock Tests, Practice Drills, Study Materials, Exam History, Notifications, Settings, or Profile. You can also say Switch to Dark Mode, or Make text huge.', true);
-        }
-        return true;
-      }
+
 
       // ── Handle Exam Status Queries ──
       if (intent.type === 'EXAM_STATUS') {
@@ -359,7 +347,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
       }
 
       if (intent.type === 'OPEN_NOTIFICATIONS') {
-        const wantsToRead = /\b(read|sunao|bol\s*kar|padho)\b/i.test(transcript);
+        const wantsToRead = /\b(read|sunao|bol\s*kar|padho)\b/i.test(rawText);
         const notifBtn = document.getElementById('drishtix-notifications-trigger') as HTMLButtonElement | null;
 
         if (wantsToRead) {

@@ -252,6 +252,14 @@ export default function ExamInterface() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [started, submitted]);
 
+  useEffect(() => {
+    const unsub = speechService.onStop(() => {
+      setIsSpeakingAloud(false);
+      isSpeakingAloudRef.current = false;
+    });
+    return unsub;
+  }, []);
+
   const readPreExamOverview = useCallback(() => {
     const ex = examRef.current;
     if (!ex) return;
@@ -905,8 +913,8 @@ export default function ExamInterface() {
       isSpeakingAloudRef.current = false;
     }
 
-    // Explicit stop / pause request
-    if (clean.includes('stop') || clean.includes('chup') || clean.includes('skip') || clean.includes('pause') || clean.includes('ruko')) {
+    // Explicit standalone stop / silence command
+    if (/^(?:stop|chup|ruko|pause|quiet|shant|stop speaking|stop audio|stop reading)$/i.test(clean)) {
       audioCueService.select();
       setVoiceText('Reading stopped. Speak your answer now.');
       return true;

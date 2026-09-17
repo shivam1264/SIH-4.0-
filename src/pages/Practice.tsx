@@ -629,8 +629,8 @@ export default function Practice() {
         isSpeakingRef.current = false;
       }
 
-      // If user explicitly says STOP / SKIP / CHUP / PAUSE, acknowledge and stop
-      if (clean.includes('stop') || clean.includes('chup') || clean.includes('skip') || clean.includes('pause') || clean.includes('ruko')) {
+      // If user explicitly says standalone STOP / CHUP / PAUSE, acknowledge and stop
+      if (/^(?:stop|chup|ruko|pause|quiet|shant|stop speaking|stop audio|stop reading)$/i.test(clean)) {
         audioCueService.select();
         setVoiceStatus('Reading stopped. Speak your answer now.');
         return true;

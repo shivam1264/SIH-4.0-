@@ -154,10 +154,12 @@ class SpeechService {
     }
   }
 
+  private _fallbackTimer: any = null;
+
   setEnabled(v: boolean) { this.enabled = v; }
 
   get isSpeaking(): boolean {
-    return this._isSpeaking || (typeof window !== 'undefined' && !!window.speechSynthesis?.speaking);
+    return this._isSpeaking;
   }
 
   speak(
@@ -179,8 +181,15 @@ class SpeechService {
       priority = !!priorityOrOptions;
     }
 
+    if (this._fallbackTimer) {
+      clearTimeout(this._fallbackTimer);
+      this._fallbackTimer = null;
+    }
+
     if (priority) {
-      this.synth.cancel();
+      try {
+        this.synth.cancel();
+      } catch {}
       this._isSpeaking = false;
     }
 
@@ -210,12 +219,14 @@ class SpeechService {
     const maxDurationMs = Math.max(3000, (wordCount / 2.0) * 1000 + 2000);
 
     let finished = false;
-    let fallbackTimer: any = null;
 
     const finish = () => {
       if (finished) return;
       finished = true;
-      if (fallbackTimer) clearTimeout(fallbackTimer);
+      if (this._fallbackTimer) {
+        clearTimeout(this._fallbackTimer);
+        this._fallbackTimer = null;
+      }
       this._isSpeaking = false;
       this.lastSpeechEndTime = Date.now();
       try { delete (window as any).__activeUtterance; } catch {}
@@ -224,16 +235,21 @@ class SpeechService {
 
     utt.onstart = () => {
       this._isSpeaking = true;
-      fallbackTimer = setTimeout(finish, maxDurationMs);
+      this._fallbackTimer = setTimeout(finish, maxDurationMs);
     };
 
     utt.onend = finish;
     utt.onerror = finish;
 
+    this._isSpeaking = true;
     this.synth.speak(utt);
   }
 
   stop() {
+    if (this._fallbackTimer) {
+      clearTimeout(this._fallbackTimer);
+      this._fallbackTimer = null;
+    }
     if (this.synth) {
       try {
         this.synth.cancel();

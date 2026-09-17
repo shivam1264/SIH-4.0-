@@ -43,6 +43,10 @@ export default function Performance() {
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   useEffect(() => {
+    return speechService.onStop(() => setIsSpeaking(false));
+  }, []);
+
+  useEffect(() => {
     document.title = 'Performance & Diagnostic Matrix — DrishtiX';
   }, []);
 

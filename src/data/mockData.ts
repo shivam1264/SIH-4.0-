@@ -88,7 +88,7 @@ export const EXAMS: Exam[] = [
         phoneticText: 'Simplify the algebraic expression: square root of x squared plus 6x plus 9, when x equals 5.',
         mathFormula: '\\sqrt{x^2 + 6x + 9}',
         mathVerbalization: 'square root of x squared plus 6x plus 9, end root',
-        aiSummary: 'This question tests polynomial factorization. Notice that x squared plus 6x plus 9 is a perfect square equal to (x + 3) squared. Taking the square root gives (x + 3). Substituting x = 5 gives 5 + 3 = 8.',
+        aiSummary: 'This question tests algebraic simplification and polynomial square root concepts.',
         options: [
           { id: 'A', text: '8' },
           { id: 'B', text: '6' },
@@ -113,7 +113,7 @@ export const EXAMS: Exam[] = [
             { label: 'Mine D', value: '60 MT' }
           ]
         },
-        aiSummary: 'Analyze the values: Mine C has 90 (highest), Mine B has 75 (second highest), Mine D has 60, and Mine A has 40. Therefore, Mine B is the second highest.',
+        aiSummary: 'This question tests interpretation of the provided bar chart showing annual copper production across 4 mines.',
         options: [
           { id: 'A', text: 'Mine A' },
           { id: 'B', text: 'Mine B' },

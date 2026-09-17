@@ -828,8 +828,8 @@ export default function Landing() {
                   }}
                   title="Toggle Theme"
                   onClick={() => {
-                    const nextTheme = activeTheme === 'light' ? 'dark' : 'light';
-                    setActiveTheme(nextTheme as any);
+                    const nextTheme = activeTheme === 'dark' ? 'default' : 'dark';
+                    setActiveTheme(nextTheme);
                   }}
                 >
                   <div
@@ -837,8 +837,8 @@ export default function Landing() {
                       width: 22,
                       height: 22,
                       borderRadius: '50%',
-                      background: activeTheme === 'light' ? '#FFFFFF' : 'transparent',
-                      boxShadow: activeTheme === 'light' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      background: activeTheme !== 'dark' ? '#FFFFFF' : 'transparent',
+                      boxShadow: activeTheme !== 'dark' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -910,8 +910,8 @@ export default function Landing() {
               <div className="mobile-menu-btn" style={{ alignItems: 'center', gap: '0.5rem' }}>
                 <button
                   onClick={() => {
-                    const nextTheme = activeTheme === 'light' ? 'dark' : 'light';
-                    setActiveTheme(nextTheme as any);
+                    const nextTheme = activeTheme === 'dark' ? 'default' : 'dark';
+                    setActiveTheme(nextTheme);
                   }}
                   style={{
                     width: 38,
@@ -922,14 +922,14 @@ export default function Landing() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: activeTheme === 'light' ? '#F59E0B' : '#38BDF8',
+                    color: activeTheme !== 'dark' ? '#F59E0B' : '#38BDF8',
                     boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
                     cursor: 'pointer',
                   }}
                   title="Toggle Theme"
                   aria-label="Toggle Theme"
                 >
-                  {activeTheme === 'light' ? <Sun size={17} /> : <Moon size={16} />}
+                  {activeTheme !== 'dark' ? <Sun size={17} /> : <Moon size={16} />}
                 </button>
 
                 <button

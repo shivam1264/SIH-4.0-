@@ -414,6 +414,83 @@ const testCases: TestCase[] = [
     expectedType: 'INITIATE_SUBMIT',
     expectedAction: 'SUBMIT',
   },
+  // ── Drishti Personalized Voice Assistant Wake Word & Commands ──
+  {
+    name: '59. "Drishti start exam" -> START_EXAM',
+    input: 'Drishti start exam',
+    expectedType: 'START_EXAM',
+    expectedAction: 'START_EXAM',
+  },
+  {
+    name: '60. "Drishti read notification" -> OPEN_NOTIFICATIONS',
+    input: 'Drishti read notification',
+    expectedType: 'OPEN_NOTIFICATIONS',
+    expectedAction: 'OPEN_NOTIFICATIONS',
+  },
+  {
+    name: '61. "Drishti read notifications" -> OPEN_NOTIFICATIONS',
+    input: 'Drishti read notifications',
+    expectedType: 'OPEN_NOTIFICATIONS',
+    expectedAction: 'OPEN_NOTIFICATIONS',
+  },
+  {
+    name: '62. "Hey Drishti read my notifications" -> OPEN_NOTIFICATIONS',
+    input: 'Hey Drishti read my notifications',
+    expectedType: 'OPEN_NOTIFICATIONS',
+    expectedAction: 'OPEN_NOTIFICATIONS',
+  },
+  {
+    name: '63. "Hey Drishti" -> DRISHTI_WAKE',
+    input: 'Hey Drishti',
+    expectedType: 'DRISHTI_WAKE',
+    expectedAction: 'DRISHTI_WAKE',
+  },
+  {
+    name: '64. "Drishti" standalone wake word -> DRISHTI_WAKE',
+    input: 'Drishti',
+    expectedType: 'DRISHTI_WAKE',
+    expectedAction: 'DRISHTI_WAKE',
+  },
+  {
+    name: '65. "Drishti who are you" -> DRISHTI_INTRO',
+    input: 'Drishti who are you',
+    expectedType: 'DRISHTI_INTRO',
+    expectedAction: 'DRISHTI_INTRO',
+  },
+  {
+    name: '66. "Drishti next question" in exam -> NEXT_QUESTION',
+    input: 'Drishti next question',
+    context: { route: '/exam/mock-1', examState: 'in-progress', currentQuestionIndex: 1, totalQuestions: 10 },
+    expectedType: 'NEXT_QUESTION',
+    expectedAction: 'NEXT',
+  },
+  {
+    name: '67. "Drishti select option B" in exam -> SELECT_OPTION (B)',
+    input: 'Drishti select option B',
+    context: { route: '/exam/mock-1', examState: 'in-progress', currentQuestionIndex: 1, totalQuestions: 10 },
+    expectedType: 'SELECT_OPTION',
+    expectedAction: 'SELECT_B',
+    expectedOption: 'B',
+  },
+  {
+    name: '68. "Drishti time remaining" in exam -> TIME_REMAINING',
+    input: 'Drishti time remaining',
+    context: { route: '/exam/mock-1', examState: 'in-progress' },
+    expectedType: 'TIME_REMAINING',
+    expectedAction: 'TIME',
+  },
+  {
+    name: '69. Suffix wake word: "start exam Drishti" -> START_EXAM',
+    input: 'start exam Drishti',
+    expectedType: 'START_EXAM',
+    expectedAction: 'START_EXAM',
+  },
+  {
+    name: '70. Suffix wake word: "read notification Drishti" -> OPEN_NOTIFICATIONS',
+    input: 'read notification Drishti',
+    expectedType: 'OPEN_NOTIFICATIONS',
+    expectedAction: 'OPEN_NOTIFICATIONS',
+  },
 ];
 
 console.log('═══════════════════════════════════════════════════════════════');

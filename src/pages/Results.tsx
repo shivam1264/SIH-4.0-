@@ -121,8 +121,14 @@ export default function Results() {
         navigate('/performance');
         return;
       }
-      if (e.key === 'd' || e.key === 'D' || e.key === 'Escape') {
+      if (e.key === 'Escape') {
         e.preventDefault();
+        speechService.stop();
+        return;
+      }
+      if (e.key === 'd' || e.key === 'D') {
+        e.preventDefault();
+        speechService.stop();
         navigate('/dashboard');
         return;
       }
@@ -257,7 +263,12 @@ export default function Results() {
                     <div key={t} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.825rem' }}>
                       <AlertTriangle size={14} color="var(--danger)" aria-hidden="true" />
                       <span style={{ color: 'var(--text)' }}>{t}</span>
-                      <button className="btn-ghost" onClick={() => navigate('/practice')} style={{ fontSize: '0.7rem', padding: '0.2rem 0.45rem', marginLeft: 'auto', color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <button
+                        className="btn-ghost"
+                        onClick={() => navigate('/practice')}
+                        aria-label={`Practice weak topic: ${t}`}
+                        style={{ fontSize: '0.7rem', padding: '0.2rem 0.45rem', marginLeft: 'auto', color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                      >
                         Practice <ArrowRight size={12} />
                       </button>
                     </div>

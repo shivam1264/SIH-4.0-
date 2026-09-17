@@ -6,7 +6,7 @@ import { groqVoiceService } from './groqVoiceService';
 import { whisperVoiceService } from './whisperVoiceService';
 import { speechService } from './speechService';
 
-export type TranscriptHandler = (text: string) => boolean; // return true = handled
+export type TranscriptHandler = (text: string) => boolean | Promise<boolean>; // return true = handled
 export type EngineType = 'groq' | 'whisper' | 'chrome' | 'none';
 
 class GlobalVoiceService {
@@ -178,16 +178,34 @@ class GlobalVoiceService {
     this._setStatus('Muted');
   }
 
-  private _dispatch(rawText: string) {
+  private async _dispatch(rawText: string) {
     const text = rawText.trim();
     if (!text) return;
 
-    // We don't drop transcripts here anymore to allow for Barge-in.
-    // If the transcript perfectly matches the last spoken text, we could drop it to prevent echo, 
-    // but the browser's echo cancellation usually handles it.
-    if (text.toLowerCase() === this._lastSpoken.toLowerCase()) {
-      console.log('[GlobalVoice] 🔇 Suppressed exact echo transcript:', text);
-      return;
+    // ── Universal Interruption: Immediately halt any running AI speech ──
+    if (speechService.isSpeaking) {
+      console.log('[GlobalVoice] 🛑 Interrupting active speech for incoming voice command:', text);
+      speechService.stop();
+    }
+
+    // Echo suppression: only suppress if audio is a long verbatim sentence echoed from computer speakers
+    const lower = text.toLowerCase();
+    const lastSpokenLower = this._lastSpoken.toLowerCase();
+    const timeSinceSpeech = Date.now() - speechService.lastSpeechEndTime;
+    const isRecentSpeech = speechService.isSpeaking || timeSinceSpeech < 500;
+
+    // Candidate action keywords that must NEVER be suppressed as echoes:
+    const isActionKeyword = /\b(stop|chup|ruko|skip|pause|cancel|confirm|yes|no|next|prev|previous|option|opt|select|clear|ans|answer|submit|drishti|time|flag|read|repeat|sunao|batao|help|dark|light|yellow|contrast|font|start|open|history|practice|result|performance|profile|setting|paper|material)\b/i.test(lower);
+
+    if (isRecentSpeech && lastSpokenLower && !isActionKeyword) {
+      if (lower === lastSpokenLower && lower.length > 20) {
+        console.log('[GlobalVoice] 🔇 Suppressed exact echo transcript:', text);
+        return;
+      }
+      if (lastSpokenLower.includes(lower) && lower.length > 30) {
+        console.log('[GlobalVoice] 🔇 Suppressed long verbatim echo transcript:', text);
+        return;
+      }
     }
 
     // Debounce duplicate transcripts arriving within 800ms
@@ -205,8 +223,13 @@ class GlobalVoiceService {
     // Run handlers in reverse (newest/most specific page handler gets first pick)
     const handlersCopy = [...this._handlers].reverse();
     for (const handler of handlersCopy) {
-      if (handler(text)) {
-        return; // successfully handled!
+      try {
+        const handled = await handler(text);
+        if (handled) {
+          return; // successfully handled!
+        }
+      } catch (err) {
+        console.error('[GlobalVoice] Handler error:', err);
       }
     }
   }
@@ -272,6 +295,10 @@ class GlobalVoiceService {
 
           // 1. If we have finalized transcript, dispatch for command execution
           if (finalPhrase) {
+            if (speechService.isSpeaking) {
+              console.log('[GlobalVoice] 🛑 Barge-in: Candidate spoke final phrase, stopping AI speech.');
+              speechService.stop();
+            }
             if (this._interimDispatchTimer) {
               clearTimeout(this._interimDispatchTimer);
               this._interimDispatchTimer = null;

@@ -7,9 +7,11 @@ import {
   Target,
   Play,
   Volume2,
+  Square,
   Mic,
   MicOff,
   Search,
+  X,
   HelpCircle,
   Sparkles,
   Calculator,
@@ -17,10 +19,12 @@ import {
   Layers,
   ArrowRight,
   ShieldCheck,
+  RotateCcw,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import PreExamCalibrationWizard from '../components/PreExamCalibrationWizard';
 import { speechService } from '../services/speechService';
+import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
 import { usePageVoice } from '../hooks/usePageVoice';
 import { useVoiceAssistant } from '../context/VoiceAssistantContext';
 import { EXAMS } from '../data/mockData';
@@ -30,7 +34,14 @@ import type { Exam } from '../types';
 const INITIAL_CATEGORIES = ['All', 'SSC', 'Banking', 'UPSC', 'Railway'];
 const DIFFICULTIES = ['All', 'Easy', 'Medium', 'Hard'];
 
-function ExamCard({ exam, onStart }: { exam: Exam; onStart: () => void }) {
+interface ExamCardProps {
+  exam: Exam;
+  index: number;
+  total: number;
+  onStart: () => void;
+}
+
+function ExamCard({ exam, index, total, onStart }: ExamCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
@@ -164,17 +175,46 @@ function ExamCard({ exam, onStart }: { exam: Exam; onStart: () => void }) {
           dot: '#EF4444',
         };
 
-  const handleListenOverview = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsPlayingAudio(true);
-    speechService.speak(
-      `Mock test: ${exam.title}. Category: ${exam.category}. Difficulty level: ${exam.difficulty}. Consists of ${exam.totalQuestions} questions with duration ${exam.durationMinutes} minutes. Covering ${exam.subjects.join(', ')}. Press Start Mock Examination button to begin.`
-    );
-    setTimeout(() => setIsPlayingAudio(false), 3500);
+  const handleStart = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (isPlayingAudio) {
+      speechService.stop();
+      setIsPlayingAudio(false);
+    }
+    onStart();
+  };
+
+  const handleToggleAudio = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (isPlayingAudio) {
+      speechService.stop();
+      setIsPlayingAudio(false);
+      screenReaderAnnouncer.announcePolite(`Stopped audio overview for ${exam.title}.`);
+    } else {
+      setIsPlayingAudio(true);
+      const text = `Mock test ${index + 1} of ${total}: ${exam.title}. Category: ${exam.category}. Difficulty level: ${exam.difficulty}. Consists of ${exam.totalQuestions} questions with duration ${exam.durationMinutes} minutes. Covering subjects: ${exam.subjects.join(', ')}. Description: ${exam.description}. Press Enter or press key ${index + 1} to begin examination.`;
+      speechService.speak(text, {
+        priority: true,
+        onEnd: () => setIsPlayingAudio(false),
+      });
+      screenReaderAnnouncer.announcePolite(text);
+    }
   };
 
   return (
     <article
+      tabIndex={0}
+      role="article"
+      aria-label={`Exam ${index + 1} of ${total}: ${exam.title}. Category ${exam.category}. Difficulty ${exam.difficulty}. ${exam.totalQuestions} questions, ${exam.durationMinutes} minutes. Covering ${exam.subjects.join(', ')}. Press Enter to start examination, or press L to listen to audio overview.`}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleStart();
+        } else if (e.key === 'l' || e.key === 'L') {
+          e.preventDefault();
+          handleToggleAudio();
+        }
+      }}
       className="card fade-in exam-card-premium"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -194,6 +234,8 @@ function ExamCard({ exam, onStart }: { exam: Exam; onStart: () => void }) {
           : '0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 8px -1px rgba(0, 0, 0, 0.02)',
         transform: isHovered ? 'translateY(-5px)' : 'translateY(0)',
         transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+        cursor: 'default',
+        outline: 'none',
       }}
     >
       {/* Category accent top ribbon */}
@@ -213,6 +255,29 @@ function ExamCard({ exam, onStart }: { exam: Exam; onStart: () => void }) {
         {/* Top Badges & Floating Category Icon */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+            {/* Direct Number Key Badge */}
+            <span
+              style={{
+                background: 'rgba(15, 23, 42, 0.07)',
+                color: 'var(--text)',
+                border: '1px solid rgba(15, 23, 42, 0.15)',
+                fontWeight: 800,
+                fontSize: '0.74rem',
+                padding: '0.25rem 0.6rem',
+                borderRadius: '999px',
+                lineHeight: 1.2,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+              }}
+              title={`Exam #${index + 1} — Press number key ${index + 1} to launch directly`}
+              aria-label={`Exam number ${index + 1}. Press key ${index + 1} to start.`}
+            >
+              <span style={{ fontSize: '0.68rem', opacity: 0.6 }} aria-hidden="true">#</span>
+              <span>{index + 1}</span>
+            </span>
+
             <span
               style={{
                 background: theme.badgeBg,
@@ -285,6 +350,7 @@ function ExamCard({ exam, onStart }: { exam: Exam; onStart: () => void }) {
               transition: 'transform 0.2s ease',
               transform: isHovered ? 'scale(1.08) rotate(3deg)' : 'scale(1)',
             }}
+            aria-hidden="true"
           >
             <CategoryIcon size={20} color={theme.iconColor} />
           </div>
@@ -416,7 +482,7 @@ function ExamCard({ exam, onStart }: { exam: Exam; onStart: () => void }) {
       {/* Button Row */}
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.25rem' }}>
         <button
-          onClick={onStart}
+          onClick={handleStart}
           className="exam-start-btn"
           style={{
             flex: 1,
@@ -437,7 +503,7 @@ function ExamCard({ exam, onStart }: { exam: Exam; onStart: () => void }) {
             position: 'relative',
             overflow: 'hidden',
           }}
-          aria-label={`Start mock examination: ${exam.title}`}
+          aria-label={`Start mock examination ${exam.title}. Press number key ${index + 1} or Enter`}
         >
           <span
             style={{
@@ -454,6 +520,20 @@ function ExamCard({ exam, onStart }: { exam: Exam; onStart: () => void }) {
             <Play size={11} fill="#ffffff" color="#ffffff" style={{ marginLeft: 1 }} />
           </span>
           <span>Start Mock Examination</span>
+          <span
+            style={{
+              fontSize: '0.72rem',
+              opacity: 0.9,
+              background: 'rgba(255, 255, 255, 0.22)',
+              padding: '0.12rem 0.45rem',
+              borderRadius: '0.35rem',
+              fontWeight: 700,
+              letterSpacing: '0.03em',
+            }}
+            aria-hidden="true"
+          >
+            Key [{index + 1}]
+          </span>
           <ArrowRight
             size={16}
             style={{
@@ -467,15 +547,15 @@ function ExamCard({ exam, onStart }: { exam: Exam; onStart: () => void }) {
 
         <button
           type="button"
-          onClick={handleListenOverview}
-          title="Listen to examination specifications aloud"
-          aria-label={`Listen to overview of ${exam.title}`}
+          onClick={handleToggleAudio}
+          title={isPlayingAudio ? 'Stop audio overview (Press L)' : `Listen to overview of ${exam.title} (Press L)`}
+          aria-label={isPlayingAudio ? `Stop audio overview of ${exam.title}` : `Listen to overview of ${exam.title} (Press L)`}
           style={{
             width: 44,
             height: 44,
             borderRadius: '0.75rem',
-            background: 'rgba(255, 255, 255, 0.85)',
-            border: `1.5px solid ${theme.cardBorder}`,
+            background: isPlayingAudio ? 'rgba(22, 163, 74, 0.14)' : 'rgba(255, 255, 255, 0.85)',
+            border: `1.5px solid ${isPlayingAudio ? '#16A34A' : theme.cardBorder}`,
             color: isPlayingAudio ? '#16A34A' : theme.accentColor,
             display: 'flex',
             alignItems: 'center',
@@ -486,7 +566,11 @@ function ExamCard({ exam, onStart }: { exam: Exam; onStart: () => void }) {
             flexShrink: 0,
           }}
         >
-          <Volume2 size={18} className={isPlayingAudio ? 'animate-bounce' : ''} />
+          {isPlayingAudio ? (
+            <Square size={16} fill="currentColor" aria-hidden="true" />
+          ) : (
+            <Volume2 size={18} aria-hidden="true" />
+          )}
         </button>
       </div>
     </article>
@@ -501,14 +585,18 @@ export default function ExamSelection() {
   const [examsList, setExamsList] = useState<Exam[]>(EXAMS);
   const { active: voiceActive, toggleVoice, status: voiceStatus } = useVoiceAssistant();
   const isStartingRef = useRef(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [showCalibrationWizard, setShowCalibrationWizard] = useState(false);
   const [selectedExamForCalibration, setSelectedExamForCalibration] = useState<Exam | null>(null);
 
   useEffect(() => {
     const fetchExams = () => {
-      examsApi.getAll().then(res => {
-        if (res && res.length) setExamsList(res);
-      }).catch(() => setExamsList(EXAMS));
+      examsApi
+        .getAll()
+        .then(res => {
+          if (res && res.length) setExamsList(res);
+        })
+        .catch(() => setExamsList(EXAMS));
     };
     fetchExams();
     window.addEventListener('sight_exams_updated', fetchExams);
@@ -527,128 +615,80 @@ export default function ExamSelection() {
     return Array.from(set);
   }, [examsList]);
 
-  const announcement =
-    'Mock Test Library. Available examinations are: SSC General Awareness, Banking Quantitative Aptitude, Railway General Knowledge, UPSC General Studies. Say Open SSC, or click to start. Press C to calibrate accessibility.';
+  // Filtered examinations list based on Category, Difficulty, and Search
+  const filtered = useMemo(() => {
+    return examsList.filter(e => {
+      const catOk = cat === 'All' || e.category === cat;
+      const diffOk = diff === 'All' || e.difficulty === diff;
+      const searchOk =
+        !search ||
+        e.title.toLowerCase().includes(search.toLowerCase()) ||
+        e.category.toLowerCase().includes(search.toLowerCase()) ||
+        (e.subjects && e.subjects.some(s => s.toLowerCase().includes(search.toLowerCase())));
+      return catOk && diffOk && searchOk;
+    });
+  }, [examsList, cat, diff, search]);
 
-  useEffect(() => {
-    document.title = 'Choose Mock Test — DrishtiX';
+  const handleResetFilters = () => {
+    setCat('All');
+    setDiff('All');
+    setSearch('');
+    const msg = `All filters reset. Showing all ${examsList.length} mock examinations.`;
+    speechService.speak(msg, { priority: true });
+    screenReaderAnnouncer.announcePolite(msg);
+  };
 
-    const timer = setTimeout(() => {
-      speechService.speak(announcement, { priority: true });
-    }, 400);
+  const handleCategorySelect = (selectedCategory: string) => {
+    setCat(selectedCategory);
+    const count = examsList.filter(e => {
+      const catOk = selectedCategory === 'All' || e.category === selectedCategory;
+      const diffOk = diff === 'All' || e.difficulty === diff;
+      const searchOk =
+        !search ||
+        e.title.toLowerCase().includes(search.toLowerCase()) ||
+        e.category.toLowerCase().includes(search.toLowerCase()) ||
+        (e.subjects && e.subjects.some(s => s.toLowerCase().includes(search.toLowerCase())));
+      return catOk && diffOk && searchOk;
+    }).length;
+    const text = `Filtered by category: ${selectedCategory}. ${count} mock test${count === 1 ? '' : 's'} available.`;
+    speechService.speak(text, { priority: true });
+    screenReaderAnnouncer.announcePolite(text);
+  };
 
-    return () => {
-      clearTimeout(timer);
-      speechService.stop();
-    };
-  }, []);
+  const handleDifficultySelect = (selectedDifficulty: string) => {
+    setDiff(selectedDifficulty);
+    const count = examsList.filter(e => {
+      const catOk = cat === 'All' || e.category === cat;
+      const diffOk = selectedDifficulty === 'All' || e.difficulty === selectedDifficulty;
+      const searchOk =
+        !search ||
+        e.title.toLowerCase().includes(search.toLowerCase()) ||
+        e.category.toLowerCase().includes(search.toLowerCase()) ||
+        (e.subjects && e.subjects.some(s => s.toLowerCase().includes(search.toLowerCase())));
+      return catOk && diffOk && searchOk;
+    }).length;
+    const text = `Filtered by difficulty: ${selectedDifficulty}. ${count} mock test${count === 1 ? '' : 's'} available.`;
+    speechService.speak(text, { priority: true });
+    screenReaderAnnouncer.announcePolite(text);
+  };
 
-  // Universal Keyboard Accessibility in Exam Catalogue
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-
-      if (e.key >= '1' && e.key <= '4') {
-        const idx = parseInt(e.key, 10) - 1;
-        if (examsList[idx]) {
-          e.preventDefault();
-          navigate(`/exam/${examsList[idx].id}`);
-        }
-        return;
-      }
-      if (e.key === 'c' || e.key === 'C') {
-        e.preventDefault();
-        setShowCalibrationWizard(true);
-        return;
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        navigate('/dashboard');
-        return;
-      }
+  const speakFilteredExams = () => {
+    if (filtered.length === 0) {
+      const msg = `No mock examinations found matching your active filters: Category ${cat}, Difficulty ${diff}${search ? `, Search term "${search}"` : ''}. Press Escape or click Reset Filters to view all examinations.`;
+      speechService.speak(msg, { priority: true });
+      screenReaderAnnouncer.announcePolite(msg);
+      return;
     }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [examsList]);
-
-  usePageVoice('ExamSelection', [
-    {
-      triggers: ['start ssc exam', 'start ssc', 'start reasoning exam', 'open ssc'],
-      answer: () => 'Starting SSC CGL General Intelligence and Reasoning mock test.',
-      action: () => navigate('/exam/ssc-reasoning-01'),
-    },
-    {
-      triggers: ['start banking exam', 'start banking', 'banking test', 'open banking'],
-      answer: () => 'Starting Banking Quantitative Aptitude mock test.',
-      action: () => navigate('/exam/banking-quant-01'),
-    },
-    {
-      triggers: ['start railway exam', 'start railway', 'open railway'],
-      answer: () => 'Starting Railway RRB NTPC mock test.',
-      action: () => navigate('/exam/railway-rrb-01'),
-    },
-    {
-      triggers: ['start upsc exam', 'start upsc', 'open upsc'],
-      answer: () => 'Starting UPSC Prelims General Studies mock test.',
-      action: () => navigate('/exam/upsc-prelims-01'),
-    },
-    {
-      triggers: ['start mock test', 'start exam', 'begin test', 'begin exam', 'start first test'],
-      answer: () => 'Starting mock examination.',
-      action: () => navigate(`/exam/${examsList[0]?.id || 'ssc-reasoning-01'}`),
-    },
-    {
-      triggers: ['show ssc', 'filter ssc', 'ssc exams'],
-      answer: () => 'Filtering by SSC examination series.',
-      action: () => setCat('SSC'),
-    },
-    {
-      triggers: ['show banking', 'filter banking', 'banking exams'],
-      answer: () => 'Filtering by Banking examination series.',
-      action: () => setCat('Banking'),
-    },
-    {
-      triggers: ['show upsc', 'filter upsc', 'upsc exams'],
-      answer: () => 'Filtering by UPSC examination series.',
-      action: () => setCat('UPSC'),
-    },
-    {
-      triggers: ['show railway', 'filter railway', 'railway exams'],
-      answer: () => 'Filtering by Railway examination series.',
-      action: () => setCat('Railway'),
-    },
-    {
-      triggers: ['show all exams', 'all exams', 'reset filter', 'all categories'],
-      answer: () => 'Showing all available mock examinations.',
-      action: () => {
-        setCat('All');
-        setDiff('All');
-        setSearch('');
-      },
-    },
-    {
-      triggers: ['summary', 'available exams', 'list exams', 'kitne exam hai'],
-      answer: () => `Mock Test Library contains ${examsList.length} live examinations across SSC, Banking, Railway, and UPSC with full voice accessibility and compensatory time support.`,
-    },
-  ]);
-
-  // Voice recognition keyboard shortcuts
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === 'v' || e.key === 'V') {
-        toggleVoice();
-      } else if (e.key === 'r' || e.key === 'R') {
-        speechService.speak(announcement, { priority: true });
-      } else if (e.key === 'c' || e.key === 'C') {
-        setSelectedExamForCalibration(examsList[0] || EXAMS[0]);
-        setShowCalibrationWizard(true);
-      }
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [announcement, voiceActive, toggleVoice, examsList]);
+    const listDescriptions = filtered
+      .map(
+        (e, i) =>
+          `Number ${i + 1}: ${e.title}, ${e.category} category, ${e.difficulty} difficulty, ${e.totalQuestions} questions, ${e.durationMinutes} minutes`
+      )
+      .join('. ');
+    const msg = `Showing ${filtered.length} mock test${filtered.length === 1 ? '' : 's'}. ${listDescriptions}. Press number keys 1 to ${filtered.length} to begin an exam, say Open followed by exam name, or press C to calibrate accessibility accommodations.`;
+    speechService.speak(msg, { priority: true });
+    screenReaderAnnouncer.announcePolite(msg);
+  };
 
   const startExamWithAnnouncement = (exam: Exam) => {
     // Check if candidate has completed accessibility calibration
@@ -672,17 +712,207 @@ export default function ExamSelection() {
     setTimeout(() => navigate(`/exam/${exam.id}`), 1400);
   };
 
+  // Spoken orientation on initial component mount
+  useEffect(() => {
+    document.title = 'Choose Mock Test — DrishtiX';
+
+    const timer = setTimeout(() => {
+      const welcome = `Mock Examination Library loaded. Showing ${examsList.length} available competitive examinations. Press 1 to ${examsList.length} to start directly, press R to read all exams aloud, press C to calibrate accessibility hardware, or press slash to search.`;
+      speechService.speak(welcome, { priority: false });
+      screenReaderAnnouncer.announcePolite(welcome);
+    }, 450);
+
+    return () => {
+      clearTimeout(timer);
+      speechService.stop();
+    };
+  }, [examsList.length]);
+
+  // Debounced live screen reader feedback on search changes
+  useEffect(() => {
+    if (!search) return;
+    const timer = setTimeout(() => {
+      screenReaderAnnouncer.announcePolite(
+        `Search for "${search}" returned ${filtered.length} mock test${filtered.length === 1 ? '' : 's'}.`
+      );
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [search, filtered.length]);
+
+  // Universal Single Consolidated Keyboard Listener
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      // Yield entirely if the modal calibration wizard is open
+      if (showCalibrationWizard) return;
+
+      const target = e.target as HTMLElement;
+      const isInput = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA';
+
+      // If user is currently typing in an input field
+      if (isInput) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          if (search) {
+            setSearch('');
+            speechService.speak('Search cleared.');
+            screenReaderAnnouncer.announcePolite('Search cleared.');
+          } else {
+            target.blur();
+          }
+        }
+        return;
+      }
+
+      // Hotkey: Number keys 1 to 9 launch from the CURRENTLY FILTERED list
+      if (e.key >= '1' && e.key <= '9') {
+        const idx = parseInt(e.key, 10) - 1;
+        if (filtered[idx]) {
+          e.preventDefault();
+          startExamWithAnnouncement(filtered[idx]);
+        } else if (idx < examsList.length) {
+          e.preventDefault();
+          const note = `Exam number ${idx + 1} is hidden by your current filters. ${filtered.length} exams visible. Press R to read available exams.`;
+          speechService.speak(note);
+          screenReaderAnnouncer.announcePolite(note);
+        }
+        return;
+      }
+
+      // Hotkey: C -> Calibrate Hardware & Accessibility Accommodations
+      if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        setSelectedExamForCalibration(filtered[0] || examsList[0] || EXAMS[0]);
+        setShowCalibrationWizard(true);
+        speechService.speak('Opening accessibility calibration.');
+        screenReaderAnnouncer.announcePolite('Opening accessibility calibration.');
+        return;
+      }
+
+      // Hotkey: R or B -> Read Filtered Exams Aloud
+      if (e.key === 'r' || e.key === 'R' || e.key === 'b' || e.key === 'B') {
+        e.preventDefault();
+        speakFilteredExams();
+        return;
+      }
+
+      // Hotkey: V -> Toggle Voice Assistant
+      if (e.key === 'v' || e.key === 'V') {
+        e.preventDefault();
+        toggleVoice();
+        return;
+      }
+
+      // Hotkey: / or S -> Focus Search Examination Input
+      if (e.key === '/' || e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        speechService.speak('Search examinations.');
+        screenReaderAnnouncer.announcePolite('Search examinations input focused.');
+        return;
+      }
+
+      // Hotkey: ? -> Spoken Shortcuts Guide
+      if (e.key === '?') {
+        e.preventDefault();
+        const help = `Mock Test shortcuts: Press 1 to ${Math.max(1, filtered.length)} to start an exam. Press R to read exams aloud. Press C to calibrate accessibility accommodations. Press slash to search. Press V to toggle voice assistant. Press Escape to clear filters or return to dashboard.`;
+        speechService.speak(help, { priority: true });
+        screenReaderAnnouncer.announcePolite(help);
+        return;
+      }
+
+      // Hotkey: Escape -> Clear active filters or navigate to Dashboard
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (cat !== 'All' || diff !== 'All' || search !== '') {
+          handleResetFilters();
+        } else {
+          speechService.speak('Returning to student dashboard.');
+          navigate('/dashboard');
+        }
+        return;
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [showCalibrationWizard, filtered, examsList, search, cat, diff, toggleVoice, navigate]);
+
+  // Integrated Voice Commands (English & Hindi/Hinglish)
   usePageVoice('ExamSelection', [
     {
-      triggers: ['start the mock test', 'start mock test', 'start exam', 'shuru karo', 'start test'],
-      answer: () => 'Starting mock examination.',
+      triggers: [
+        'start test 1',
+        'open test 1',
+        'test 1',
+        'first test',
+        'first exam',
+        'start first exam',
+        'start first test',
+        'pehla test',
+        'open first exam',
+      ],
+      answer: () => (filtered[0] ? `Starting ${filtered[0].title}.` : 'No mock test available at position 1.'),
       action: () => {
-        const exam = examsList.find(x => x.category === (cat === 'All' ? 'SSC' : cat)) || examsList[0];
-        startExamWithAnnouncement(exam);
+        if (filtered[0]) startExamWithAnnouncement(filtered[0]);
       },
     },
     {
-      triggers: ['start ssc', 'ssc shuru karo', 'start ssc exam', 'start ssc mock test'],
+      triggers: [
+        'start test 2',
+        'open test 2',
+        'test 2',
+        'second test',
+        'second exam',
+        'start second exam',
+        'dusra test',
+        'open second exam',
+      ],
+      answer: () => (filtered[1] ? `Starting ${filtered[1].title}.` : 'No mock test available at position 2.'),
+      action: () => {
+        if (filtered[1]) startExamWithAnnouncement(filtered[1]);
+      },
+    },
+    {
+      triggers: [
+        'start test 3',
+        'open test 3',
+        'test 3',
+        'third test',
+        'third exam',
+        'start third exam',
+        'tisra test',
+        'open third exam',
+      ],
+      answer: () => (filtered[2] ? `Starting ${filtered[2].title}.` : 'No mock test available at position 3.'),
+      action: () => {
+        if (filtered[2]) startExamWithAnnouncement(filtered[2]);
+      },
+    },
+    {
+      triggers: [
+        'start test 4',
+        'open test 4',
+        'test 4',
+        'fourth test',
+        'fourth exam',
+        'start fourth exam',
+        'chautha test',
+        'open fourth exam',
+      ],
+      answer: () => (filtered[3] ? `Starting ${filtered[3].title}.` : 'No mock test available at position 4.'),
+      action: () => {
+        if (filtered[3]) startExamWithAnnouncement(filtered[3]);
+      },
+    },
+    {
+      triggers: ['start the mock test', 'start mock test', 'start exam', 'shuru karo', 'start test', 'begin exam'],
+      answer: () => (filtered[0] ? `Starting ${filtered[0].title}.` : 'No mock test available.'),
+      action: () => {
+        if (filtered[0]) startExamWithAnnouncement(filtered[0]);
+      },
+    },
+    {
+      triggers: ['start ssc', 'open ssc', 'start ssc exam', 'start ssc mock test', 'ssc shuru karo'],
       answer: () => 'Starting SSC Mock Examination.',
       action: () => {
         const exam = examsList.find(x => x.category === 'SSC') || examsList[0];
@@ -690,7 +920,7 @@ export default function ExamSelection() {
       },
     },
     {
-      triggers: ['start banking', 'banking shuru karo', 'start bank exam', 'start banking mock test'],
+      triggers: ['start banking', 'open banking', 'start bank exam', 'start banking mock test', 'banking shuru karo'],
       answer: () => 'Starting Banking Quantitative Aptitude Examination.',
       action: () => {
         const exam = examsList.find(x => x.category === 'Banking') || examsList[1];
@@ -698,7 +928,7 @@ export default function ExamSelection() {
       },
     },
     {
-      triggers: ['start upsc', 'upsc shuru karo', 'start upsc exam', 'start upsc mock test'],
+      triggers: ['start upsc', 'open upsc', 'start upsc exam', 'start upsc mock test', 'upsc shuru karo'],
       answer: () => 'Starting UPSC General Studies Examination.',
       action: () => {
         const exam = examsList.find(x => x.category === 'UPSC') || examsList[2];
@@ -706,7 +936,7 @@ export default function ExamSelection() {
       },
     },
     {
-      triggers: ['start railway', 'railway shuru karo', 'start railway exam', 'start railway mock test'],
+      triggers: ['start railway', 'open railway', 'start railway exam', 'start railway mock test', 'railway shuru karo'],
       answer: () => 'Starting Railway Mock Examination.',
       action: () => {
         const exam = examsList.find(x => x.category === 'Railway') || examsList[3];
@@ -714,52 +944,63 @@ export default function ExamSelection() {
       },
     },
     {
-      triggers: ['open ssc', 'show ssc', 'ssc details'],
-      answer: () => 'Showing SSC examinations. Say start the mock test to begin.',
-      action: () => setCat('SSC'),
+      triggers: ['show ssc', 'filter ssc', 'ssc category', 'ssc exams', 'ssc details'],
+      answer: () => 'Filtering by SSC category.',
+      action: () => handleCategorySelect('SSC'),
     },
     {
-      triggers: ['open banking', 'show banking', 'banking details'],
-      answer: () => 'Showing Banking examinations. Say start banking to begin.',
-      action: () => setCat('Banking'),
+      triggers: ['show banking', 'filter banking', 'banking category', 'banking exams', 'banking details'],
+      answer: () => 'Filtering by Banking category.',
+      action: () => handleCategorySelect('Banking'),
     },
     {
-      triggers: ['open upsc', 'show upsc', 'upsc details'],
-      answer: () => 'Showing UPSC examinations. Say start upsc to begin.',
-      action: () => setCat('UPSC'),
+      triggers: ['show upsc', 'filter upsc', 'upsc category', 'upsc exams', 'upsc details'],
+      answer: () => 'Filtering by UPSC category.',
+      action: () => handleCategorySelect('UPSC'),
     },
     {
-      triggers: ['open railway', 'show railway', 'railway details'],
-      answer: () => 'Showing Railway examinations. Say start railway to begin.',
-      action: () => setCat('Railway'),
+      triggers: ['show railway', 'filter railway', 'railway category', 'railway exams', 'railway details'],
+      answer: () => 'Filtering by Railway category.',
+      action: () => handleCategorySelect('Railway'),
     },
     {
-      triggers: ['kitne exam', 'total exam', 'available exam', 'list', 'konsa exam', 'exams batao'],
-      answer: () => `Library me kul ${examsList.length} mock examinations hain.`,
+      triggers: ['show all exams', 'all exams', 'all categories', 'reset filter', 'reset filters', 'clear filters'],
+      answer: () => 'Showing all available mock examinations.',
+      action: () => handleResetFilters(),
     },
     {
-      triggers: ['hard', 'tough', 'sabse kathin', 'mushkil'],
-      answer: () => `UPSC General Studies mock test Hard difficulty level ka hai. Isme analytical depth sabse zyada hai.`,
+      triggers: ['easy', 'easy exams', 'easy tests', 'sabse aasan', 'saral'],
+      answer: () => 'Filtering by Easy difficulty level.',
+      action: () => handleDifficultySelect('Easy'),
     },
     {
-      triggers: ['easy', 'sabse aasan', 'saral'],
-      answer: () => `SSC General Awareness mock test Easy difficulty level ka hai. Beginners ke liye best start hai.`,
+      triggers: ['medium', 'medium exams', 'medium difficulty'],
+      answer: () => 'Filtering by Medium difficulty level.',
+      action: () => handleDifficultySelect('Medium'),
     },
     {
-      triggers: ['announcement', 'batao', 'briefing', 'sunao', 'overview'],
-      answer: () => announcement,
+      triggers: ['hard', 'hard exams', 'tough', 'sabse kathin', 'mushkil'],
+      answer: () => 'Filtering by Hard difficulty level.',
+      action: () => handleDifficultySelect('Hard'),
+    },
+    {
+      triggers: ['read exams', 'list exams', 'available exams', 'kitne exam', 'summary', 'overview', 'briefing', 'announcement', 'batao', 'sunao'],
+      answer: () => `Mock Test Library currently has ${filtered.length} tests matching your selection.`,
+      action: () => speakFilteredExams(),
+    },
+    {
+      triggers: ['calibrate', 'calibration', 'open calibration', 'hardware test', 'accessibility settings'],
+      answer: () => 'Opening pre-exam accessibility calibration wizard.',
+      action: () => {
+        setSelectedExamForCalibration(filtered[0] || examsList[0] || EXAMS[0]);
+        setShowCalibrationWizard(true);
+      },
+    },
+    {
+      triggers: ['help', 'shortcuts', 'keyboard help', 'madad'],
+      answer: () => 'Press number keys 1 to 4 to launch exams directly. Press R to read exams. Press C to calibrate. Press slash to search.',
     },
   ]);
-
-  const filtered = examsList.filter(e => {
-    const catOk = cat === 'All' || e.category === cat;
-    const diffOk = diff === 'All' || e.difficulty === diff;
-    const searchOk =
-      !search ||
-      e.title.toLowerCase().includes(search.toLowerCase()) ||
-      e.category.toLowerCase().includes(search.toLowerCase());
-    return catOk && diffOk && searchOk;
-  });
 
   return (
     <AppLayout title="Mock Tests">
@@ -782,17 +1023,20 @@ export default function ExamSelection() {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{
-              width: 34,
-              height: 34,
-              borderRadius: '0.55rem',
-              background: 'rgba(255,255,255,0.18)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backdropFilter: 'blur(6px)',
-              flexShrink: 0
-            }}>
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: '0.55rem',
+                background: 'rgba(255,255,255,0.18)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backdropFilter: 'blur(6px)',
+                flexShrink: 0,
+              }}
+              aria-hidden="true"
+            >
               <BookOpen size={18} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -803,7 +1047,7 @@ export default function ExamSelection() {
                   fontWeight: 800,
                   letterSpacing: '-0.02em',
                   margin: 0,
-                  lineHeight: 1.2
+                  lineHeight: 1.2,
                 }}
               >
                 Mock Examination Library
@@ -828,8 +1072,10 @@ export default function ExamSelection() {
           <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
             <button
               onClick={() => {
-                setSelectedExamForCalibration(EXAMS[0]);
+                setSelectedExamForCalibration(filtered[0] || examsList[0] || EXAMS[0]);
                 setShowCalibrationWizard(true);
+                speechService.speak('Opening pre-exam accessibility calibration.');
+                screenReaderAnnouncer.announcePolite('Opening pre-exam accessibility calibration.');
               }}
               style={{
                 background: 'rgba(255,255,255,0.2)',
@@ -846,12 +1092,12 @@ export default function ExamSelection() {
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
-              aria-label="Calibrate accessibility hardware and accommodations (C)"
+              aria-label="Calibrate accessibility hardware and accommodations (Press C)"
             >
-              <ShieldCheck size={15} /> Calibrate (C)
+              <ShieldCheck size={15} aria-hidden="true" /> Calibrate (C)
             </button>
             <button
-              onClick={() => speechService.speak(announcement, { priority: true })}
+              onClick={speakFilteredExams}
               style={{
                 background: 'rgba(255,255,255,0.15)',
                 color: '#fff',
@@ -867,9 +1113,9 @@ export default function ExamSelection() {
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
-              aria-label="Read available exams aloud (R)"
+              aria-label="Read available exams aloud (Press R)"
             >
-              <Volume2 size={15} /> Read Exams (R)
+              <Volume2 size={15} aria-hidden="true" /> Read Exams (R)
             </button>
           </div>
         </div>
@@ -890,7 +1136,7 @@ export default function ExamSelection() {
             borderRadius: '0.75rem',
           }}
           role="region"
-          aria-label="Voice command assistant"
+          aria-label="Voice command assistant status and controls"
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div
@@ -905,11 +1151,15 @@ export default function ExamSelection() {
                 justifyContent: 'center',
                 flexShrink: 0,
               }}
+              aria-hidden="true"
             >
               <Mic size={16} />
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-              <span style={{ fontWeight: 700, fontSize: '0.85rem', color: voiceActive ? '#059669' : 'var(--text)' }}>
+              <span
+                style={{ fontWeight: 700, fontSize: '0.85rem', color: voiceActive ? '#059669' : 'var(--text)' }}
+                aria-live="polite"
+              >
                 Speech Guidance: {voiceActive ? voiceStatus : 'Press V for Voice Commands'}
               </span>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -919,7 +1169,15 @@ export default function ExamSelection() {
           </div>
 
           <button
-            onClick={toggleVoice}
+            onClick={() => {
+              toggleVoice();
+              const nextState = !voiceActive;
+              const msg = nextState ? 'Voice assistant activated. Listening for commands.' : 'Voice assistant deactivated.';
+              speechService.speak(msg);
+              screenReaderAnnouncer.announcePolite(msg);
+            }}
+            aria-pressed={voiceActive}
+            aria-label={voiceActive ? 'Deactivate speech guidance (Press V)' : 'Activate speech guidance (Press V)'}
             style={{
               background: voiceActive ? 'rgba(16,185,129,0.12)' : 'var(--primary-light)',
               color: voiceActive ? '#059669' : 'var(--primary)',
@@ -933,10 +1191,10 @@ export default function ExamSelection() {
               gap: '0.4rem',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
-              boxShadow: voiceActive ? '0 0 10px rgba(16,185,129,0.2)' : 'none'
+              boxShadow: voiceActive ? '0 0 10px rgba(16,185,129,0.2)' : 'none',
             }}
           >
-            {voiceActive ? <Mic size={14} className="mic-pulse" /> : <MicOff size={14} />}
+            {voiceActive ? <Mic size={14} className="mic-pulse" aria-hidden="true" /> : <MicOff size={14} aria-hidden="true" />}
             <span>{voiceActive ? 'Listening (V)' : 'Mic On (V)'}</span>
           </button>
         </div>
@@ -961,19 +1219,28 @@ export default function ExamSelection() {
           <div style={{ flex: '1 1 240px', position: 'relative' }}>
             <label
               htmlFor="exam-search"
-              style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', display: 'block', marginBottom: '0.35rem' }}
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                color: 'var(--text-muted)',
+                display: 'block',
+                marginBottom: '0.35rem',
+              }}
             >
-              Search Examination
+              Search Examination <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>(Press / or S)</span>
             </label>
             <div style={{ position: 'relative' }}>
               <input
+                ref={searchInputRef}
                 id="exam-search"
                 type="search"
                 className="input-field"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search by exam name or category…"
-                style={{ padding: '0.65rem 0.9rem 0.65rem 2.2rem', fontSize: '0.875rem', borderRadius: '0.65rem' }}
+                style={{ padding: '0.65rem 2.2rem 0.65rem 2.2rem', fontSize: '0.875rem', borderRadius: '0.65rem' }}
+                aria-label="Search examination by name, subject, or category"
+                aria-describedby="search-hint"
               />
               <Search
                 size={16}
@@ -981,6 +1248,38 @@ export default function ExamSelection() {
                 style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)' }}
                 aria-hidden="true"
               />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch('');
+                    searchInputRef.current?.focus();
+                    speechService.speak('Search cleared.');
+                    screenReaderAnnouncer.announcePolite('Search cleared.');
+                  }}
+                  aria-label="Clear search input text"
+                  style={{
+                    position: 'absolute',
+                    right: '0.75rem',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0.2rem',
+                    borderRadius: '50%',
+                  }}
+                >
+                  <X size={15} aria-hidden="true" />
+                </button>
+              )}
+              <span id="search-hint" className="sr-only">
+                Type exam name or subject to filter results in real time. Press Escape to clear.
+              </span>
             </div>
           </div>
 
@@ -990,11 +1289,19 @@ export default function ExamSelection() {
               <legend style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
                 Filter by Category
               </legend>
-              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <div
+                role="radiogroup"
+                aria-label="Filter mock tests by category"
+                style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}
+              >
                 {availableCategories.map((c: string) => (
                   <button
                     key={c}
-                    onClick={() => setCat(c)}
+                    type="button"
+                    role="radio"
+                    aria-checked={cat === c}
+                    aria-label={`Category filter: ${c}${cat === c ? ', selected' : ''}`}
+                    onClick={() => handleCategorySelect(c)}
                     style={{
                       padding: '0.45rem 0.9rem',
                       borderRadius: '0.6rem',
@@ -1007,7 +1314,6 @@ export default function ExamSelection() {
                       cursor: 'pointer',
                       transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
-                    aria-pressed={cat === c}
                   >
                     {c}
                   </button>
@@ -1022,11 +1328,19 @@ export default function ExamSelection() {
               <legend style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
                 Difficulty Level
               </legend>
-              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <div
+                role="radiogroup"
+                aria-label="Filter mock tests by difficulty level"
+                style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}
+              >
                 {DIFFICULTIES.map(d => (
                   <button
                     key={d}
-                    onClick={() => setDiff(d)}
+                    type="button"
+                    role="radio"
+                    aria-checked={diff === d}
+                    aria-label={`Difficulty filter: ${d}${diff === d ? ', selected' : ''}`}
+                    onClick={() => handleDifficultySelect(d)}
                     style={{
                       padding: '0.45rem 0.9rem',
                       borderRadius: '0.6rem',
@@ -1039,7 +1353,6 @@ export default function ExamSelection() {
                       cursor: 'pointer',
                       transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
                     }}
-                    aria-pressed={diff === d}
                   >
                     {d}
                   </button>
@@ -1049,37 +1362,110 @@ export default function ExamSelection() {
           </div>
         </div>
 
-        {/* Status Count */}
-        <div style={{ marginBottom: '1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }} role="status" aria-live="polite">
-          Showing <strong style={{ color: 'var(--text)' }}>{filtered.length}</strong> available mock tests
+        {/* Status Count & Active Filters Bar */}
+        <div
+          style={{
+            marginBottom: '1rem',
+            color: 'var(--text-muted)',
+            fontSize: '0.875rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
+          }}
+          role="status"
+          aria-live="polite"
+        >
+          <span>
+            Showing <strong style={{ color: 'var(--text)' }}>{filtered.length}</strong> available mock test{filtered.length === 1 ? '' : 's'}
+            {(cat !== 'All' || diff !== 'All' || search) && (
+              <span style={{ marginLeft: '0.5rem', fontSize: '0.8rem', color: '#2563EB', fontWeight: 600 }}>
+                (Active:{cat !== 'All' ? ` Category: ${cat}` : ''}{diff !== 'All' ? ` Difficulty: ${diff}` : ''}{search ? ` Search: "${search}"` : ''})
+              </span>
+            )}
+          </span>
+          {(cat !== 'All' || diff !== 'All' || search) && (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#2563EB',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: '0.2rem 0.5rem',
+                borderRadius: '0.4rem',
+              }}
+              aria-label="Clear active filters and show all exams (Press Escape)"
+            >
+              <RotateCcw size={13} aria-hidden="true" />
+              <span>Reset All Filters (Esc)</span>
+            </button>
+          )}
         </div>
 
         {/* ── 4. Exam Cards Grid ── */}
         {filtered.length > 0 ? (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
-            {filtered.map(e => (
-              <ExamCard key={e.id} exam={e} onStart={() => startExamWithAnnouncement(e)} />
+            {filtered.map((e, idx) => (
+              <ExamCard
+                key={e.id}
+                exam={e}
+                index={idx}
+                total={filtered.length}
+                onStart={() => startExamWithAnnouncement(e)}
+              />
             ))}
           </div>
         ) : (
           <div
             className="card"
-            style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--text-muted)', background: '#fff' }}
+            style={{
+              textAlign: 'center',
+              padding: '3.5rem 2rem',
+              color: 'var(--text-muted)',
+              background: 'var(--bg-card)',
+              border: '1.5px dashed var(--border)',
+              borderRadius: '1rem',
+            }}
+            role="alert"
+            aria-live="assertive"
           >
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem', color: 'var(--text-muted)' }}>
-              <Search size={44} strokeWidth={1.5} />
+              <Search size={44} strokeWidth={1.5} aria-hidden="true" />
             </div>
-            <p style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>No exams found matching your selected filters.</p>
+            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text)', marginBottom: '0.4rem' }}>
+              No Mock Tests Found
+            </h2>
+            <p style={{ fontSize: '0.88rem', marginBottom: '1.25rem', maxWidth: 440, margin: '0 auto 1.25rem' }}>
+              No examinations match your current filters ({cat !== 'All' ? `Category: ${cat}, ` : ''}{diff !== 'All' ? `Difficulty: ${diff}, ` : ''}{search ? `Search: "${search}"` : ''}).
+            </p>
             <button
-              className="btn-ghost"
-              onClick={() => {
-                setCat('All');
-                setDiff('All');
-                setSearch('');
+              onClick={handleResetFilters}
+              style={{
+                padding: '0.6rem 1.35rem',
+                background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '0.65rem',
+                fontWeight: 700,
+                fontSize: '0.88rem',
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(37, 99, 235, 0.35)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.45rem',
               }}
-              style={{ color: '#2563EB', fontWeight: 600 }}
+              aria-label="Reset all filters to view all available examinations (Press Escape)"
             >
-              Reset Filters
+              <RotateCcw size={15} aria-hidden="true" />
+              <span>Reset Filters (Esc)</span>
             </button>
           </div>
         )}
@@ -1088,9 +1474,9 @@ export default function ExamSelection() {
       <PreExamCalibrationWizard
         isOpen={showCalibrationWizard}
         onClose={() => setShowCalibrationWizard(false)}
-        onComplete={({ timeMultiplier, autonomousMode }) => {
+        onComplete={() => {
           setShowCalibrationWizard(false);
-          const targetExam = selectedExamForCalibration || EXAMS[0];
+          const targetExam = selectedExamForCalibration || filtered[0] || examsList[0] || EXAMS[0];
           navigate(`/exam/${targetExam.id}`);
         }}
         examTitle={selectedExamForCalibration?.title || 'Mock Examination'}

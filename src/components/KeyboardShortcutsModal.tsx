@@ -27,7 +27,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
     if (!isOpen) return;
     audioCueService.select();
     speechService.speak(
-      'Keyboard shortcuts guide opened. You can navigate the exam completely without a mouse using 1 to 4 for options, N for next, P for previous, R to read aloud, and S to submit. Press Escape to close this guide.',
+      'Drishti Keyboard and Voice Shortcuts guide opened. You can control the platform completely with voice by saying Drishti start exam, Drishti read notification, or using keyboard shortcuts like Alt+D to wake Drishti, Alt+N for notifications, and 1 to 4 for options. Press Escape to close.',
       { priority: true }
     );
 
@@ -41,6 +41,19 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
   if (!isOpen) return null;
 
   const shortcutSections = [
+    {
+      title: 'Drishti Voice Assistant Commands',
+      icon: Mic,
+      color: '#8B5CF6',
+      items: [
+        { keys: ['"Drishti start exam"'], desc: 'Begin competitive mock exam' },
+        { keys: ['"Drishti read notification"'], desc: 'Read unread notifications aloud' },
+        { keys: ['"Drishti next question"'], desc: 'Advance to next exam question' },
+        { keys: ['"Drishti select option B"'], desc: 'Select option A, B, C, or D' },
+        { keys: ['"Drishti time remaining"'], desc: 'Hear remaining exam time' },
+        { keys: ['"Hey Drishti"'], desc: 'Wake Drishti assistant for help' },
+      ],
+    },
     {
       title: 'Option Selection',
       icon: CheckCircle2,
@@ -62,7 +75,8 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
         { keys: ['N', '→'], desc: 'Next question' },
         { keys: ['P', '←'], desc: 'Previous question' },
         { keys: ['F'], desc: 'Toggle flag (Mark for Review)' },
-        { keys: ['S'], desc: 'Open Submit Examination confirmation dialog' },
+        { keys: ['S', 'Alt + S'], desc: 'Open Submit Examination confirmation dialog' },
+        { keys: ['T'], desc: 'Hear remaining exam time' },
       ],
     },
     {
@@ -70,8 +84,11 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
       icon: Volume2,
       color: '#7C3AED',
       items: [
+        { keys: ['Alt + D', 'V'], desc: 'Wake / Toggle Drishti voice assistant' },
+        { keys: ['Alt + N'], desc: 'Read notifications aloud with Drishti' },
+        { keys: ['Esc'], desc: 'Immediately silence speech' },
+        { keys: ['B', 'O'], desc: 'Hear spoken page orientation' },
         { keys: ['R'], desc: 'Read question and options aloud' },
-        { keys: ['V'], desc: 'Toggle microphone speech recognition on / off' },
         { keys: ['M'], desc: 'Verbalize mathematical formula phonetically' },
         { keys: ['E'], desc: 'AI Explain / Simplify question text' },
         { keys: ['D'], desc: 'Describe visual diagram aloud' },
@@ -82,7 +99,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
       icon: Zap,
       color: '#D97706',
       items: [
-        { keys: ['?'], desc: 'Open this Keyboard Shortcuts cheat sheet' },
+        { keys: ['?', 'Alt + K'], desc: 'Open this Keyboard & Voice cheat sheet' },
         { keys: ['Esc'], desc: 'Close open dialogs, menus, or overlays' },
         { keys: ['Tab'], desc: 'Move accessible focus forward' },
         { keys: ['Shift + Tab'], desc: 'Move accessible focus backward' },

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { speechService } from '../services/speechService';
 import { audioCueService } from '../services/audioCueService';
+import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
 import { globalVoiceService } from '../services/globalVoiceService';
 import { useAccessibility } from '../context/AccessibilityContext';
 import type { ThemeMode, FontSize } from '../types';
@@ -76,50 +77,151 @@ export default function PreExamCalibrationWizard({
     if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' && (e.target as HTMLInputElement).type === 'text') return;
+
       if (e.key === 'Escape') {
+        e.preventDefault();
         onClose();
-      } else if (e.key === 'r' || e.key === 'R') {
+        screenReaderAnnouncer.announcePolite('Calibration wizard closed.');
+        return;
+      }
+      if (e.key === 'r' || e.key === 'R') {
+        e.preventDefault();
         speakStepGuidance(step);
-      } else if (e.key === 'Enter') {
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
         if (step < 4) handleNext();
         else handleFinish();
+        return;
+      }
+      if (e.key === 'ArrowRight' || e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        if (step < 4) handleNext();
+        return;
+      }
+      if (e.key === 'ArrowLeft' || e.key === 'p' || e.key === 'P' || e.key === 'Backspace') {
+        e.preventDefault();
+        if (step > 1) handlePrev();
+        return;
+      }
+
+      // Step 1 shortcuts
+      if (step === 1) {
+        if (e.key === 't' || e.key === 'T') {
+          e.preventDefault();
+          handleTestAudio();
+          return;
+        }
+      }
+
+      // Step 2 shortcuts
+      if (step === 2) {
+        if (e.key === 'm' || e.key === 'M') {
+          e.preventDefault();
+          handleStartMicTest();
+          return;
+        }
+      }
+
+      // Step 3 shortcuts
+      if (step === 3) {
+        if (e.key === 'c' || e.key === 'C') {
+          e.preventDefault();
+          const themes: ThemeMode[] = ['default', 'high-contrast', 'yellow-black'];
+          const nextIdx = (themes.indexOf(prefs.theme) + 1) % themes.length;
+          const nextTheme = themes[nextIdx];
+          setTheme(nextTheme);
+          const msg = `Contrast theme set to ${nextTheme === 'default' ? 'Light Clean' : nextTheme === 'high-contrast' ? 'High Contrast Dark' : 'Yellow on Black'}`;
+          speechService.speak(msg);
+          screenReaderAnnouncer.announcePolite(msg);
+          return;
+        }
+        if (e.key === 'f' || e.key === 'F') {
+          e.preventDefault();
+          const sizes: FontSize[] = ['default', 'large', 'xlarge'];
+          const nextIdx = (sizes.indexOf(prefs.fontSize) + 1) % sizes.length;
+          const nextSize = sizes[nextIdx];
+          setFontSize(nextSize);
+          const msg = `Font size set to ${nextSize === 'default' ? 'Normal' : nextSize === 'large' ? 'Large' : 'Extra Large'}`;
+          speechService.speak(msg);
+          screenReaderAnnouncer.announcePolite(msg);
+          return;
+        }
+        if (e.key === 's' || e.key === 'S') {
+          e.preventDefault();
+          const nextMode = !screenReaderMode;
+          setScreenReaderMode(nextMode);
+          const msg = nextMode ? 'External screen reader mode enabled.' : 'External screen reader mode disabled.';
+          speechService.speak(msg);
+          screenReaderAnnouncer.announcePolite(msg);
+          return;
+        }
+      }
+
+      // Step 4 shortcuts
+      if (step === 4) {
+        if (e.key === '1') {
+          e.preventDefault();
+          setTimeMultiplier(1.0);
+          const msg = 'Time multiplier set to 1.0x standard time.';
+          speechService.speak(msg);
+          screenReaderAnnouncer.announcePolite(msg);
+          return;
+        }
+        if (e.key === '2') {
+          e.preventDefault();
+          setTimeMultiplier(1.5);
+          const msg = 'Time multiplier set to 1.5x PwD default extra time.';
+          speechService.speak(msg);
+          screenReaderAnnouncer.announcePolite(msg);
+          return;
+        }
+        if (e.key === '3') {
+          e.preventDefault();
+          setTimeMultiplier(2.0);
+          const msg = 'Time multiplier set to 2.0x double extra time.';
+          speechService.speak(msg);
+          screenReaderAnnouncer.announcePolite(msg);
+          return;
+        }
+        if (e.key === 'a' || e.key === 'A') {
+          e.preventDefault();
+          const nextAuto = !autonomousMode;
+          setAutonomousMode(nextAuto);
+          const msg = nextAuto ? 'Autonomous Scribe-Free Mode enabled.' : 'Autonomous Scribe-Free Mode disabled.';
+          speechService.speak(msg);
+          screenReaderAnnouncer.announcePolite(msg);
+          return;
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, step, audioTested, micTested, timeMultiplier, autonomousMode]);
+  }, [isOpen, step, audioTested, micTested, timeMultiplier, autonomousMode, screenReaderMode, prefs.theme, prefs.fontSize]);
 
   const speakStepGuidance = (currentStep: number) => {
     speechService.stop();
+    let text = '';
     switch (currentStep) {
       case 1:
-        speechService.speak(
-          'Step 1: Test your audio output. Click Test Audio or press T to verify speech narration and chime cues.',
-          { priority: true }
-        );
+        text = 'Step 1: Audio output. Click Test Audio or press T to verify speech narration and chime cues. Press Enter to proceed.';
         break;
       case 2:
-        speechService.speak(
-          'Step 2: Microphone speech recognition test. Click Start Listening or say Option A or Next to verify your microphone.',
-          { priority: true }
-        );
+        text = 'Step 2: Microphone speech recognition. Click Start Voice Test or press M and say Option A or Next. Press Enter to proceed.';
         break;
       case 3:
-        speechService.speak(
-          'Step 3: Visual display and screen reader mode. Select high contrast, font size, or check external screen reader mode if using NVDA or JAWS.',
-          { priority: true }
-        );
+        text = 'Step 3: Visual display and screen reader mode. Press C to cycle themes, F to cycle font sizes, or S to toggle external screen reader mode. Press Enter to proceed.';
         break;
       case 4:
-        speechService.speak(
-          `Step 4: Accommodations. Your extra time multiplier is ${timeMultiplier}x. Autonomous Scribe-Free Mode is ${
-            autonomousMode ? 'enabled' : 'disabled'
-          }. Press Enter to begin examination.`,
-          { priority: true }
-        );
+        text = `Step 4: Accommodations. Time multiplier is ${timeMultiplier}x. Press 1 for standard, 2 for 1.5x, 3 for double time. Press A to toggle autonomous mode. Press Enter to begin examination now.`;
         break;
     }
+    speechService.speak(text, { priority: true });
+    screenReaderAnnouncer.announceAssertive(text);
   };
 
   const handleTestAudio = () => {

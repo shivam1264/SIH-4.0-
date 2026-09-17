@@ -29,9 +29,11 @@ import AppLayout from '../components/AppLayout';
 import { AI_RECOMMENDATIONS } from '../data/mockData';
 import { speechService } from '../services/speechService';
 import { audioCueService } from '../services/audioCueService';
+import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { usePageVoice } from '../hooks/usePageVoice';
 import { classifyVoiceCommand, classifyVoiceIntent } from '../services/voiceCommandClassifier';
+import { drishtiNluService } from '../services/drishtiNluService';
 import { globalVoiceService } from '../services/globalVoiceService';
 
 interface QuestionItem {
@@ -377,10 +379,12 @@ export default function Practice() {
       setScore(s => ({ ...s, correct: s.correct + 1 }));
       setStreak(st => st + 1);
       triggerConfetti();
+      screenReaderAnnouncer.announceAssertive(`Correct! ${curQ.explanation}`);
       speechService.speak(`Correct! ${curQ.explanation}`, { priority: true });
     } else {
       audioCueService.wrong();
       setStreak(0);
+      screenReaderAnnouncer.announceAssertive(`Incorrect. The correct answer is Option ${String.fromCharCode(65 + curQ.correct)}: ${curQ.options[curQ.correct]}. ${curQ.explanation}`);
       speechService.speak(`Incorrect. The correct answer is Option ${String.fromCharCode(65 + curQ.correct)}: ${curQ.options[curQ.correct]}. ${curQ.explanation}`, { priority: true });
     }
     setScore(s => ({ ...s, total: s.total + 1 }));
@@ -603,7 +607,12 @@ export default function Practice() {
       setVoiceStatus(s);
     });
 
-    const unregister = globalVoiceService.register((rawText: string): boolean => {
+    const unsubSpeechStop = speechService.onStop(() => {
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+    });
+
+    const unregister = globalVoiceService.register(async (rawText: string): Promise<boolean> => {
       if (!voiceActiveRef.current || !isMountedRef.current) return false;
 
       const clean = rawText.toLowerCase().replace(/[.,!?;:\-_'"`~]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -612,20 +621,19 @@ export default function Practice() {
       console.log('[Practice Voice] 🗣️ Heard:', clean, 'isSpeaking:', isSpeakingRef.current);
       setVoiceStatus(`Recognized: "${clean}"`);
 
-      // 0. If user says STOP / SKIP / CHUP / PAUSE, immediately cancel reading aloud
-      if (clean.includes('stop') || clean.includes('chup') || clean.includes('skip') || clean.includes('pause') || clean.includes('ruko')) {
-        console.log('[Practice Voice] ⏹️ Reading interrupted by user command');
+      // 0. Universal Interruption: If question is reading aloud, stop speech immediately so user's command executes!
+      if (isSpeakingRef.current || speechService.isSpeaking) {
+        console.log('[Practice Voice] ⏹️ Reading interrupted by user command:', clean);
         speechService.stop();
         setIsSpeaking(false);
         isSpeakingRef.current = false;
+      }
+
+      // If user explicitly says STOP / SKIP / CHUP / PAUSE, acknowledge and stop
+      if (clean.includes('stop') || clean.includes('chup') || clean.includes('skip') || clean.includes('pause') || clean.includes('ruko')) {
         audioCueService.select();
         setVoiceStatus('Reading stopped. Speak your answer now.');
         return true;
-      }
-
-      // 0.5. If the question is currently reading aloud, ignore audio from computer speakers
-      if (isSpeakingRef.current) {
-        return false;
       }
 
       // 0.8. Return to All Topics voice commands:
@@ -712,8 +720,8 @@ export default function Practice() {
         return true;
       }
 
-      // 1. Semantic Intent Recognition
-      const intent = classifyVoiceIntent(clean, {
+      // 1. Semantic Real-World AI Intent Recognition
+      const intent = await drishtiNluService.understand(clean, {
         examState: 'in-progress',
         route: '/practice',
         currentQuestionIndex: qiRef.current,
@@ -789,6 +797,7 @@ export default function Practice() {
     return () => {
       unregister();
       unsubStatus();
+      unsubSpeechStop();
     };
   }, [voiceActive]);
 
@@ -993,6 +1002,7 @@ export default function Practice() {
                         className="btn-primary"
                         disabled={!available}
                         onClick={() => available && startTopic(rec.topic)}
+                        aria-label={`Start Precision Drill for ${rec.title}. Current accuracy ${rec.currentAccuracy} percent, target ${rec.targetAccuracy} percent.`}
                         style={{
                           width: '100%',
                           justifyContent: 'center',
@@ -1039,6 +1049,7 @@ export default function Practice() {
                   <button
                     key={topic}
                     onClick={() => startTopic(topic)}
+                    aria-label={`Start ${topic} practice drill. Subject: ${data.subject}, ${data.questions.length} questions available.`}
                     className={`card-interactive ${fadeClass}`}
                     style={{
                       textAlign: 'left',

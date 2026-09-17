@@ -427,6 +427,7 @@ export default function Dashboard() {
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <button
                 onClick={() => navigate('/exams')}
+                aria-label="Start new mock examination (Shortcut: 1)"
                 style={{
                   background: '#fff',
                   color: '#2563EB',
@@ -785,6 +786,7 @@ export default function Dashboard() {
                 <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
                   <button
                     onClick={(e) => { e.stopPropagation(); navigate('/exam/ssc-reasoning-01'); }}
+                    aria-label="Start SSC CGL General Intelligence & Reasoning mock examination"
                     style={{
                       flex: 1,
                       padding: '0.72rem 1rem',
@@ -814,6 +816,7 @@ export default function Dashboard() {
                       e.stopPropagation();
                       speechService.speak('SSC CGL General Intelligence & Reasoning. 10 questions. 12 minutes.');
                     }}
+                    aria-label="Listen to specifications for SSC CGL General Intelligence & Reasoning"
                     style={{
                       width: 40,
                       height: 40,
@@ -944,6 +947,7 @@ export default function Dashboard() {
                 <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
                   <button
                     onClick={(e) => { e.stopPropagation(); navigate('/exam/banking-quant-01'); }}
+                    aria-label="Start Banking PO Quantitative Aptitude mock examination"
                     style={{
                       flex: 1,
                       padding: '0.72rem 1rem',
@@ -973,6 +977,7 @@ export default function Dashboard() {
                       e.stopPropagation();
                       speechService.speak('Banking PO Quantitative Aptitude. 8 questions. 15 minutes.');
                     }}
+                    aria-label="Listen to specifications for Banking PO Quantitative Aptitude"
                     style={{
                       width: 40,
                       height: 40,
@@ -1103,6 +1108,7 @@ export default function Dashboard() {
                 <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
                   <button
                     onClick={(e) => { e.stopPropagation(); navigate('/exam/upsc-gs1-01'); }}
+                    aria-label="Start UPSC Prelims General Studies mock examination"
                     style={{
                       flex: 1,
                       padding: '0.72rem 1rem',
@@ -1132,6 +1138,7 @@ export default function Dashboard() {
                       e.stopPropagation();
                       speechService.speak('UPSC Prelims General Studies. 8 questions. 16 minutes.');
                     }}
+                    aria-label="Listen to specifications for UPSC Prelims General Studies"
                     style={{
                       width: 40,
                       height: 40,
@@ -1262,6 +1269,7 @@ export default function Dashboard() {
                 <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
                   <button
                     onClick={(e) => { e.stopPropagation(); navigate('/exam/railway-gk-01'); }}
+                    aria-label="Start Railway RRB General Knowledge & Science mock examination"
                     style={{
                       flex: 1,
                       padding: '0.72rem 1rem',
@@ -1291,6 +1299,7 @@ export default function Dashboard() {
                       e.stopPropagation();
                       speechService.speak('Railway RRB General Knowledge & Science. 10 questions. 10 minutes.');
                     }}
+                    aria-label="Listen to specifications for Railway RRB General Knowledge & Science"
                     style={{
                       width: 40,
                       height: 40,

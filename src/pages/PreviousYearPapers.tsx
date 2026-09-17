@@ -19,6 +19,7 @@ import {
 import AppLayout from '../components/AppLayout';
 import { pyqsApi } from '../services/api';
 import { speechService } from '../services/speechService';
+import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
 import { usePageVoice } from '../hooks/usePageVoice';
 import type { PYQPaper } from '../types';
 
@@ -67,6 +68,11 @@ export default function PreviousYearPapers() {
     });
   }
 
+  useEffect(() => {
+    const unsub = speechService.onStop(() => setSpeakingId(null));
+    return unsub;
+  }, []);
+
   const filteredPapers = useMemo(() => {
     return papers.filter(item => {
       const matchesCategory =
@@ -112,13 +118,19 @@ export default function PreviousYearPapers() {
       }
       if (e.key === 'Escape') {
         e.preventDefault();
+        if (selectedPaperModal) {
+          setSelectedPaperModal(null);
+          speechService.stop();
+          screenReaderAnnouncer.announcePolite('Paper blueprint details modal closed.');
+          return;
+        }
         navigate('/dashboard');
         return;
       }
     }
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [filteredPapers]);
+  }, [filteredPapers, selectedPaperModal]);
 
   const categories = ['All', 'SSC', 'UPSC', 'Banking', 'Railway'];
   const years = ['All', '2024', '2023', '2022'];
@@ -526,6 +538,7 @@ export default function PreviousYearPapers() {
                     {/* Blueprint Modal button */}
                     <button
                       onClick={() => setSelectedPaperModal(item)}
+                      aria-label={`View blueprint details for ${item.title}`}
                       style={{
                         padding: '0.5rem 0.75rem',
                         borderRadius: '0.55rem',
@@ -546,6 +559,7 @@ export default function PreviousYearPapers() {
                         const targetId = item.linkedExamId || 'ssc-reasoning-01';
                         navigate(`/exam/${targetId}`);
                       }}
+                      aria-label={`Attempt previous year paper: ${item.title}`}
                       style={{
                         flex: 1,
                         padding: '0.5rem 0.85rem',
@@ -578,7 +592,7 @@ export default function PreviousYearPapers() {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={selectedPaperModal.title}
+            aria-labelledby="pyq-modal-title"
             style={{
               position: 'fixed',
               top: 0,
@@ -628,7 +642,7 @@ export default function PreviousYearPapers() {
                   >
                     {selectedPaperModal.examName} • {selectedPaperModal.year}
                   </span>
-                  <h2 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0.35rem 0 0 0', color: 'var(--text)' }}>
+                  <h2 id="pyq-modal-title" style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0.35rem 0 0 0', color: 'var(--text)' }}>
                     {selectedPaperModal.title}
                   </h2>
                 </div>
@@ -647,10 +661,11 @@ export default function PreviousYearPapers() {
                     cursor: 'pointer',
                     color: 'var(--text)',
                   }}
-                  aria-label="Close"
+                  aria-label={`Close ${selectedPaperModal.title} blueprint details`}
                 >
                   <X size={16} />
                 </button>
+
               </div>
 
               <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
@@ -722,6 +737,7 @@ export default function PreviousYearPapers() {
               >
                 <button
                   onClick={() => setSelectedPaperModal(null)}
+                  aria-label="Close details dialog"
                   style={{
                     padding: '0.55rem 1rem',
                     borderRadius: '0.55rem',

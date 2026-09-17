@@ -2,13 +2,14 @@ import React, { createContext, useContext, useEffect, useState, useRef, useCallb
 import { useNavigate, useLocation } from 'react-router-dom';
 import { globalVoiceService, EngineType } from '../services/globalVoiceService';
 import { classifyVoiceIntent, ConversationalMemory } from '../services/voiceCommandClassifier';
+import { drishtiNluService, DrishtiNluResult } from '../services/drishtiNluService';
 import { speechService } from '../services/speechService';
 import { useAccessibility } from './AccessibilityContext';
 import { useAuth } from './AuthContext';
 import { notificationService } from '../services/notificationService';
 import { audioCueService } from '../services/audioCueService';
 import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
-import { Mic, MicOff, Volume2, Sparkles, X } from 'lucide-react';
+import { Mic, MicOff, Volume2, Sparkles, X, BrainCircuit } from 'lucide-react';
 
 export interface PageQAItem {
   triggers: string[];
@@ -23,6 +24,7 @@ interface VoiceAssistantContextType {
   status: string;
   lastTranscript: string;
   lastSpoken: string;
+  lastNluResult: DrishtiNluResult | null;
   currentPage: string;
   toggleVoice: () => void;
   speak: (text: string, priority?: boolean) => void;
@@ -50,16 +52,17 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
     setVoiceRate,
     resetToDefaults,
   } = useAccessibility();
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
 
-  const accessRef = useRef({ prefs, setTheme, setFontSize, setVoiceRate, resetToDefaults, logout });
-  accessRef.current = { prefs, setTheme, setFontSize, setVoiceRate, resetToDefaults, logout };
+  const accessRef = useRef({ prefs, setTheme, setFontSize, setVoiceRate, resetToDefaults, logout, user });
+  accessRef.current = { prefs, setTheme, setFontSize, setVoiceRate, resetToDefaults, logout, user };
 
   const [active, setActive] = useState(true);
   const [engine, setEngine] = useState<EngineType>('none');
   const [status, setStatus] = useState('Listening...');
   const [lastTranscript, setLastTranscript] = useState('');
   const [lastSpoken, setLastSpoken] = useState('');
+  const [lastNluResult, setLastNluResult] = useState<DrishtiNluResult | null>(null);
   const [currentPage, setCurrentPage] = useState('App');
   const [showToast, setShowToast] = useState(false);
   const toastTimeoutRef = useRef<any>(null);
@@ -93,15 +96,17 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
       globalVoiceService.stop();
       setActive(false);
       try { audioCueService.voiceStop(); } catch (e) {}
-      screenReaderAnnouncer.announcePolite('Voice assistant deactivated.');
-      speak('Voice assistant muted.');
+      screenReaderAnnouncer.announcePolite('Drishti voice assistant deactivated.');
+      speak('Drishti muted. Press Alt+D or V to activate.');
     } else {
       await enableMicrophone();
       await globalVoiceService.start();
       setActive(true);
       try { audioCueService.voiceActivate(); } catch (e) {}
-      screenReaderAnnouncer.announcePolite('Voice assistant activated.');
-      speak('Voice assistant active. Listening now.');
+      const candidate = accessRef.current.user?.name ? accessRef.current.user.name.split(' ')[0] : '';
+      const greeting = candidate ? `Hello ${candidate}. ` : '';
+      screenReaderAnnouncer.announcePolite('Drishti voice assistant activated.');
+      speak(`${greeting}Drishti active. Listening now. Say Drishti start exam or ask me anything.`);
     }
   }, [speak]);
 
@@ -120,21 +125,22 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
 
   // ── Unified Intent Dispatcher: Context-aware Navigation, Controls & Q&A ──
   useEffect(() => {
-    const unregister = globalVoiceService.register((rawText: string) => {
+    const unregister = globalVoiceService.register(async (rawText: string) => {
       const activePage = currentPageRef.current;
       const currentItems = pageRegistryRef.current.get(activePage) || [];
       const currentRoute = location.pathname;
 
       console.log(`[VoiceAssistant] Transcript: "${rawText}" on [${activePage}] (route=${currentRoute})`);
 
-      // 1. Pass to semantic intent classifier with conversational memory
-      const intent = classifyVoiceIntent(rawText, {
+      // 1. Pass to Real-World AI NLU with conversational memory and automatic offline fallback
+      const intent = await drishtiNluService.understand(rawText, {
         route: currentRoute,
         activePage,
         conversationalState: conversationalMemoryRef.current,
       });
 
-      console.log('[VoiceAssistant] Classified Intent:', intent.type, intent);
+      setLastNluResult(intent);
+      console.log(`[VoiceAssistant] Drishti Intent [${intent.source}]:`, intent.type, intent);
 
       // Handle unsupported sequential commands safely without unpredictable execution
       if (intent.type === 'SEQUENTIAL_UNSUPPORTED') {
@@ -158,6 +164,24 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         return true;
       }
 
+      // Handle Drishti Wake Word (Standalone Alexa / Siri / Assistant style)
+      if (intent.type === 'DRISHTI_WAKE') {
+        const candidate = accessRef.current.user?.name ? accessRef.current.user.name.split(' ')[0] : '';
+        const msg = candidate
+          ? `I'm listening, ${candidate}. How can I help you? You can say start exam, read notifications, open practice, or ask for help.`
+          : intent.speechFeedback || "I'm listening. How can I help you? You can say start exam, read notifications, open practice, or ask for help.";
+        speak(msg, true);
+        return true;
+      }
+
+      // Handle Drishti Persona Introduction
+      if (intent.type === 'DRISHTI_INTRO') {
+        const candidate = accessRef.current.user?.name ? accessRef.current.user.name.split(' ')[0] : '';
+        const greeting = candidate ? `Hello ${candidate}! ` : '';
+        speak(`${greeting}I am Drishti, your personalized AI accessibility exam assistant on DrishtiX. You can speak to me naturally or use keyboard shortcuts. Say 'Drishti start exam', 'Drishti read notifications', 'Drishti next question', or 'Drishti help' anytime!`, true);
+        return true;
+      }
+
       // Handle Repeat
       if (intent.type === 'REPEAT_QUESTION' && !currentRoute.startsWith('/exam/')) {
         const last = globalVoiceService.getLastSpoken();
@@ -173,8 +197,8 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
       if (intent.type === 'HELP') {
         const sampleQuestions = currentItems.map(i => i.triggers[0]).slice(0, 3).join(', ');
         const helpMsg = sampleQuestions
-          ? `You can say Open Mock Tests, Open Dashboard, Practice Drills, or on this screen say: ${sampleQuestions}.`
-          : intent.speechFeedback || 'You can say Open Mock Tests, Open Dashboard, AI Practice, Show Results, or Accessibility Settings.';
+          ? `I am Drishti. You can say start exam, read notifications, open mock tests, or on this screen say: ${sampleQuestions}.`
+          : intent.speechFeedback || 'I am Drishti. You can say start exam, read notifications, open mock tests, AI practice, show results, or accessibility settings.';
         speak(helpMsg, true);
         return true;
       }
@@ -349,15 +373,18 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
       if (intent.type === 'OPEN_NOTIFICATIONS') {
         const wantsToRead = /\b(read|sunao|bol\s*kar|padho)\b/i.test(rawText);
         const notifBtn = document.getElementById('drishtix-notifications-trigger') as HTMLButtonElement | null;
+        const candidate = accessRef.current.user?.name ? accessRef.current.user.name.split(' ')[0] : '';
 
         if (wantsToRead) {
           const allNotifs = notificationService.getAll();
           const unread = allNotifs.filter(n => !n.read);
 
           if (unread.length === 0) {
-            speak('You have no unread notifications.');
+            const prefix = candidate ? `${candidate}, you` : 'You';
+            speak(`${prefix} have no unread notifications.`);
           } else {
-            let text = `You have ${unread.length} unread notification${unread.length > 1 ? 's' : ''}. `;
+            const prefix = candidate ? `${candidate}, you` : 'You';
+            let text = `${prefix} have ${unread.length} unread notification${unread.length > 1 ? 's' : ''}. `;
             unread.forEach((n, i) => {
               text += `Notification ${i + 1}: ${n.title}. ${n.message}. `;
               notificationService.markAsRead(n.id);
@@ -414,49 +441,49 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
       // ── Handle Universal Accessibility & Theme Controls ──
       if (intent.type === 'THEME_LIGHT') {
         accessRef.current.setTheme('default');
-        speak('Light mode activated.', true);
+        speak(intent.speechFeedback || 'Light mode activated.', true);
         return true;
       }
 
       if (intent.type === 'THEME_DARK') {
         accessRef.current.setTheme('dark');
-        speak('Dark mode activated.', true);
+        speak(intent.speechFeedback || 'Dark mode activated.', true);
         return true;
       }
 
       if (intent.type === 'THEME_CONTRAST') {
         accessRef.current.setTheme('high-contrast');
-        speak('High contrast theme activated.', true);
+        speak(intent.speechFeedback || 'High contrast theme activated.', true);
         return true;
       }
 
       if (intent.type === 'THEME_YELLOW') {
         accessRef.current.setTheme('yellow-black');
-        speak('Yellow on black theme activated.', true);
+        speak(intent.speechFeedback || 'Yellow on black theme activated.', true);
         return true;
       }
 
       if (intent.type === 'FONT_NORMAL') {
         accessRef.current.setFontSize('default');
-        speak('Font size set to normal 100 percent.', true);
+        speak(intent.speechFeedback || 'Font size set to normal 100 percent.', true);
         return true;
       }
 
       if (intent.type === 'FONT_LARGE') {
         accessRef.current.setFontSize('large');
-        speak('Font size set to large 115 percent.', true);
+        speak(intent.speechFeedback || 'Font size set to large 115 percent.', true);
         return true;
       }
 
       if (intent.type === 'FONT_XLARGE') {
         accessRef.current.setFontSize('xlarge');
-        speak('Font size set to extra large 135 percent.', true);
+        speak(intent.speechFeedback || 'Font size set to extra large 135 percent.', true);
         return true;
       }
 
       if (intent.type === 'FONT_HUGE') {
         accessRef.current.setFontSize('xxlarge');
-        speak('Font size set to huge 150 percent.', true);
+        speak(intent.speechFeedback || 'Font size set to huge 150 percent.', true);
         return true;
       }
 
@@ -464,7 +491,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         const curRate = accessRef.current.prefs.voiceRate;
         const newRate = Math.min(1.8, Number((curRate + 0.15).toFixed(2)));
         accessRef.current.setVoiceRate(newRate);
-        speak(`Voice speed increased to ${newRate}x.`, true);
+        speak(intent.speechFeedback || `Voice speed increased to ${newRate}x.`, true);
         return true;
       }
 
@@ -472,7 +499,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         const curRate = accessRef.current.prefs.voiceRate;
         const newRate = Math.max(0.6, Number((curRate - 0.15).toFixed(2)));
         accessRef.current.setVoiceRate(newRate);
-        speak(`Voice speed decreased to ${newRate}x.`, true);
+        speak(intent.speechFeedback || `Voice speed decreased to ${newRate}x.`, true);
         return true;
       }
 
@@ -540,13 +567,48 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
     window.addEventListener('click', unlockOnGesture, { once: true });
     window.addEventListener('keydown', unlockOnGesture, { once: true });
 
-    // Keyboard shortcut: Press 'V' anytime to toggle voice
+    // Global accessibility keyboard shortcuts for Drishti Assistant
     function onKeyDown(e: KeyboardEvent) {
-      if (
-        (e.key === 'v' || e.key === 'V') &&
-        !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)
-      ) {
+      const isInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+
+      // Escape key: immediately silence any ongoing speech (like tapping Siri / Alexa)
+      if (e.key === 'Escape') {
+        speechService.stop();
+        return;
+      }
+
+      // Alt + D: Toggle / Wake Drishti Voice Assistant from anywhere
+      if (e.altKey && (e.key === 'd' || e.key === 'D')) {
+        e.preventDefault();
         toggleVoice();
+        return;
+      }
+
+      // Alt + N: Read Notifications via Drishti
+      if (e.altKey && (e.key === 'n' || e.key === 'N')) {
+        e.preventDefault();
+        const candidate = accessRef.current.user?.name ? accessRef.current.user.name.split(' ')[0] : '';
+        const allNotifs = notificationService.getAll();
+        const unread = allNotifs.filter(n => !n.read);
+        if (unread.length === 0) {
+          const prefix = candidate ? `${candidate}, you` : 'You';
+          speak(`${prefix} have no unread notifications.`);
+        } else {
+          const prefix = candidate ? `${candidate}, you` : 'You';
+          let text = `${prefix} have ${unread.length} unread notification${unread.length > 1 ? 's' : ''}. `;
+          unread.forEach((n, i) => {
+            text += `Notification ${i + 1}: ${n.title}. ${n.message}. `;
+            notificationService.markAsRead(n.id);
+          });
+          speak(text, true);
+        }
+        return;
+      }
+
+      // V key (when not typing in an input): Toggle Voice Assistant
+      if (!isInput && !e.altKey && !e.ctrlKey && !e.metaKey && (e.key === 'v' || e.key === 'V')) {
+        toggleVoice();
+        return;
       }
     }
     window.addEventListener('keydown', onKeyDown);
@@ -573,6 +635,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         status,
         lastTranscript,
         lastSpoken,
+        lastNluResult,
         currentPage,
         toggleVoice,
         speak,
@@ -604,16 +667,20 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
                 pointerEvents: 'auto',
                 background: 'rgba(15, 23, 42, 0.94)',
                 backdropFilter: 'blur(12px)',
-                border: '1.5px solid rgba(59, 130, 246, 0.5)',
+                border: lastNluResult?.source === 'ai-nlu'
+                  ? '1.5px solid rgba(168, 85, 247, 0.6)'
+                  : '1.5px solid rgba(59, 130, 246, 0.5)',
                 color: '#F8FAFC',
                 borderRadius: '999px',
                 padding: '0.45rem 1rem',
                 fontSize: '0.82rem',
-                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.35)',
+                boxShadow: lastNluResult?.source === 'ai-nlu'
+                  ? '0 8px 24px rgba(168, 85, 247, 0.25)'
+                  : '0 8px 24px rgba(0, 0, 0, 0.35)',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                maxWidth: 340,
+                maxWidth: 380,
               }}
             >
               <span
@@ -621,21 +688,36 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
                   width: 8,
                   height: 8,
                   borderRadius: '50%',
-                  background: '#38BDF8',
-                  boxShadow: '0 0 8px #38BDF8',
+                  background: lastNluResult?.source === 'ai-nlu' ? '#C084FC' : '#38BDF8',
+                  boxShadow: lastNluResult?.source === 'ai-nlu' ? '0 0 8px #C084FC' : '0 0 8px #38BDF8',
                   flexShrink: 0,
                 }}
               />
-              <span style={{ fontWeight: 600, color: '#93C5FD', flexShrink: 0 }}>Heard:</span>
-              <span
-                style={{
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
+              <span style={{ fontWeight: 600, color: lastNluResult?.source === 'ai-nlu' ? '#E9D5FF' : '#93C5FD', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+                {lastNluResult?.source === 'ai-nlu' ? <Sparkles size={13} color="#C084FC" /> : null}
+                Drishti heard:
+              </span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 "{lastTranscript}"
               </span>
+              {lastNluResult?.source === 'ai-nlu' && (
+                <span
+                  style={{
+                    fontSize: '0.62rem',
+                    background: 'rgba(168, 85, 247, 0.25)',
+                    color: '#F3E8FF',
+                    border: '1px solid rgba(168, 85, 247, 0.4)',
+                    padding: '1px 6px',
+                    borderRadius: 999,
+                    fontWeight: 700,
+                    letterSpacing: '0.04em',
+                    flexShrink: 0,
+                  }}
+                  title={lastNluResult.reasoning || 'Understood via Groq AI Semantic Parser'}
+                >
+                  AI NLU {lastNluResult.latencyMs ? `• ${lastNluResult.latencyMs}ms` : ''}
+                </span>
+              )}
             </div>
           )}
 
@@ -675,8 +757,8 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
             onClick={toggleVoice}
             role="button"
             tabIndex={0}
-            aria-label={`Voice Assistant: ${active ? status : 'Muted'}. Press V to toggle.`}
-            title={`Press V to toggle. Status: ${status}`}
+            aria-label={`Drishti AI Assistant: ${active ? status : 'Muted'}. Say Drishti or press Alt+D or V.`}
+            title={`Drishti AI Assistant. Say 'Drishti start exam', 'Drishti read notification', or press Alt+D / V.`}
           >
             {/* Mic Icon */}
             <div
@@ -708,12 +790,8 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
               <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <span style={{ fontWeight: 700, fontSize: '0.78rem', color: active ? '#F8FAFC' : '#94A3B8' }}>
                   {active
-                    ? engine === 'groq'
-                      ? 'Cloud AI Voice'
-                      : engine === 'whisper'
-                      ? 'Whisper AI Voice'
-                      : 'Web Speech Voice'
-                    : 'Voice Muted'}
+                    ? 'Drishti AI Assistant'
+                    : 'Drishti Muted'}
                 </span>
                 {active && (
                   <span
@@ -731,12 +809,12 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
                       fontWeight: 600,
                     }}
                   >
-                    {engine === 'groq' ? 'WHISPER LARGE-V3' : engine === 'whisper' ? 'LOCAL AI' : 'BROWSER'}
+                    {engine === 'groq' ? 'AI WHISPER + NLU' : engine === 'whisper' ? 'LOCAL AI' : 'BROWSER'}
                   </span>
                 )}
               </div>
               <span style={{ fontSize: '0.68rem', color: active ? (engine === 'groq' ? '#C7D2FE' : '#93C5FD') : '#64748B' }}>
-                {active ? `${currentPage} • Press V` : 'Click or Press V to listen'}
+                {active ? `Say 'Drishti...' • Alt+D` : 'Press Alt+D or V to wake Drishti'}
               </span>
             </div>
 

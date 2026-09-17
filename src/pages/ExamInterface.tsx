@@ -34,6 +34,7 @@ import { audioCueService } from '../services/audioCueService';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useAuth } from '../context/AuthContext';
 import { classifyVoiceCommand, classifyVoiceIntent, VoiceCommandMatch } from '../services/voiceCommandClassifier';
+import { drishtiNluService, DrishtiNluResult } from '../services/drishtiNluService';
 import { globalVoiceService } from '../services/globalVoiceService';
 import PreExamCalibrationWizard from '../components/PreExamCalibrationWizard';
 import AccessibleMathViewer, { verbalizeMathExpression } from '../components/AccessibleMathViewer';
@@ -225,11 +226,10 @@ export default function ExamInterface() {
     const cur = currentRef.current;
     const q = ex.questions[cur];
     setShowAiExplainer(true);
-    if (q?.aiSummary) {
-      speechService.speak(`AI Question Simplification: ${q.aiSummary}`, { priority: true });
-    } else {
-      speechService.speak(`Question Summary: This is a ${q.difficulty} question from ${q.subject}, topic ${q.topic}. ${q.text}`, { priority: true });
-    }
+    speechService.speak(
+      `Exam Integrity Notice: During an active examination, AI cannot provide solutions or hints. This is a ${q.difficulty} question from ${q.subject}, topic ${q.topic}. You can say read question, read options, explain formula, or describe diagram.`,
+      { priority: true }
+    );
   }, []);
 
   // Real-Exam Proctoring Safeguard: Window Focus / Tab-Switch Detection
@@ -893,15 +893,20 @@ export default function ExamInterface() {
   }, [started, voiceActive, engineState]);
 
   // ── Shared transcript processor (used by both Whisper & Chrome Web Speech) ──
-  const processTranscript = useCallback((clean: string): boolean => {
+  const processTranscript = useCallback(async (clean: string): Promise<boolean> => {
     if (!clean) return false;
     console.log(`[ExamInterface Voice] 🗣️ Heard: "${clean}" (started=${startedRef.current})`);
 
-    // 1. Interrupt / Stop reading
-    if (clean.includes('stop') || clean.includes('chup') || clean.includes('skip') || clean.includes('pause')) {
+    // 1. Universal Interruption: If exam question or audio is playing, halt speech immediately
+    if (speechService.isSpeaking || isSpeakingAloudRef.current) {
+      console.log('[ExamInterface Voice] 🛑 Reading interrupted by incoming command:', clean);
       speechService.stop();
       setIsSpeakingAloud(false);
       isSpeakingAloudRef.current = false;
+    }
+
+    // Explicit stop / pause request
+    if (clean.includes('stop') || clean.includes('chup') || clean.includes('skip') || clean.includes('pause') || clean.includes('ruko')) {
       audioCueService.select();
       setVoiceText('Reading stopped. Speak your answer now.');
       return true;
@@ -911,12 +916,12 @@ export default function ExamInterface() {
 
     // 2. Pre-exam screen commands (Before candidate enters the exam)
     if (!startedRef.current) {
-      const preIntent = classifyVoiceIntent(clean, {
+      const preIntent = await drishtiNluService.understand(clean, {
         examState: 'not-started',
         route: '/exam/',
       });
 
-      console.log('[ExamInterface Pre-Exam] Intent:', preIntent.type, preIntent);
+      console.log(`[ExamInterface Pre-Exam] Intent [${preIntent.source}]:`, preIntent.type, preIntent);
 
       // Explicit Start Command ONLY
       if (preIntent.type === 'START_EXAM' && !preIntent.isNegated) {
@@ -948,13 +953,13 @@ export default function ExamInterface() {
 
     // 3. Submit confirmation dialog (Strict affirmative/negative safety)
     if (showSubmitDlgRef.current) {
-      const dlgIntent = classifyVoiceIntent(clean, {
+      const dlgIntent = await drishtiNluService.understand(clean, {
         examState: 'submit-dialog',
         route: '/exam/',
         isModalOpen: true,
       });
 
-      console.log('[ExamInterface SubmitDialog] Intent:', dlgIntent.type);
+      console.log(`[ExamInterface SubmitDialog] Intent [${dlgIntent.source}]:`, dlgIntent.type);
 
       if (dlgIntent.type === 'CONFIRM_SUBMIT') {
         submitExam();
@@ -972,12 +977,12 @@ export default function ExamInterface() {
       return false;
     }
 
-    // 4. In-Exam Command Processing using Intent Classifier
+    // 4. In-Exam Command Processing using Drishti Real-World AI NLU
     const ex = examRef.current;
     const cur = currentRef.current;
     const curQ = ex?.questions[cur];
 
-    const intent = classifyVoiceIntent(clean, {
+    const intent = await drishtiNluService.understand(clean, {
       examState: 'in-progress',
       route: '/exam/',
       currentQuestionIndex: cur,
@@ -985,7 +990,7 @@ export default function ExamInterface() {
       currentAnswer: curQ ? answersRef.current[curQ.id] : undefined,
     });
 
-    console.log(`[ExamInterface Voice] Intent: ${intent.type} (negated=${intent.isNegated}) from "${clean}"`);
+    console.log(`[ExamInterface Voice] Intent [${intent.source}]: ${intent.type} (negated=${intent.isNegated}) from "${clean}"`);
 
     // Guard against unsupported sequential commands
     if (intent.type === 'SEQUENTIAL_UNSUPPORTED') {
@@ -1036,7 +1041,7 @@ export default function ExamInterface() {
         answersRef.current = { ...answersRef.current };
         delete answersRef.current[curQ.id];
         audioCueService.select();
-        speechService.speak('Answer cleared.');
+        speechService.speak(intent.speechFeedback || 'Answer cleared.');
         setLastAction('Cleared Answer');
       }
       return true;
@@ -1051,7 +1056,10 @@ export default function ExamInterface() {
     // G. Submit Exam (Initiate Confirmation Modal)
     if (intent.type === 'INITIATE_SUBMIT') {
       setShowSubmitDlg(true);
-      speechService.speak('Opening submit confirmation. Say Yes to submit or No to continue.');
+      speechService.speak(
+        'You are about to submit the examination. No further changes can be made. Say confirm submission to continue, or say cancel to return.',
+        { priority: true }
+      );
       return true;
     }
 
@@ -1148,16 +1156,22 @@ export default function ExamInterface() {
       }
     });
 
+    const unsubSpeechStop = speechService.onStop(() => {
+      setIsSpeakingAloud(false);
+      isSpeakingAloudRef.current = false;
+    });
+
     // Register our high-priority exam transcript handler
-    const unregister = globalVoiceService.register((rawText: string) => {
+    const unregister = globalVoiceService.register(async (rawText: string) => {
       const clean = rawText.toLowerCase().trim();
-      return processTranscript(clean);
+      return await processTranscript(clean);
     });
 
     return () => {
       unregister();
       unsubTranscript();
       unsubStatus();
+      unsubSpeechStop();
     };
   }, [processTranscript]);
 
@@ -1642,13 +1656,13 @@ export default function ExamInterface() {
               <AccessibleDiagramViewer diagram={q.diagramData} />
             )}
 
-            {/* AI Simplified Explanation Callout */}
+            {/* Exam Integrity & Question Info Callout */}
             {showAiExplainer && (
               <div
                 className="fade-in"
                 style={{
-                  background: 'rgba(124, 58, 237, 0.08)',
-                  border: '1.5px solid #7C3AED',
+                  background: 'rgba(59, 130, 246, 0.08)',
+                  border: '1.5px solid var(--primary)',
                   borderRadius: '0.65rem',
                   padding: '0.85rem 1.1rem',
                   marginBottom: '1rem',
@@ -1659,13 +1673,13 @@ export default function ExamInterface() {
                 }}
               >
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <Sparkles size={18} color="#7C3AED" style={{ flexShrink: 0, marginTop: '0.15rem' }} />
+                  <ShieldCheck size={18} color="var(--primary)" style={{ flexShrink: 0, marginTop: '0.15rem' }} />
                   <div>
-                    <strong style={{ fontSize: '0.85rem', color: '#6D28D9', display: 'block', marginBottom: '0.2rem' }}>
-                      AI Simplified Explanation:
+                    <strong style={{ fontSize: '0.85rem', color: 'var(--primary)', display: 'block', marginBottom: '0.2rem' }}>
+                      Exam Integrity Notice & Question Info:
                     </strong>
                     <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text)', lineHeight: 1.5 }}>
-                      {q.aiSummary || `This question tests core principles of ${q.topic}. Identify the specific relationship asked in: "${q.text}".`}
+                      During an active examination, AI hints and answers are restricted to preserve testing integrity. Question Topic: <strong>{q.topic}</strong> ({q.difficulty} difficulty, {q.subject}). Step-by-step solutions are unlocked upon final submission.
                     </p>
                   </div>
                 </div>
@@ -1685,9 +1699,9 @@ export default function ExamInterface() {
                 onClick={explainCurrentQuestion}
                 className="btn-ghost"
                 style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem', border: '1px solid var(--border)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-                aria-label="Explain or simplify this question with AI (E)"
+                aria-label="View question info and exam integrity guidelines (E)"
               >
-                <Sparkles size={13} color="var(--primary)" /> AI Explain (E)
+                <ShieldCheck size={13} color="var(--primary)" /> Question Info (E)
               </button>
               <button
                 onClick={readQuestion}

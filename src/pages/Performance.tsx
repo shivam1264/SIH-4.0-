@@ -777,6 +777,31 @@ export default function Performance() {
               </div>
             </div>
 
+            {/* Screen Reader Table Alternative (WCAG 1.3.1) */}
+            <table className="sr-only">
+              <caption>Chronological Mock Examination Scores and Benchmarks</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Exam Title</th>
+                  <th scope="col">Date</th>
+                  <th scope="col">Score Percentage</th>
+                  <th scope="col">Question Accuracy</th>
+                  <th scope="col">Benchmark Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {chartBars.map((bar) => (
+                  <tr key={bar.id}>
+                    <td>{bar.label} {bar.subLabel}</td>
+                    <td>{bar.date}</td>
+                    <td>{bar.percentage}%</td>
+                    <td>{bar.accuracy}%</td>
+                    <td>{bar.percentage >= 70 ? 'Target Met (Above 70%)' : 'Needs Practice (Below 70%)'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
             {/* Chart Graphic Area with Gridlines & Target Cutoff */}
             <div
               style={{
@@ -1046,6 +1071,29 @@ export default function Performance() {
                   {subjectList.length} Subjects
                 </span>
               </div>
+
+              {/* Screen Reader Subject Mastery Table Alternative (WCAG 1.3.1) */}
+              <table className="sr-only">
+                <caption>Subject Proficiency Breakdown and Accuracy</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Subject</th>
+                    <th scope="col">Proficiency Rating</th>
+                    <th scope="col">Accuracy Percentage</th>
+                    <th scope="col">Questions Solved Correctly</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subjectList.map((subj) => (
+                    <tr key={subj.name}>
+                      <td>{subj.name}</td>
+                      <td>{subj.accuracy >= 70 ? 'Proficient' : subj.accuracy >= 50 ? 'Developing' : 'Needs Practice'}</td>
+                      <td>{subj.accuracy}%</td>
+                      <td>{subj.correct} of {subj.total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
 
               {/* Subject List with Progress Bars */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>

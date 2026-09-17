@@ -162,6 +162,11 @@ export default function StudyMaterials() {
     }
   }
 
+  useEffect(() => {
+    const unsub = speechService.onStop(() => setSpeakingId(null));
+    return unsub;
+  }, []);
+
   // Universal Keyboard Accessibility for Visually Impaired Candidates in Study Materials
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {

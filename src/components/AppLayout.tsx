@@ -61,6 +61,10 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
         e.preventDefault();
         screenReaderAnnouncer.orientCurrentPage(location.pathname, true);
       }
+      if (e.key === '?' || (e.altKey && (e.key === 'k' || e.key === 'K'))) {
+        e.preventDefault();
+        setShowShortcutsModal(prev => !prev);
+      }
     };
     window.addEventListener('keydown', handleGlobalKey);
     return () => window.removeEventListener('keydown', handleGlobalKey);
@@ -79,16 +83,18 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
   }
 
   const shortcuts = [
+    { key: 'Alt + D / V', desc: 'Wake / Toggle Drishti AI Voice Assistant' },
+    { key: 'Alt + N', desc: 'Read notifications aloud with Drishti' },
+    { key: 'Esc', desc: 'Immediately silence speech / close dialogs' },
     { key: 'B / O', desc: 'Hear spoken page orientation and available options' },
-    { key: 'V', desc: 'Toggle Voice Guidance & Speech commands' },
-    { key: 'R', desc: 'Read question or section aloud' },
-    { key: '1-4', desc: 'Select option A, B, C, or D in exam' },
-    { key: 'Alt + N', desc: 'Navigate to Next question' },
-    { key: 'Alt + P', desc: 'Navigate to Previous question' },
-    { key: 'Alt + S', desc: 'Submit examination with confirmation' },
-    { key: 'Tab', desc: 'Move focus forward across elements' },
-    { key: 'Shift + Tab', desc: 'Move focus backward' },
-    { key: 'Enter / Space', desc: 'Activate selected button or control' },
+    { key: '? / Alt + K', desc: 'Open full platform keyboard shortcuts guide' },
+    { key: '1-4 / A-D', desc: 'Select option A, B, C, or D in exam' },
+    { key: 'N / Alt + N', desc: 'Navigate to Next question' },
+    { key: 'P / Alt + P', desc: 'Navigate to Previous question' },
+    { key: 'R', desc: 'Read question and options aloud' },
+    { key: 'S / Alt + S', desc: 'Submit examination with confirmation' },
+    { key: 'T', desc: 'Hear remaining exam time' },
+    { key: 'M / D / E', desc: 'Verbalize math / describe diagram / AI explanation' },
   ];
 
   return (

@@ -57,6 +57,8 @@ export type VoiceIntentType =
   | 'CONFIRM_SUBMIT'
   | 'CANCEL_SUBMIT'
   // Voice & System Control
+  | 'DRISHTI_WAKE'
+  | 'DRISHTI_INTRO'
   | 'STOP_SPEAKING'
   | 'STOP_VOICE'
   | 'HELP'
@@ -119,16 +121,22 @@ export function normalizeTranscript(raw: string): string {
     .toLowerCase()
     .replace(/['`]/g, '') // "don't" -> "dont", "can't" -> "cant"
     .replace(/[.!?;:\-_"~|।/\\()]/g, ' ')
+    .replace(/\b(?:dristi|dhrishti|dishti|trishti|drishtee|drishty|drishtix)\b/g, 'drishti')
     .replace(/\s+/g, ' ')
     .trim();
 
-  // Strip conversational filler prefixes when followed by instructions:
-  // e.g. "hey listen open mock test", "please show results", "can you go to settings"
-  // Keep "listen" when alone or when referring to audio action (e.g. "listen", "listen to attempt")
+  // Strip conversational filler & assistant wake prefixes when followed by instructions:
+  // e.g. "drishti start exam", "drishti read notification", "hey drishti next question", "please show results"
+  // Keep "drishti" or "listen" when alone or when referring to standalone wake word
   t = t.replace(
-    /^(?:hey\s+listen|listen\s+to\s+me|hey\s+drishtix|hello\s+drishtix|hi\s+drishtix|please|can\s+you\s+please|can\s+you|could\s+you|kindly|i\s+want\s+to|suno|sun|bhai)\s+/i,
+    /^(?:hey\s+drishti|hello\s+drishti|hi\s+drishti|ok\s+drishti|okay\s+drishti|drishti|hey\s+drishtix|hello\s+drishtix|hi\s+drishtix|drishtix|hey\s+listen|listen\s+to\s+me|please|can\s+you\s+please|can\s+you|could\s+you|kindly|i\s+want\s+to|suno|sun|bhai)\s+/i,
     ''
   );
+
+  // If command ends with suffix wake word like "start exam drishti" or "read notification drishti", strip suffix
+  if (!/^(?:hey|hello|hi|ok|okay)?\s*drishti$/i.test(t)) {
+    t = t.replace(/\s+(?:hey\s+|hello\s+|hi\s+)?drishti$/i, '');
+  }
 
   // Fix common Whisper acoustic confusions in educational / exam vocabulary
   const wordReplacements: [RegExp, string][] = [
@@ -311,7 +319,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
   // ── SUBMIT DIALOG CONFIRMATION / CANCELLATION (Highest priority in dialog) ──
   if (isSubmitDlg) {
     if (
-      /\b(yes|haan|haa|ha|confirm|pakka|bilkul|zaroor|done|theek hai|okay|submit now|yes submit)\b/i.test(t) &&
+      /\b(yes|haan|haa|ha|confirm|confirm\s+submission|pakka|bilkul|zaroor|done|theek hai|okay|submit now|yes submit|submit\s+karo)\b/i.test(t) &&
       !/\b(option|a|b|c|d)\b/i.test(t)
     ) {
       return {
@@ -333,6 +341,30 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
         confidence: 0.95,
       };
     }
+  }
+
+  // ── DRISHTI WAKE WORD ALONE (Alexa / Siri / Assistant style) ──
+  if (/^(?:hey\s+drishti|hello\s+drishti|hi\s+drishti|ok\s+drishti|okay\s+drishti|drishti|hey\s+assistant|hello\s+assistant)$/i.test(t)) {
+    return {
+      type: 'DRISHTI_WAKE',
+      action: 'DRISHTI_WAKE',
+      label: 'Drishti Listening',
+      speechFeedback: "I'm listening. How can I help you? You can say start exam, read notifications, open practice, or ask for help.",
+      confidence: 1.0,
+    };
+  }
+
+  // ── DRISHTI PERSONA INTRO ("Who are you", "What is your name") ──
+  if (
+    /\b(who\s+are\s+you|who\s+is\s+drishti|what\s+is\s+your\s+name|tell\s+me\s+about\s+yourself|what\s+can\s+you\s+do|who\s+made\s+you|introduce\s+yourself|apna\s+naam\s+batao|tum\s+kaun\s+ho|aap\s+kaun\s+hai)\b/i.test(t)
+  ) {
+    return {
+      type: 'DRISHTI_INTRO',
+      action: 'DRISHTI_INTRO',
+      label: 'About Drishti',
+      speechFeedback: "I am Drishti, your personalized AI accessibility exam assistant on DrishtiX. I help you navigate, take exams, read questions, verbalize math formulas, and manage notifications through voice or keyboard commands.",
+      confidence: 0.98,
+    };
   }
 
   // ── READ / REPEAT QUESTION / REPEAT LAST SPOKEN CONTENT ──
@@ -793,7 +825,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
 
   // 11. Notifications
   if (
-    /\b(open\s+notifications?|show\s+notifications?|check\s+notifications?|read\s+notifications?|view\s+notifications?|notifications?\s+kholo|notifications?\s+sunao|notifications?)\b/i.test(t) ||
+    /\b(open\s+(?:my\s+)?notifications?|show\s+(?:my\s+)?notifications?|check\s+(?:my\s+)?notifications?|read\s+(?:my\s+)?notifications?|view\s+(?:my\s+)?notifications?|notifications?\s+kholo|notifications?\s+sunao|notifications?)\b/i.test(t) ||
     /^(notifications?)$/i.test(t)
   ) {
     return {

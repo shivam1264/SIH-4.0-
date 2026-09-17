@@ -15,11 +15,17 @@ class SpeechService {
   private voices: SpeechSynthesisVoice[] = [];
   private preferredVoiceName: string = '';
   private _isSpeaking = false;
+  private _stopListeners = new Set<() => void>();
   public lastSpeechEndTime = 0;
   public lastSpokenText: string = '';
 
   constructor() {
     this.initVoices();
+  }
+
+  public onStop(cb: () => void): () => void {
+    this._stopListeners.add(cb);
+    return () => this._stopListeners.delete(cb);
   }
 
   repeatLast(): boolean {
@@ -228,13 +234,17 @@ class SpeechService {
   }
 
   stop() {
-    if (!this.synth) return;
-    try {
-      this.synth.cancel();
-      delete (window as any).__activeUtterance;
-    } catch {}
+    if (this.synth) {
+      try {
+        this.synth.cancel();
+        delete (window as any).__activeUtterance;
+      } catch {}
+    }
     this._isSpeaking = false;
     this.lastSpeechEndTime = Date.now();
+    this._stopListeners.forEach(cb => {
+      try { cb(); } catch (err) { console.error('[SpeechService] onStop listener error:', err); }
+    });
   }
 
   public mathToPhonetic(text: string): string {

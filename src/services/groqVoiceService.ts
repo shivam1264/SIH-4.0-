@@ -101,6 +101,7 @@ class GroqVoiceService {
   private speechDurationMs = 0;
   private noiseFloor = 0.005;
   private inFlightTranscriptions = 0;
+  private consecutiveErrors = 0;
 
   getApiKey(): string {
     if (typeof window !== 'undefined') {
@@ -137,6 +138,7 @@ class GroqVoiceService {
     this.startId++;
     const myId = this.startId;
     this._active = true;
+    this.consecutiveErrors = 0;
     this.onTranscript = onTranscript;
     this.onStatus = onStatus;
 
@@ -166,7 +168,8 @@ class GroqVoiceService {
     } catch (err) {
       console.error('[GroqVoice] Microphone error:', err);
       this._active = false;
-      onStatus('error');
+      this.onStatus?.('error');
+      this.stop();
     }
   }
 
@@ -280,6 +283,9 @@ class GroqVoiceService {
       console.log('[GroqVoice] 🚀 Real-time VAD listening activated (Groq Whisper Large-v3)');
     } catch (err) {
       console.error('[GroqVoice] Streaming audio DSP setup error:', err);
+      this._active = false;
+      this.onStatus?.('error');
+      this.stop();
     }
   }
 
@@ -317,13 +323,13 @@ class GroqVoiceService {
       const apiKey = this.getApiKey();
       const formData = new FormData();
       formData.append('file', wavBlob, 'speech.wav');
-      formData.append('model', 'whisper-large-v3');
+      formData.append('model', 'whisper-large-v3-turbo');
       formData.append('response_format', 'json');
       formData.append('temperature', '0.0');
       formData.append('prompt', EXAM_VOICE_PROMPT);
 
       const t0 = performance.now();
-      const res = await fetch(GROQ_API_URL, {
+      let res = await fetch(GROQ_API_URL, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -331,14 +337,39 @@ class GroqVoiceService {
         body: formData,
       });
 
+      // Fallback model if turbo returns error
+      if (!res.ok && res.status !== 429 && res.status !== 401) {
+        const fallbackForm = new FormData();
+        fallbackForm.append('file', wavBlob, 'speech.wav');
+        fallbackForm.append('model', 'whisper-large-v3');
+        fallbackForm.append('response_format', 'json');
+        fallbackForm.append('temperature', '0.0');
+        fallbackForm.append('prompt', EXAM_VOICE_PROMPT);
+
+        res = await fetch(GROQ_API_URL, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: fallbackForm,
+        });
+      }
+
       const elapsedMs = Math.round(performance.now() - t0);
 
       if (!res.ok) {
         const errText = await res.text();
         console.error(`[GroqVoice] API error (${res.status}):`, errText);
+        this.consecutiveErrors++;
+        if (res.status === 429 || res.status === 401 || this.consecutiveErrors >= 2) {
+          console.warn('[GroqVoice] Critical API error/rate-limit. Transitioning to fallback engine.');
+          this.onStatus?.('error');
+          this.stop();
+        }
         return;
       }
 
+      this.consecutiveErrors = 0;
       const data = await res.json();
       const rawText = data?.text || '';
       const clean = this._cleanTranscript(rawText);
@@ -349,6 +380,12 @@ class GroqVoiceService {
       }
     } catch (err) {
       console.error('[GroqVoice] Transcription request failed:', err);
+      this.consecutiveErrors++;
+      if (this.consecutiveErrors >= 2) {
+        console.warn('[GroqVoice] Consecutive network failures. Transitioning to fallback engine.');
+        this.onStatus?.('error');
+        this.stop();
+      }
     } finally {
       this.inFlightTranscriptions = Math.max(0, this.inFlightTranscriptions - 1);
       if (this.inFlightTranscriptions === 0 && this._active) {

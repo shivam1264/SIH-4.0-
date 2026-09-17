@@ -13,9 +13,13 @@ export interface DrishtiNluResult extends VoiceIntent {
 }
 
 const GROQ_COMPLETIONS_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const PRIMARY_NLU_MODEL = 'qwen/qwen3.8-27b';
-const FALLBACK_NLU_MODEL = 'openai/gpt-oss-20b';
-const TIMEOUT_MS = 1800; // Fast 1.8s timeout cap to ensure responsive voice UI
+const NLU_MODELS = [
+  'openai/gpt-oss-20b',
+  'openai/gpt-oss-120b',
+  'qwen/qwen3.8-27b',
+  'groq/compound-mini',
+];
+const TIMEOUT_MS = 2200; // Cap to ensure responsive voice UI
 
 class DrishtiNluService {
   private _enabled = true;
@@ -186,7 +190,7 @@ Return JSON ONLY with this exact structure:
   "reasoning": "<Short explanation>"
 }`;
 
-      const modelsToTry = [PRIMARY_NLU_MODEL, FALLBACK_NLU_MODEL];
+      const modelsToTry = NLU_MODELS;
       let content: string | null = null;
 
       for (const model of modelsToTry) {

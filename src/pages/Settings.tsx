@@ -683,7 +683,7 @@ export default function Settings() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                <SectionTitle icon={Cpu}>Groq AI Speech Recognition</SectionTitle>
+                <SectionTitle icon={Cpu}>Cloud AI Speech Recognition</SectionTitle>
                 <span
                   style={{
                     fontSize: '0.72rem',
@@ -700,20 +700,20 @@ export default function Settings() {
               </div>
 
               <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: '1rem' }}>
-                Powered by <strong>Groq Cloud Whisper Large-v3</strong> for sub-200ms real-time voice command processing.
+                Powered by <strong>Cloud Whisper Large-v3</strong> for sub-200ms real-time voice command processing.
                 Accurately understands Indian accents, Hinglish, Hindi phrases (जैसे <em>"अगला सवाल"</em>, <em>"ऑप्शन बी"</em>), and noisy environments.
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                  Groq Cloud API Key
+                  Cloud Speech API Key
                 </label>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                   <input
                     type="password"
                     value={groqKey}
                     onChange={e => setGroqKey(e.target.value)}
-                    placeholder="gsk_..."
+                    placeholder="Enter API key..."
                     style={{
                       flex: 1,
                       padding: '0.55rem 0.8rem',

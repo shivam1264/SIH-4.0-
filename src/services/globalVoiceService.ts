@@ -104,7 +104,7 @@ class GlobalVoiceService {
       this._stopChrome();
       whisperVoiceService.stop();
       this._setEngine('groq');
-      this._setStatus('Listening (Groq Whisper Large-v3)');
+      this._setStatus('Listening (Cloud Whisper AI)');
 
       await groqVoiceService.start(
         (text) => this._dispatch(text),
@@ -113,12 +113,12 @@ class GlobalVoiceService {
           if (status === 'ready' || status === 'listening') {
             this._stopChrome();
             this._setEngine('groq');
-            this._setStatus('Listening (Groq AI)');
+            this._setStatus('Listening (Cloud AI)');
           } else if (status === 'transcribing') {
-            this._setStatus('Processing voice (Groq AI)...');
+            this._setStatus('Processing voice (Cloud AI)...');
           } else if (status === 'error') {
             if (this._engine !== 'whisper' && this._engine !== 'chrome') {
-              console.warn('[GlobalVoice] Groq error → falling back to local Whisper or Chrome');
+              console.warn('[GlobalVoice] Cloud AI error → falling back to local Whisper or Chrome');
               this._startLocalOrChrome(myId);
             }
           }

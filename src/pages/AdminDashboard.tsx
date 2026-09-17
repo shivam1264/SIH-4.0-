@@ -1276,7 +1276,7 @@ export default function AdminDashboard() {
                 <div>
                   <h1 style={{ fontFamily: "'Outfit', sans-serif", fontSize: '1.75rem', fontWeight: 900, marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                     <div style={{ width: 36, height: 36, borderRadius: '0.55rem', background: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', padding: '2px', flexShrink: 0, boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}>
-                      <img src="/drishtix-icon.png" alt="DrishtiX Emblem" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                      <img src="/drishtix-logo.png" alt="DrishtiX Emblem" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                     </div>
                     <span>Drishti</span><span style={{ color: '#FCD34D' }}>X</span> Admin Control Center
                   </h1>

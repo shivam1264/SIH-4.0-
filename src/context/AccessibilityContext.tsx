@@ -3,7 +3,7 @@ import type { AccessibilityPrefs, ThemeMode, FontSize, Spacing, FontFamily } fro
 import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
 
 const DEFAULTS: AccessibilityPrefs = {
-  theme: 'dark',
+  theme: 'default',
   fontSize: 'default',
   spacing: 'default',
   fontFamily: 'inter',
@@ -45,7 +45,14 @@ export function AccessibilityProvider({ children }: { children: React.ReactNode 
   const [prefs, setPrefs] = useState<AccessibilityPrefs>(() => {
     try {
       const stored = localStorage.getItem('sight-exam-accessibility');
-      return stored ? { ...DEFAULTS, ...JSON.parse(stored) } : DEFAULTS;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.theme === 'light') {
+          parsed.theme = 'default';
+        }
+        return { ...DEFAULTS, ...parsed };
+      }
+      return DEFAULTS;
     } catch { return DEFAULTS; }
   });
 

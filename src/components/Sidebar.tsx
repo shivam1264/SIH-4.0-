@@ -116,43 +116,43 @@ export default function Sidebar({ onClose }: Props) {
       case 'AI':
       case 'New':
         return {
-          background: 'rgba(236, 72, 153, 0.2)',
-          color: '#F472B6',
-          border: '1px solid rgba(244, 114, 182, 0.35)',
+          background: 'var(--badge-pink-bg)',
+          color: 'var(--badge-pink-text)',
+          border: '1px solid var(--badge-pink-border)',
         };
       case '99.4%':
         return {
-          background: 'rgba(16, 185, 129, 0.2)',
-          color: '#6EE7B7',
-          border: '1px solid rgba(52, 211, 153, 0.35)',
+          background: 'var(--badge-green-bg)',
+          color: 'var(--badge-green-text)',
+          border: '1px solid var(--badge-green-border)',
         };
       case 'WCAG':
       case 'Notes':
         return {
-          background: 'rgba(139, 92, 246, 0.2)',
-          color: '#C084FC',
-          border: '1px solid rgba(168, 85, 247, 0.35)',
+          background: 'var(--badge-purple-bg)',
+          color: 'var(--badge-purple-text)',
+          border: '1px solid var(--badge-purple-border)',
         };
       case '3':
       case 'Logs':
         return {
-          background: 'rgba(245, 158, 11, 0.2)',
-          color: '#FCD34D',
-          border: '1px solid rgba(251, 191, 36, 0.35)',
+          background: 'var(--badge-amber-bg)',
+          color: 'var(--badge-amber-text)',
+          border: '1px solid var(--badge-amber-border)',
         };
       case 'PYQ':
         return {
-          background: 'rgba(14, 165, 233, 0.2)',
-          color: '#7DD3FC',
-          border: '1px solid rgba(56, 189, 248, 0.35)',
+          background: 'var(--badge-blue-bg)',
+          color: 'var(--badge-blue-text)',
+          border: '1px solid var(--badge-blue-border)',
         };
       case '4 Live':
       case '5 PwD':
       default:
         return {
-          background: 'rgba(59, 130, 246, 0.2)',
-          color: '#93C5FD',
-          border: '1px solid rgba(96, 165, 250, 0.35)',
+          background: 'var(--badge-default-bg)',
+          color: 'var(--badge-default-text)',
+          border: '1px solid var(--badge-default-border)',
         };
     }
   }
@@ -168,8 +168,8 @@ export default function Sidebar({ onClose }: Props) {
           minWidth: '100%',
           maxWidth: '100%',
           padding: '0 0.85rem',
-          borderBottom: '1px solid var(--sidebar-border, rgba(255, 255, 255, 0.08))',
-          background: 'rgba(0, 0, 0, 0.25)',
+          borderBottom: '1px solid var(--sidebar-border, #E2E8F0)',
+          background: 'var(--sidebar-header-bg, rgba(0, 0, 0, 0.02))',
           display: 'flex',
           alignItems: 'center',
           gap: '0.65rem',
@@ -207,7 +207,7 @@ export default function Sidebar({ onClose }: Props) {
             }}
           >
             <img
-              src="/drishtix-icon.png"
+              src="/drishtix-logo.png"
               alt="DrishtiX Logo"
               style={{ width: '100%', height: '100%', objectFit: 'contain' }}
             />
@@ -227,7 +227,7 @@ export default function Sidebar({ onClose }: Props) {
                 alignItems: 'center',
               }}
             >
-              <span style={{ color: '#F8FAFC' }}>Drishti</span>
+              <span style={{ color: 'var(--sidebar-text, #0F172A)' }}>Drishti</span>
               <span style={{ color: '#F59E0B' }}>X</span>
               {isAdminRoute && (
                 <span
@@ -382,16 +382,16 @@ export default function Sidebar({ onClose }: Props) {
       </div>
 
       {/* Logout button */}
-      <div style={{ padding: '0.65rem 0.75rem', borderTop: '1px solid var(--sidebar-border, rgba(255, 255, 255, 0.08))', background: 'rgba(0, 0, 0, 0.2)', flexShrink: 0 }}>
+      <div style={{ padding: '0.65rem 0.75rem', borderTop: '1px solid var(--sidebar-border, #E2E8F0)', background: 'var(--sidebar-header-bg, transparent)', flexShrink: 0 }}>
         <button
           onClick={handleLogout}
           style={{
             width: '100%',
             padding: '0.65rem 1rem',
             borderRadius: '0.65rem',
-            background: 'rgba(239, 68, 68, 0.12)',
-            border: '1px solid rgba(239, 68, 68, 0.25)',
-            color: '#FCA5A5',
+            background: 'var(--logout-bg, #FEF2F2)',
+            border: '1px solid var(--logout-border, #FECACA)',
+            color: 'var(--logout-color, #DC2626)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -402,14 +402,14 @@ export default function Sidebar({ onClose }: Props) {
             transition: 'all 0.2s ease',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.22)';
+            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)';
             e.currentTarget.style.color = '#FFFFFF';
-            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.45)';
+            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)';
-            e.currentTarget.style.color = '#FCA5A5';
-            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.25)';
+            e.currentTarget.style.background = 'var(--logout-bg)';
+            e.currentTarget.style.color = 'var(--logout-color)';
+            e.currentTarget.style.borderColor = 'var(--logout-border)';
           }}
           aria-label="Logout"
         >

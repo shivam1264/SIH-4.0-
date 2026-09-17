@@ -709,7 +709,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
                 <span style={{ fontWeight: 700, fontSize: '0.78rem', color: active ? '#F8FAFC' : '#94A3B8' }}>
                   {active
                     ? engine === 'groq'
-                      ? 'Groq Whisper AI'
+                      ? 'Cloud AI Voice'
                       : engine === 'whisper'
                       ? 'Whisper AI Voice'
                       : 'Web Speech Voice'

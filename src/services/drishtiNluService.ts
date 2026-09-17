@@ -156,6 +156,18 @@ Available Intent Types:
 - THEME_LIGHT: Standard light theme/mode.
 - FONT_HUGE, FONT_LARGE, FONT_NORMAL: Text scaling adjustments.
 - VOICE_FASTER, VOICE_SLOWER: Voice speed tuning.
+- SCROLL_DOWN: Candidate wants to scroll down the page.
+- SCROLL_UP: Candidate wants to scroll up the page.
+- SCROLL_TOP: Candidate wants to jump/scroll to top of page.
+- SCROLL_BOTTOM: Candidate wants to jump/scroll to bottom of page.
+- AUTO_SCROLL_START: Candidate wants hands-free continuous auto-scrolling to start.
+- AUTO_SCROLL_STOP: Candidate wants auto-scrolling or scrolling to stop.
+- AUTO_SCROLL_FASTER: Candidate wants scroll speed increased.
+- AUTO_SCROLL_SLOWER: Candidate wants scroll speed decreased.
+- SCROLL_TO_SECTION: Candidate wants to jump to section (targetSection: "options" | "question" | "submit" | "instructions" | "overview").
+- CLICK_ELEMENT: Candidate wants to click or press a specific button/link (targetElement: "<label or button text>").
+- FOCUS_NEXT: Candidate wants to focus next interactive element.
+- FOCUS_PREV: Candidate wants to focus previous interactive element.
 - STOP_SPEAKING: Candidate wants Drishti to silence or shut up immediately.
 - STOP_VOICE: Candidate wants to mute the microphone.
 - DRISHTI_WAKE: Candidate just said "Drishti" or "Hey Drishti" to get attention.
@@ -167,6 +179,8 @@ Return JSON ONLY with this exact structure:
 {
   "type": "<IntentType>",
   "targetOption": "A" | "B" | "C" | "D" | null,
+  "targetSection": "options" | "question" | "submit" | "instructions" | "overview" | null,
+  "targetElement": string | null,
   "speechFeedback": "<Empathetic, clear, concise voice response spoken back to candidate>",
   "confidence": number,
   "reasoning": "<Short explanation>"
@@ -176,6 +190,9 @@ Return JSON ONLY with this exact structure:
       let content: string | null = null;
 
       for (const model of modelsToTry) {
+        const modelController = new AbortController();
+        const modelTimeoutId = setTimeout(() => modelController.abort(), 2400);
+
         try {
           const response = await fetch(GROQ_COMPLETIONS_URL, {
             method: 'POST',
@@ -192,8 +209,10 @@ Return JSON ONLY with this exact structure:
               ],
               response_format: { type: 'json_object' },
             }),
-            signal: controller.signal,
+            signal: modelController.signal,
           });
+
+          clearTimeout(modelTimeoutId);
 
           if (response.ok) {
             const data = await response.json();
@@ -203,11 +222,11 @@ Return JSON ONLY with this exact structure:
             console.warn(`[DrishtiNLU] Model ${model} returned status ${response.status}`);
           }
         } catch (mErr) {
+          clearTimeout(modelTimeoutId);
           console.warn(`[DrishtiNLU] Error with model ${model}:`, mErr);
         }
       }
 
-      clearTimeout(timeoutId);
       if (!content) return null;
 
       const parsed = JSON.parse(content);
@@ -241,15 +260,16 @@ Return JSON ONLY with this exact structure:
         label: parsed.type.replace(/_/g, ' '),
         speechFeedback: parsed.speechFeedback || '',
         targetOption: parsed.targetOption || undefined,
+        targetSection: parsed.targetSection || undefined,
+        targetElement: parsed.targetElement || undefined,
         confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 0.95,
         rawText: text,
         source: 'ai-nlu',
         reasoning: parsed.reasoning,
       };
     } catch (err: any) {
-      clearTimeout(timeoutId);
       if (err.name === 'AbortError') {
-        console.warn('[DrishtiNLU] Request timed out (>1800ms), using heuristic fallback');
+        console.warn('[DrishtiNLU] Request timed out, using heuristic fallback');
       }
       return null;
     }

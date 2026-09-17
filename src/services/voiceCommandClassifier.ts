@@ -64,6 +64,19 @@ export type VoiceIntentType =
   | 'HELP'
   | 'SEQUENTIAL_UNSUPPORTED'
   | 'CLARIFY_AMBIGUOUS'
+  // Autonomous Voice Scrolling & Action Operations
+  | 'SCROLL_DOWN'
+  | 'SCROLL_UP'
+  | 'SCROLL_TOP'
+  | 'SCROLL_BOTTOM'
+  | 'AUTO_SCROLL_START'
+  | 'AUTO_SCROLL_STOP'
+  | 'AUTO_SCROLL_FASTER'
+  | 'AUTO_SCROLL_SLOWER'
+  | 'SCROLL_TO_SECTION'
+  | 'CLICK_ELEMENT'
+  | 'FOCUS_NEXT'
+  | 'FOCUS_PREV'
   | 'UNRECOGNIZED';
 
 export interface ConversationalMemory {
@@ -84,6 +97,8 @@ export interface VoiceIntent {
   targetPage?: string;
   targetExamId?: string;
   targetExamTitle?: string;
+  targetSection?: string;
+  targetElement?: string;
   isNegated?: boolean;
   confidence: number;
   rawText: string;
@@ -229,9 +244,14 @@ const CONTRAST_SEPARATORS = [
  * -> Clause 2: "go back to the dashboard" (negated = false)
  */
 export function parseClauses(raw: string): Clause[] {
+  // Strip leading wake/assistant greetings before clause splitting so "Drishti, how much time..." isn't split into ["Drishti", "how much time..."]
+  let sanitized = raw.trim();
+  const strippedGreeting = sanitized.replace(/^(?:hey\s+drishti|hello\s+drishti|hi\s+drishti|ok\s+drishti|okay\s+drishti|drishti|hey\s+assistant|hello\s+assistant|please)[,\s]+/i, '');
+  if (strippedGreeting) sanitized = strippedGreeting;
+
   // If sentence has "X instead of Y" or "X rather than Y",
   // X is the active positive intent, and Y is the rejected/negated intent.
-  const contrastMatch = raw.match(/^(.*?)\b(?:instead of|rather than|but not)\b(.*)$/i);
+  const contrastMatch = sanitized.match(/^(.*?)\b(?:instead of|rather than|but not)\b(.*)$/i);
   if (contrastMatch) {
     const positivePart = normalizeTranscript(contrastMatch[1]);
     const negatedPart = normalizeTranscript(contrastMatch[2]);
@@ -242,7 +262,7 @@ export function parseClauses(raw: string): Clause[] {
   }
 
   // Handle "X but don't Y" / "X but do not Y"
-  const butDontMatch = raw.match(/^(.*?)\b(?:but\s+don'?t|but\s+do\s+not|but\s+never|par\s+mat|lekin\s+mat)\b(.*)$/i);
+  const butDontMatch = sanitized.match(/^(.*?)\b(?:but\s+don'?t|but\s+do\s+not|but\s+never|par\s+mat|lekin\s+mat)\b(.*)$/i);
   if (butDontMatch) {
     let posPart = normalizeTranscript(butDontMatch[1]);
     const negPart = normalizeTranscript(butDontMatch[2]);
@@ -255,7 +275,7 @@ export function parseClauses(raw: string): Clause[] {
     return res;
   }
 
-  let parts: string[] = [raw];
+  let parts: string[] = [sanitized];
 
   for (const sep of CONTRAST_SEPARATORS) {
     const nextParts: string[] = [];
@@ -272,9 +292,18 @@ export function parseClauses(raw: string): Clause[] {
   return parts.map(part => {
     const norm = normalizeTranscript(part);
     const words = norm.split(' ');
+
+    // Affirmative stop/pause action commands that must never be flagged as negative clauses:
+    const isStopActionCommand =
+      /^(?:stop|ruko|band\s+karo)\s+(?:scroll|auto\s*scroll|speaking|audio|voice|reading)$/i.test(norm) ||
+      /^(?:stop|ruko|chup|pause|skip)$/i.test(norm);
+
     // Check if the clause begins with or contains a prominent negation word
-    const hasNegation = words.slice(0, 4).some(w => NEGATION_WORDS.has(w)) ||
-      /\b(?:dont|don'?t|do not|never|mat|nahi|nahin|not)\b/i.test(norm);
+    const hasNegation = !isStopActionCommand && (
+      words.slice(0, 4).some(w => NEGATION_WORDS.has(w) && w !== 'stop') ||
+      /\b(?:dont|don'?t|do not|never|mat|nahi|nahin|not)\b/i.test(norm) ||
+      (/\bstop\b/i.test(norm) && !isStopActionCommand)
+    );
     return {
       text: norm,
       isNegated: hasNegation,
@@ -304,6 +333,8 @@ interface MatchResult {
   targetPage?: string;
   targetExamId?: string;
   targetExamTitle?: string;
+  targetSection?: string;
+  targetElement?: string;
   confidence: number;
 }
 
@@ -446,7 +477,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
 
   // ── CLEAR / UNSELECT ANSWER ──
   if (
-    /\b(clear\s+(?:my\s+)?answer|clear\s+selection|unselect|deselect|answer\s+hatao|selection\s+hatao|remove\s+answer|hatao|reset\s+answer)\b/i.test(t)
+    /\b(clear\s+(?:my\s+)?answer|clear\s+selection|unselect|deselect|answer\s+hatao|selection\s+hatao|remove\s+(?:my\s+)?answer|take\s+away\s+(?:my\s+)?answer|take\s+back\s+(?:my\s+)?answer|erase\s+(?:my\s+)?answer|delete\s+(?:my\s+)?answer|hatao|reset\s+answer)\b/i.test(t)
   ) {
     return {
       type: 'CLEAR_ANSWER',
@@ -643,7 +674,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
 
   // ── START THE MOCK TEST (Explicit Start vs Open) ──
   if (
-    /\b(start\s+(?:the\s+)?(?:mock\s+)?(?:test|exam)|begin\s+(?:the\s+)?(?:mock\s+)?(?:test|exam)|shuru\s+karo\s+(?:exam|pariksha|test)|chalu\s+karo\s+exam|proceed\s+to\s+exam)\b/i.test(t) ||
+    /\b(start\s+(?:the\s+)?(?:mock\s+)?(?:test|exam|examination|pariksha)|begin\s+(?:the\s+)?(?:mock\s+)?(?:test|exam|examination|pariksha)|ready\s+to\s+begin\s+(?:the\s+)?(?:test|exam|examination)|shuru\s+karo\s+(?:exam|pariksha|test)|chalu\s+karo\s+exam|proceed\s+to\s+exam)\b/i.test(t) ||
     (context?.examState === 'not-started' && /^(start|begin|shuru|start exam|start test)$/i.test(t))
   ) {
     return {
@@ -932,13 +963,81 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
     return { type: 'STOP_VOICE', action: 'STOP_VOICE', label: 'Voice Off', speechFeedback: 'Voice assistant muted.', confidence: 0.95 };
   }
 
+  // ── AUTONOMOUS VOICE SCROLLING & ELEMENT ACTIONS ──
+  // 1. Directional Scrolling (Down, Up, Top, Bottom)
+  if (/\b(scroll\s+(?:the\s+page\s+)?down|scroll\s+down|neeche\s+scroll|scroll\s+neeche|page\s+down)\b/i.test(t)) {
+    return { type: 'SCROLL_DOWN', action: 'SCROLL_DOWN', label: 'Scroll Down', speechFeedback: 'Scrolling down.', confidence: 0.98 };
+  }
+  if (/\b(scroll\s+(?:the\s+)?(?:page\s+)?up|scroll\s+up|upar\s+scroll|scroll\s+upar|page\s+up)\b/i.test(t)) {
+    return { type: 'SCROLL_UP', action: 'SCROLL_UP', label: 'Scroll Up', speechFeedback: 'Scrolling up.', confidence: 0.98 };
+  }
+  if (/\b(scroll\s+(?:to\s+(?:the\s+)?)?top|go\s+to\s+(?:the\s+)?top|sabse\s+upar\s+jao|sabse\s+upar|top\s+par\s+jao)\b/i.test(t)) {
+    return { type: 'SCROLL_TOP', action: 'SCROLL_TOP', label: 'Scroll to Top', speechFeedback: 'Scrolling to top.', confidence: 0.98 };
+  }
+  if (/\b(scroll\s+(?:to\s+(?:the\s+)?)?bottom|go\s+to\s+(?:the\s+)?bottom|sabse\s+neeche\s+jao|sabse\s+neeche|bottom\s+par\s+jao)\b/i.test(t)) {
+    return { type: 'SCROLL_BOTTOM', action: 'SCROLL_BOTTOM', label: 'Scroll to Bottom', speechFeedback: 'Scrolling to bottom.', confidence: 0.98 };
+  }
+
+  // 2. Continuous Auto-Scroll
+  if (/\b(start\s+auto\s*scroll|begin\s+auto\s*scroll|auto\s*scroll\s+(?:shuru|start|on)|auto\s*scroll)\b/i.test(t) && !/\b(stop|roko|faster|slower)\b/i.test(t)) {
+    return { type: 'AUTO_SCROLL_START', action: 'AUTO_SCROLL_START', label: 'Auto Scroll Started', speechFeedback: 'Auto scrolling started.', confidence: 0.98 };
+  }
+  if (/\b(stop\s+auto\s*scroll|stop\s+scroll|end\s+auto\s*scroll|auto\s*scroll\s+(?:roko|band|stop)|scroll\s+roko|pause\s+scroll)\b/i.test(t)) {
+    return { type: 'AUTO_SCROLL_STOP', action: 'AUTO_SCROLL_STOP', label: 'Auto Scroll Stopped', speechFeedback: 'Auto scrolling stopped.', confidence: 0.98 };
+  }
+  if (/\b(scroll\s+faster|auto\s*scroll\s+faster|fast\s+scroll|tez\s+scroll|scroll\s+speed\s+badhao)\b/i.test(t)) {
+    return { type: 'AUTO_SCROLL_FASTER', action: 'AUTO_SCROLL_FASTER', label: 'Scroll Faster', speechFeedback: 'Increasing scroll speed.', confidence: 0.95 };
+  }
+  if (/\b(scroll\s+slower|auto\s*scroll\s+slower|slow\s+scroll|dheere\s+scroll|scroll\s+speed\s+kam\s+karo)\b/i.test(t)) {
+    return { type: 'AUTO_SCROLL_SLOWER', action: 'AUTO_SCROLL_SLOWER', label: 'Scroll Slower', speechFeedback: 'Decreasing scroll speed.', confidence: 0.95 };
+  }
+
+  // 3. Smart Section Jumps
+  const sectionMatch = t.match(/\b(?:scroll\s+to|jump\s+to|navigate\s+to|go\s+to\s+section)\s+(?:the\s+)?(options?|questions?|submit|instructions?|overview|summary|header|palette)\b/i);
+  if (sectionMatch) {
+    const sectionKey = sectionMatch[1].toLowerCase();
+    return {
+      type: 'SCROLL_TO_SECTION',
+      action: `SCROLL_SECTION_${sectionKey.toUpperCase()}`,
+      label: `Scroll to ${sectionKey}`,
+      speechFeedback: `Scrolling to ${sectionKey}.`,
+      targetSection: sectionKey,
+      confidence: 0.96,
+    };
+  }
+
+  // 4. Autonomous Element Clicking & Tap simulation
+  const clickMatch = t.match(/\b(?:click|press|tap|dabao)\s+(?:on\s+)?(?:the\s+)?(.+)\b/i);
+  if (clickMatch) {
+    const rawTarget = clickMatch[1].trim().toLowerCase();
+    if (rawTarget === 'start exam' || rawTarget === 'start test') {
+      return { type: 'START_EXAM', action: 'START_EXAM', label: 'Start Exam', speechFeedback: 'Starting mock test.', confidence: 0.98 };
+    }
+    return {
+      type: 'CLICK_ELEMENT',
+      action: 'CLICK_ELEMENT',
+      label: `Click ${clickMatch[1].trim()}`,
+      speechFeedback: `Clicking ${clickMatch[1].trim()}.`,
+      targetElement: clickMatch[1].trim(),
+      confidence: 0.95,
+    };
+  }
+
+  // 5. Accessible Focus Traversal
+  if (/\b(focus\s+next\s+element|next\s+element|agla\s+element|focus\s+next)\b/i.test(t)) {
+    return { type: 'FOCUS_NEXT', action: 'FOCUS_NEXT', label: 'Focus Next', speechFeedback: 'Focused next element.', confidence: 0.95 };
+  }
+  if (/\b(focus\s+previous\s+element|previous\s+element|pichla\s+element|focus\s+prev)\b/i.test(t)) {
+    return { type: 'FOCUS_PREV', action: 'FOCUS_PREV', label: 'Focus Previous', speechFeedback: 'Focused previous element.', confidence: 0.95 };
+  }
+
   // ── HELP & FEATURE GUIDANCE ──
   if (/\b(help|guide\s+me|guide|what\s+can\s+i\s+say|what\s+can\s+you\s+do|features|kya\s+bol\s+sakta|commands|options|available\s+features)\b/i.test(t) || /^(help|guide|features)$/i.test(t)) {
     return {
       type: 'HELP',
       action: 'HELP',
       label: 'Voice Guidance',
-      speechFeedback: 'Available sections: Open Dashboard, Open Mock Tests, AI Practice Drills, Study Materials, Past Year Papers, Performance, Exam History, Accessibility Settings, or Candidate Profile. You can also say switch to dark mode, or make text huge.',
+      speechFeedback: 'Available sections: Open Dashboard, Open Mock Tests, AI Practice Drills, Study Materials, Past Year Papers, Performance, Exam History, Accessibility Settings, or Candidate Profile. You can also say switch to dark mode, scroll down, or start auto scroll.',
       confidence: 0.95,
     };
   }
@@ -1180,6 +1279,8 @@ export function classifyVoiceIntent(raw: string, context?: VoiceContext): VoiceI
         targetPage: match.targetPage,
         targetExamId: match.targetExamId,
         targetExamTitle: match.targetExamTitle,
+        targetSection: match.targetSection,
+        targetElement: match.targetElement,
         confidence: match.confidence,
         rawText: raw,
       };
@@ -1233,6 +1334,8 @@ export function classifyVoiceIntent(raw: string, context?: VoiceContext): VoiceI
       targetPage: fullMatch.targetPage,
       targetExamId: fullMatch.targetExamId,
       targetExamTitle: fullMatch.targetExamTitle,
+      targetSection: fullMatch.targetSection,
+      targetElement: fullMatch.targetElement,
       confidence: fullMatch.confidence,
       rawText: raw,
     };

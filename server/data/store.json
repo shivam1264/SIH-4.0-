@@ -1595,6 +1595,28 @@
   ],
   "attemptLogs": [
     {
+      "id": "att-e2e-1789657972742",
+      "candidateName": "Aryan Sharma",
+      "studentName": "Aryan Sharma",
+      "rollNo": "PWD-2026-081",
+      "studentRoll": "PWD-2026-081",
+      "examTitle": "SSC CGL General Intelligence & Reasoning",
+      "examId": "ssc-reasoning-01",
+      "score": 18,
+      "maxScore": 20,
+      "totalMarks": 20,
+      "percentage": 90,
+      "passed": true,
+      "status": "Completed",
+      "completedAt": "2026-09-17 15:12",
+      "submittedAt": "2026-09-17 15:12",
+      "timeTakenMinutes": 7,
+      "timeSpentSeconds": 420,
+      "speechCommandsUsed": 0,
+      "audioAlertsCount": 0,
+      "audioIntegrityStatus": "Clean"
+    },
+    {
       "id": "att-e2e-1789592747359",
       "candidateName": "Aryan Sharma",
       "studentName": "Aryan Sharma",

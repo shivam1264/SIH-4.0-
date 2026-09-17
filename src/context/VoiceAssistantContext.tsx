@@ -9,7 +9,8 @@ import { useAuth } from './AuthContext';
 import { notificationService } from '../services/notificationService';
 import { audioCueService } from '../services/audioCueService';
 import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
-import { Mic, MicOff, Volume2, Sparkles, X, BrainCircuit } from 'lucide-react';
+import { drishtiActionService } from '../services/drishtiActionService';
+import { Mic, MicOff, Volume2, Sparkles, X, BrainCircuit, Play, Pause, ChevronDown, ChevronUp, Move } from 'lucide-react';
 
 export interface PageQAItem {
   triggers: string[];
@@ -65,7 +66,16 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
   const [lastNluResult, setLastNluResult] = useState<DrishtiNluResult | null>(null);
   const [currentPage, setCurrentPage] = useState('App');
   const [showToast, setShowToast] = useState(false);
+  const [isAutoScrolling, setIsAutoScrolling] = useState(false);
+  const [autoScrollSpeed, setAutoScrollSpeed] = useState(1.0);
   const toastTimeoutRef = useRef<any>(null);
+
+  useEffect(() => {
+    return drishtiActionService.onAutoScrollChange((active, speed) => {
+      setIsAutoScrolling(active);
+      setAutoScrollSpeed(speed);
+    });
+  }, []);
 
   const currentPageRef = useRef('App');
   currentPageRef.current = currentPage;
@@ -525,6 +535,85 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         return true;
       }
 
+      // ── AUTONOMOUS VOICE SCROLLING & ACTION ENGINE ──
+      if (intent.type === 'SCROLL_DOWN') {
+        const ok = drishtiActionService.scrollDown();
+        if (ok) speak('Scrolling down.');
+        return true;
+      }
+
+      if (intent.type === 'SCROLL_UP') {
+        const ok = drishtiActionService.scrollUp();
+        if (ok) speak('Scrolling up.');
+        return true;
+      }
+
+      if (intent.type === 'SCROLL_TOP') {
+        const ok = drishtiActionService.scrollToTop();
+        if (ok) speak('Scrolled to top.');
+        return true;
+      }
+
+      if (intent.type === 'SCROLL_BOTTOM') {
+        const ok = drishtiActionService.scrollToBottom();
+        if (ok) speak('Scrolled to bottom.');
+        return true;
+      }
+
+      if (intent.type === 'AUTO_SCROLL_START') {
+        drishtiActionService.startAutoScroll();
+        speak('Auto scrolling started.');
+        return true;
+      }
+
+      if (intent.type === 'AUTO_SCROLL_STOP') {
+        drishtiActionService.stopAutoScroll();
+        speak('Auto scrolling stopped.');
+        return true;
+      }
+
+      if (intent.type === 'AUTO_SCROLL_FASTER') {
+        const newSpeed = drishtiActionService.adjustSpeed(0.25);
+        speak(`Scroll speed increased to ${newSpeed.toFixed(1)}x.`);
+        return true;
+      }
+
+      if (intent.type === 'AUTO_SCROLL_SLOWER') {
+        const newSpeed = drishtiActionService.adjustSpeed(-0.25);
+        speak(`Scroll speed decreased to ${newSpeed.toFixed(1)}x.`);
+        return true;
+      }
+
+      if (intent.type === 'SCROLL_TO_SECTION') {
+        const sec = intent.targetSection || '';
+        const ok = drishtiActionService.scrollToSection(sec);
+        if (ok) {
+          speak(`Scrolled to ${sec}.`);
+        } else {
+          speak(`Section ${sec} not found on this screen.`);
+        }
+        return true;
+      }
+
+      if (intent.type === 'CLICK_ELEMENT') {
+        const target = intent.targetElement || '';
+        const res = drishtiActionService.clickElementByVoice(target);
+        speak(res.message);
+        return true;
+      }
+
+      if (intent.type === 'FOCUS_NEXT') {
+        drishtiActionService.focusNext();
+        speak('Focused next item.');
+        return true;
+      }
+
+      if (intent.type === 'FOCUS_PREV') {
+        drishtiActionService.focusPrev();
+        speak('Focused previous item.');
+        return true;
+      }
+
       // If utterance was genuinely ambiguous (e.g. "open it", "start it", "do that")
       if (intent.type === 'CLARIFY_AMBIGUOUS') {
         speak(intent.speechFeedback, true);
@@ -659,6 +748,48 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
             pointerEvents: 'none',
           }}
         >
+          {/* Auto-Scrolling HUD Pill */}
+          {isAutoScrolling && (
+            <div
+              className="fade-in"
+              style={{
+                pointerEvents: 'auto',
+                background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 58, 138, 0.95))',
+                backdropFilter: 'blur(12px)',
+                border: '1.5px solid rgba(59, 130, 246, 0.7)',
+                color: '#F8FAFC',
+                borderRadius: '999px',
+                padding: '0.4rem 0.9rem',
+                fontSize: '0.8rem',
+                boxShadow: '0 8px 24px rgba(37, 99, 235, 0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              <ChevronDown size={16} className="animate-bounce" color="#60A5FA" />
+              <span style={{ fontWeight: 600, color: '#93C5FD' }}>
+                Auto-Scrolling ({autoScrollSpeed.toFixed(1)}x)
+              </span>
+              <button
+                onClick={() => drishtiActionService.stopAutoScroll()}
+                style={{
+                  background: 'rgba(239, 68, 68, 0.25)',
+                  border: '1px solid rgba(239, 68, 68, 0.5)',
+                  color: '#FCA5A5',
+                  padding: '2px 8px',
+                  borderRadius: 999,
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  marginLeft: 4,
+                }}
+                title="Stop auto scroll"
+              >
+                Pause
+              </button>
+            </div>
+          )}
           {/* Transcript Toast Pill */}
           {showToast && lastTranscript && (
             <div

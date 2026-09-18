@@ -123,7 +123,7 @@ export default function Profile() {
       action: () => saveAccommodations(),
     },
     {
-      triggers: ['start ssc exam', 'start ready exam', 'start reasoning exam', 'start exam'],
+      triggers: ['start ssc exam', 'start ready exam', 'start reasoning exam'],
       answer: () => 'Starting SSC CGL General Intelligence and Reasoning mock exam.',
       action: () => navigate('/exam/ssc-reasoning-01'),
     },

@@ -11,6 +11,11 @@ import { audioCueService } from '../services/audioCueService';
 import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
 import { drishtiActionService } from '../services/drishtiActionService';
 import { Mic, MicOff, Volume2, Sparkles, X, BrainCircuit, Play, Pause, ChevronDown, ChevronUp, Move } from 'lucide-react';
+import {
+  resolvePageNameFromRoute,
+  isQuestionOrQuery,
+  askPageQuestion,
+} from '../services/pageKnowledgeService';
 
 export interface PageQAItem {
   triggers: string[];
@@ -255,7 +260,23 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         }
       }
 
-
+      // ── Priority Page Q&A Intelligence ("is page me kya likha hai", "what is on this screen", etc.) ──
+      if (
+        isQuestionOrQuery(rawText) &&
+        !intent.action &&
+        (intent.type as string) !== 'NEXT_QUESTION' &&
+        (intent.type as string) !== 'PREV_QUESTION' &&
+        (intent.type as string) !== 'SELECT_OPTION' &&
+        (intent.type as string) !== 'GOTO_QUESTION'
+      ) {
+        const effectivePage = resolvePageNameFromRoute(currentRoute, activePage);
+        console.log(`[VoiceAssistant] 🧠 Priority Page Q&A query for [${effectivePage}]: "${rawText}"`);
+        const answer = await askPageQuestion(effectivePage, rawText);
+        if (answer) {
+          speak(answer, true);
+          return true;
+        }
+      }
 
       // ── Handle Exam Status Queries ──
       if (intent.type === 'EXAM_STATUS') {
@@ -430,12 +451,22 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
 
       // Explicit Start Mock Test command when NOT already taking an exam
       if (intent.type === 'START_EXAM' && !currentRoute.startsWith('/exam/')) {
-        const targetId = intent.targetExamId || conversationalMemoryRef.current.lastTargetExamId || 'ssc-reasoning-01';
-        const targetTitle = intent.targetExamTitle || conversationalMemoryRef.current.lastTargetExamTitle || 'mock';
-        conversationalMemoryRef.current.lastTargetExamId = targetId;
-        conversationalMemoryRef.current.lastTargetExamTitle = targetTitle;
-        speak(intent.speechFeedback || `Starting the ${targetTitle} mock test.`, true);
-        navigate(`/exam/${targetId}`);
+        // If candidate explicitly specified an exam OR is already on the /exams catalogue page, start it
+        if (intent.targetExamId || currentRoute === '/exams') {
+          const targetId = intent.targetExamId || conversationalMemoryRef.current.lastTargetExamId || 'ssc-reasoning-01';
+          const targetTitle = intent.targetExamTitle || conversationalMemoryRef.current.lastTargetExamTitle || 'mock';
+          conversationalMemoryRef.current.lastTargetExamId = targetId;
+          conversationalMemoryRef.current.lastTargetExamTitle = targetTitle;
+          speak(intent.speechFeedback || `Starting the ${targetTitle} mock test.`, true);
+          navigate(`/exam/${targetId}`);
+          return true;
+        }
+
+        // If on generic screen (Dashboard, Home, Settings) without specific target exam,
+        // navigate to /exams catalogue so a timed live test is never started accidentally
+        conversationalMemoryRef.current.lastSubject = 'Mock Tests';
+        speak('Opening mock test library. Please choose an exam to begin.', true);
+        navigate('/exams');
         return true;
       }
 
@@ -618,6 +649,18 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
       if (intent.type === 'CLARIFY_AMBIGUOUS') {
         speak(intent.speechFeedback, true);
         return true;
+      }
+
+      // ── UNIVERSAL SIDEBAR PAGE Q&A INTELLIGENCE FALLBACK ──
+      // Answers any question or inquiry about the active sidebar page in Hindi or English
+      if (rawText && rawText.trim().length > 1) {
+        const effectivePage = resolvePageNameFromRoute(currentRoute, activePage);
+        console.log(`[VoiceAssistant] 🤖 Unhandled query resolved via Page Intelligence [${effectivePage}]: "${rawText}"`);
+        const answer = await askPageQuestion(effectivePage, rawText);
+        if (answer) {
+          speak(answer, true);
+          return true;
+        }
       }
 
       return false;
@@ -882,10 +925,11 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
                 : '0 4px 14px rgba(0,0,0,0.25)',
               color: '#fff',
               fontSize: '0.8rem',
-              cursor: 'pointer',
+              cursor: status.toLowerCase().includes('processing') ? 'not-allowed' : 'pointer',
+              opacity: status.toLowerCase().includes('processing') ? 0.85 : 1,
               transition: 'all 0.25s ease',
             }}
-            onClick={toggleVoice}
+            onClick={status.toLowerCase().includes('processing') ? undefined : toggleVoice}
             role="button"
             tabIndex={0}
             aria-label={`Drishti AI Assistant: ${active ? status : 'Muted'}. Say Drishti or press Alt+D or V.`}
@@ -934,18 +978,19 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
                         engine === 'groq'
                           ? '#4338CA'
                           : engine === 'whisper'
-                          ? '#1D4ED8'
+                          ? '#0284C7'
                           : '#065F46',
                       color: engine === 'groq' ? '#EEF2FF' : '#E0F2FE',
-                      fontWeight: 600,
+                      fontWeight: 700,
+                      letterSpacing: '0.03em',
                     }}
                   >
-                    {engine === 'groq' ? 'AI WHISPER + NLU' : engine === 'whisper' ? 'LOCAL AI' : 'BROWSER'}
+                    {engine === 'groq' ? 'GROQ CLOUD' : engine === 'whisper' ? 'OFFLINE WHISPER' : 'BROWSER'}
                   </span>
                 )}
               </div>
-              <span style={{ fontSize: '0.68rem', color: active ? (engine === 'groq' ? '#C7D2FE' : '#93C5FD') : '#64748B' }}>
-                {active ? `Say 'Drishti...' • Alt+D` : 'Press Alt+D or V to wake Drishti'}
+              <span style={{ fontSize: '0.68rem', color: active ? (status.toLowerCase().includes('offline') ? '#FBBF24' : engine === 'groq' ? '#C7D2FE' : '#93C5FD') : '#64748B' }}>
+                {active ? status : 'Press Alt+D or V to wake Drishti'}
               </span>
             </div>
 

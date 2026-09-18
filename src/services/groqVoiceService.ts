@@ -19,19 +19,18 @@ function getFallbackKey(): string {
 const DEFAULT_API_KEY = getFallbackKey();
 const SAMPLE_RATE = 16000;
 const BUFFER_SIZE = 2048; // ~128ms per audio frame
-const BASE_SPEECH_RMS = 0.009;
+const BASE_SPEECH_RMS = 0.015;
 const SILENCE_FRAMES_TRIGGER = 3; // ~384ms pause triggers utterance submission
-const MIN_UTTERANCE_MS = 220; // 220ms minimum for fast words like 'yes', 'no', 'B'
+const MIN_UTTERANCE_MS = 320; // 320ms minimum for voice commands
 const MAX_UTTERANCE_MS = 5000; // Safety cap: 5 seconds continuous audio
 
 // Domain vocabulary prompt to prime Whisper for exam and Hindi/Hinglish instructions
 const EXAM_VOICE_PROMPT = (
-  'Open mock test, start exam, dashboard, practice drills, results, performance, settings. ' +
   'Next question, previous question, read question, repeat question, flag question. ' +
   'Select option A, option B, option C, option D, change my answer to B, clear answer. ' +
-  'Submit exam, confirm, yes, cancel, no. ' +
-  'Agla sawal, pichla sawal, sawal padho, agla prashna, vikalp A, vikalp B, vikalp C, vikalp D, ' +
-  'उत्तर बदलो, सबमिट करो, सवाल पढ़ो, अगला सवाल, पिछला सवाल।'
+  'Agla sawal, pichla sawal, sawal padho, agla prashna, vikalp A, vikalp B, vikalp C, vikalp D. ' +
+  'Dashboard, mock tests, practice drills, results, performance, settings. ' +
+  'Start mock test, submit exam, confirm, yes, cancel, no, उत्तर बदलो, सबमिट करो।'
 );
 
 function pcmToWav(pcmData: Int16Array, sampleRate = 16000): Blob {

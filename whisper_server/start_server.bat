@@ -28,13 +28,8 @@ call venv\Scripts\activate
 pip install -r requirements.txt -q
 
 echo.
-echo [3/4] Downloading Whisper model (only first time)...
-python download_model.py small
-if %errorlevel% neq 0 (
-    echo.
-    echo [WARN] 'small' model failed. Trying 'tiny' model instead...
-    python download_model.py tiny
-)
+echo [3/4] Checking Whisper model...
+python download_model.py
 
 echo.
 echo [4/4] Starting Whisper Server on port 8765...

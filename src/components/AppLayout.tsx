@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Menu,
+  Home,
   Sun,
   Moon,
   Contrast,
@@ -209,20 +210,99 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.45rem',
-                fontSize: '0.88rem',
+                gap: '0.55rem',
+                fontSize: '0.95rem',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
               }}
             >
-              <span style={{ fontWeight: 500, color: 'var(--text-muted)' }}>
-                {isAdminRoute ? 'Admin' : 'Portal'}
-              </span>
-              <span style={{ color: 'var(--text-muted)', opacity: 0.35 }}>/</span>
-              <span style={{ fontWeight: 600, color: 'var(--text)' }}>
-                {title}
-              </span>
+              <button
+                type="button"
+                onClick={() => navigate(isAdminRoute ? '/admin?tab=dashboard' : '/dashboard')}
+                aria-label="Go to Dashboard"
+                title="Go to Dashboard"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: '2px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'var(--breadcrumb-home, #8D3C1B)',
+                  borderRadius: '0.375rem',
+                  transition: 'opacity 0.15s ease, transform 0.15s ease',
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '0.8';
+                  e.currentTarget.style.transform = 'scale(1.06)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                  e.currentTarget.style.transform = 'scale(1)';
+                }}
+              >
+                <Home size={20} strokeWidth={2.2} />
+              </button>
+
+              <ChevronRight
+                size={16}
+                strokeWidth={2.2}
+                style={{ color: '#A8A29E', flexShrink: 0 }}
+                aria-hidden="true"
+              />
+
+              {title !== 'Dashboard' ? (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', minWidth: 0, overflow: 'hidden' }}>
+                  <button
+                    type="button"
+                    onClick={() => navigate(isAdminRoute ? '/admin?tab=dashboard' : '/dashboard')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      color: 'var(--text-muted, #64748B)',
+                      fontSize: '0.92rem',
+                      fontWeight: 500,
+                    }}
+                    className="hidden sm:inline"
+                    title="Dashboard"
+                  >
+                    Dashboard
+                  </button>
+                  <ChevronRight
+                    size={16}
+                    strokeWidth={2.2}
+                    className="hidden sm:inline"
+                    style={{ color: '#A8A29E', flexShrink: 0 }}
+                    aria-hidden="true"
+                  />
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '1.05rem',
+                      color: 'var(--text, #0F172A)',
+                      letterSpacing: '-0.01em',
+                    }}
+                  >
+                    {title}
+                  </span>
+                </div>
+              ) : (
+                <span
+                  style={{
+                    fontWeight: 700,
+                    fontSize: '1.05rem',
+                    color: 'var(--text, #0F172A)',
+                    letterSpacing: '-0.01em',
+                  }}
+                >
+                  Dashboard
+                </span>
+              )}
             </nav>
           </div>
 

@@ -29,7 +29,8 @@ app.use(
   })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
+app.use(express.raw({ type: ['audio/*', 'application/octet-stream'], limit: '25mb' }));
 
 // Request logging in development
 app.use((req, res, next) => {

@@ -69,6 +69,32 @@ def download_with_retry(model_size="small", max_retries=5):
 
 
 if __name__ == "__main__":
-    size = sys.argv[1] if len(sys.argv) > 1 else "small"
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    # Check if this machine has an NVIDIA GPU
+    has_gpu = False
+    try:
+        import ctranslate2
+        has_gpu = ctranslate2.get_cuda_device_count() > 0
+    except Exception:
+        has_gpu = False
+
+    env_model = os.environ.get("WHISPER_MODEL", "small").strip()
+    size = sys.argv[1] if len(sys.argv) > 1 else env_model
+
+    # Smart adaptation for Friend's laptop (CPU / low storage):
+    if not has_gpu and size in ["large", "large-v1", "large-v2", "large-v3"]:
+        model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
+        large_path = os.path.join(model_dir, f"models--Systran--faster-whisper-{size}")
+        if not os.path.exists(large_path):
+            log("\n" + "="*60)
+            log(" [AUTO-DETECT] No NVIDIA GPU detected on this laptop.")
+            log(" [AUTO-CONFIG] Switching to 'small' model (244 MB) optimized")
+            log("               for CPU execution and low storage usage!")
+            log("="*60 + "\n")
+            size = "small"
+
     success = download_with_retry(size)
     sys.exit(0 if success else 1)
+

@@ -14,10 +14,9 @@ export interface DrishtiNluResult extends VoiceIntent {
 
 const GROQ_COMPLETIONS_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const NLU_MODELS = [
-  'openai/gpt-oss-20b',
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant',
   'openai/gpt-oss-120b',
-  'qwen/qwen3.8-27b',
-  'groq/compound-mini',
 ];
 const TIMEOUT_MS = 2200; // Cap to ensure responsive voice UI
 
@@ -68,6 +67,33 @@ class DrishtiNluService {
       return this._cache.get(cacheKey)!;
     }
 
+    // 1. FAST DETERMINISTIC BYPASS FOR KNOWN EXAM & SYSTEM COMMANDS
+    // Prevents sending standard commands across the network to LLMs (eliminates 429 errors & latency)
+    const deterministic = classifyVoiceIntent(text, context);
+    const deterministicActions = new Set([
+      'NEXT_QUESTION', 'PREV_QUESTION', 'SELECT_OPTION', 'CHANGE_ANSWER',
+      'CLEAR_ANSWER', 'FLAG_QUESTION', 'READ_QUESTION', 'REPEAT_QUESTION',
+      'REPEAT_LAST', 'READ_OPTIONS', 'TIME_REMAINING', 'EXAM_STATUS',
+      'UNANSWERED_COUNT', 'GOTO_QUESTION', 'START_EXAM', 'INITIATE_SUBMIT',
+      'CONFIRM_SUBMIT', 'CANCEL_SUBMIT', 'THEME_LIGHT', 'THEME_DARK',
+      'THEME_CONTRAST', 'THEME_YELLOW', 'FONT_NORMAL', 'FONT_LARGE',
+      'FONT_XLARGE', 'FONT_HUGE', 'VOICE_FASTER', 'VOICE_SLOWER',
+      'OPEN_DASHBOARD', 'OPEN_MOCK_TESTS', 'OPEN_PRACTICE', 'OPEN_RESULTS',
+      'OPEN_PERFORMANCE', 'OPEN_PROFILE', 'OPEN_SETTINGS', 'OPEN_STUDY_MATERIALS',
+      'OPEN_PYQS', 'OPEN_EXAM_HISTORY', 'OPEN_NOTIFICATIONS', 'NAVIGATE_BACK',
+      'STOP_SPEAKING', 'STOP_VOICE', 'DRISHTI_WAKE', 'DRISHTI_INTRO', 'HELP'
+    ]);
+
+    if (deterministic.confidence >= 0.90 && deterministicActions.has(deterministic.type)) {
+      const res: DrishtiNluResult = {
+        ...deterministic,
+        source: 'local-heuristic',
+        latencyMs: 0,
+      };
+      this._cache.set(cacheKey, res);
+      return res;
+    }
+
     // If AI NLU is disabled or offline, use deterministic classifier
     if (!this._enabled || !groqVoiceService.isAvailable()) {
       const heuristic = classifyVoiceIntent(text, context);
@@ -77,6 +103,7 @@ class DrishtiNluService {
     }
 
     const startTime = Date.now();
+
 
     try {
       const aiResult = await this._callAiNlu(text, context);

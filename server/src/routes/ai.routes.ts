@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import type { Question } from '../types/index.js';
+import { SIDEBAR_PAGES_KNOWLEDGE, resolveLocalPageQuestion } from '../data/pageKnowledge.js';
 
 const router = Router();
 
@@ -485,6 +486,244 @@ router.post('/generate-questions', async (req, res) => {
     });
   } catch (err: any) {
     return res.status(500).json({ error: err.message || 'AI Question Generation failed' });
+  }
+});
+
+// ── HYBRID / FAILOVER SPEECH-TO-TEXT ENDPOINT ─────────────────────────────
+const EXAM_VOICE_PROMPT = (
+  'Next question, previous question, read question, repeat question, flag question. ' +
+  'Select option A, option B, option C, option D, change my answer to B, clear answer. ' +
+  'Agla sawal, pichla sawal, sawal padho, agla prashna, vikalp A, vikalp B, vikalp C, vikalp D. ' +
+  'Dashboard, mock tests, practice drills, results, performance, settings. ' +
+  'Start mock test, submit exam, confirm, yes, cancel, no, उत्तर बदलो, सबमिट करो।'
+);
+
+function cleanTranscriptText(text: string): string {
+  if (!text) return '';
+  const cleaned = text
+    .replace(/[.,!?;:\-_'"`~|।]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  const low = cleaned.toLowerCase();
+  const noiseTokens = ['thank you', 'thanks for watching', 'subscribe', 'subtitles by', 'transcribed by'];
+  for (const n of noiseTokens) {
+    if (low === n || low.startsWith(n)) return '';
+  }
+  return cleaned;
+}
+
+router.post('/transcribe', async (req, res) => {
+  try {
+    let audioBuffer: Buffer | null = null;
+
+    // 1. Extract audio from request
+    if (Buffer.isBuffer(req.body) && req.body.length > 0) {
+      audioBuffer = req.body;
+    } else if (req.body && typeof req.body === 'object') {
+      const b64 = req.body.audio || req.body.file;
+      if (b64 && typeof b64 === 'string') {
+        const cleanB64 = b64.includes(',') ? b64.split(',')[1] : b64;
+        audioBuffer = Buffer.from(cleanB64, 'base64');
+      }
+    }
+
+    if (!audioBuffer || audioBuffer.length === 0) {
+      return res.status(400).json({
+        success: false,
+        text: '',
+        provider: 'none',
+        error: 'No audio data provided',
+      });
+    }
+
+    const simulate429 = Boolean(
+      req.headers['x-simulate-groq-429'] === 'true' ||
+      (req.query && req.query.simulate === '429')
+    );
+
+    const groqEnabled = process.env.GROQ_STT_ENABLED !== 'false';
+    const groqApiKey = (process.env.GROQ_API_KEY || '').trim();
+    const localEnabled = process.env.LOCAL_STT_ENABLED !== 'false';
+    const localUrl = (process.env.LOCAL_STT_URL || 'http://localhost:8765/transcribe').trim();
+    const groqTimeoutMs = Number(process.env.GROQ_TIMEOUT_MS) || 4500;
+
+    let groqSuccess = false;
+    let groqTranscript = '';
+
+    // ── PRIMARY STT PROVIDER: GROQ WHISPER ─────────────────────────────
+    if (groqEnabled && groqApiKey && !simulate429) {
+      try {
+        const formData = new FormData();
+        const blob = new Blob([audioBuffer], { type: 'audio/wav' });
+        formData.append('file', blob, 'speech.wav');
+        formData.append('model', process.env.GROQ_STT_MODEL || 'whisper-large-v3-turbo');
+        formData.append('response_format', 'json');
+        formData.append('temperature', '0.0');
+        formData.append('prompt', EXAM_VOICE_PROMPT);
+
+        const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${groqApiKey}`,
+          },
+          body: formData,
+          signal: AbortSignal.timeout(groqTimeoutMs),
+        });
+
+        if (groqRes.ok) {
+          const data: any = await groqRes.json();
+          groqTranscript = cleanTranscriptText(data?.text || '');
+          if (groqTranscript) {
+            groqSuccess = true;
+            console.log('[STT] Provider: Groq');
+            console.log('[STT] Status: SUCCESS');
+            return res.json({
+              success: true,
+              text: groqTranscript,
+              provider: 'groq',
+            });
+          }
+        } else {
+          const errText = await groqRes.text().catch(() => '');
+          console.warn(`[STT] Provider: Groq`);
+          console.warn(`[STT] Status: ${groqRes.status}`);
+          console.log('[STT] Switching to Local Whisper');
+        }
+      } catch (groqErr: any) {
+        console.warn(`[STT] Provider: Groq`);
+        console.warn(`[STT] Status: ${groqErr.name === 'TimeoutError' ? 'TIMEOUT' : 'ERROR'}`);
+        console.log('[STT] Switching to Local Whisper');
+      }
+    } else if (simulate429) {
+      console.warn('[STT] Provider: Groq');
+      console.warn('[STT] Status: 429');
+      console.log('[STT] Switching to Local Whisper');
+    }
+
+    // ── FALLBACK STT PROVIDER: LOCAL FASTER-WHISPER ───────────────────
+    if (localEnabled) {
+      try {
+        const localRes = await fetch(localUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'audio/wav',
+          },
+          body: audioBuffer,
+          signal: AbortSignal.timeout(6500),
+        });
+
+        if (localRes.ok) {
+          const localData: any = await localRes.json();
+          const localTranscript = cleanTranscriptText(localData?.text || localData?.transcript || '');
+          console.log('[STT] Provider: Local faster-whisper');
+          console.log('[STT] Status: SUCCESS');
+          return res.json({
+            success: true,
+            text: localTranscript,
+            provider: 'local',
+            command: localData?.command || undefined,
+          });
+        } else {
+          console.warn(`[STT] Provider: Local faster-whisper | Status: ${localRes.status}`);
+        }
+      } catch (localErr: any) {
+        console.warn(`[STT] Provider: Local faster-whisper | Status: ERROR (${localErr.message})`);
+      }
+    }
+
+    // ── BOTH PROVIDERS FAILED ──────────────────────────────────────────
+    console.error('[STT] Provider: none');
+    console.error('[STT] Status: FAILED');
+    return res.status(503).json({
+      success: false,
+      text: '',
+      provider: 'none',
+      error: 'Speech recognition unavailable',
+    });
+  } catch (globalErr: any) {
+    console.error('[STT] Unexpected failover handler exception:', globalErr);
+    return res.status(500).json({
+      success: false,
+      text: '',
+      provider: 'none',
+      error: 'Speech recognition unavailable',
+    });
+  }
+});
+
+// ── SIDEBAR PAGE Q&A INTELLIGENCE ENDPOINT ───────────────────────────
+router.post('/ask-page', async (req, res) => {
+  try {
+    const { page = 'Dashboard', question = '', contextText = '' } = req.body;
+    if (!question || typeof question !== 'string' || !question.trim()) {
+      return res.status(400).json({ success: false, error: 'Question is required' });
+    }
+
+    const groqApiKey = (process.env.GROQ_API_KEY || '').trim();
+    const pageKnowledge = SIDEBAR_PAGES_KNOWLEDGE[page] || SIDEBAR_PAGES_KNOWLEDGE.Dashboard;
+
+    if (groqApiKey) {
+      try {
+        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${groqApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'qwen/qwen3.8-27b',
+            messages: [
+              {
+                role: 'system',
+                content:
+                  "You are Drishti AI, an expert accessibility exam assistant on the SIGHT-EXAM AI platform for visually impaired students. " +
+                  "Answer the student's question concisely in 1 to 2 spoken sentences. " +
+                  "CRITICAL RULE: Match the language of the student's question. If asked in Hindi or Hinglish, answer in natural, respectful Hindi/Hinglish. If asked in English, answer in English. " +
+                  "Ground your answer strictly in the active page facts and context provided below.\n\n" +
+                  `Active Page: ${pageKnowledge.pageName} (${pageKnowledge.route})\n` +
+                  `Page Summary: ${pageKnowledge.summaryEn}\n` +
+                  `Key Facts: ${pageKnowledge.factsEn.join(' ')}\n` +
+                  (contextText ? `Live Screen Details: ${contextText}\n` : ''),
+              },
+              {
+                role: 'user',
+                content: question.trim(),
+              },
+            ],
+            max_tokens: 120,
+            temperature: 0.2,
+          }),
+          signal: AbortSignal.timeout(3500),
+        });
+
+        if (groqRes.ok) {
+          const data: any = await groqRes.json();
+          const answer = data?.choices?.[0]?.message?.content?.trim();
+          if (answer) {
+            return res.json({
+              success: true,
+              answer,
+              source: 'groq-ai',
+            });
+          }
+        } else {
+          console.warn(`[AI ask-page] Groq status: ${groqRes.status}`);
+        }
+      } catch (err: any) {
+        console.warn(`[AI ask-page] Groq Q&A timeout or error: ${err.message}`);
+      }
+    }
+
+    // Instant Deterministic Knowledge Engine Fallback
+    const localAnswer = resolveLocalPageQuestion(page, question);
+    return res.json({
+      success: true,
+      answer: localAnswer,
+      source: 'local-knowledge',
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 

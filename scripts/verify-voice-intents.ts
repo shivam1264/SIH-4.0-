@@ -491,7 +491,95 @@ const testCases: TestCase[] = [
     expectedType: 'OPEN_NOTIFICATIONS',
     expectedAction: 'OPEN_NOTIFICATIONS',
   },
+  // ── SIGHT-EXAM Hindi + Hinglish 12 Commands Benchmark ──
+  {
+    name: '71. "next question" in exam -> NEXT_QUESTION',
+    input: 'next question',
+    context: { examState: 'in-progress', route: '/exam/mock-1' },
+    expectedType: 'NEXT_QUESTION',
+    expectedAction: 'NEXT',
+  },
+  {
+    name: '72. "agla question kholo" in exam -> NEXT_QUESTION',
+    input: 'agla question kholo',
+    context: { examState: 'in-progress', route: '/exam/mock-1' },
+    expectedType: 'NEXT_QUESTION',
+    expectedAction: 'NEXT',
+  },
+  {
+    name: '73. "अगला प्रश्न खोलो" in exam -> NEXT_QUESTION',
+    input: 'अगला प्रश्न खोलो',
+    context: { examState: 'in-progress', route: '/exam/mock-1' },
+    expectedType: 'NEXT_QUESTION',
+    expectedAction: 'NEXT',
+  },
+  {
+    name: '74. "pichla question" in exam -> PREV_QUESTION',
+    input: 'pichla question',
+    context: { examState: 'in-progress', route: '/exam/mock-1' },
+    expectedType: 'PREV_QUESTION',
+    expectedAction: 'PREV',
+  },
+  {
+    name: '75. "पिछला प्रश्न खोलो" in exam -> PREV_QUESTION',
+    input: 'पिछला प्रश्न खोलो',
+    context: { examState: 'in-progress', route: '/exam/mock-1' },
+    expectedType: 'PREV_QUESTION',
+    expectedAction: 'PREV',
+  },
+  {
+    name: '76. "option B select karo" in exam -> SELECT_OPTION (B)',
+    input: 'option B select karo',
+    context: { examState: 'in-progress', route: '/exam/mock-1' },
+    expectedType: 'SELECT_OPTION',
+    expectedAction: 'SELECT_B',
+    expectedOption: 'B',
+  },
+  {
+    name: '77. "option C choose karo" in exam -> SELECT_OPTION (C)',
+    input: 'option C choose karo',
+    context: { examState: 'in-progress', route: '/exam/mock-1' },
+    expectedType: 'SELECT_OPTION',
+    expectedAction: 'SELECT_C',
+    expectedOption: 'C',
+  },
+  {
+    name: '78. "question number 5 par jao" in exam -> GOTO_QUESTION',
+    input: 'question number 5 par jao',
+    context: { examState: 'in-progress', route: '/exam/mock-1' },
+    expectedType: 'GOTO_QUESTION',
+    expectedAction: 'GOTO_5',
+  },
+  {
+    name: '79. "question number 12 par jao" in exam -> GOTO_QUESTION',
+    input: 'question number 12 par jao',
+    context: { examState: 'in-progress', route: '/exam/mock-1' },
+    expectedType: 'GOTO_QUESTION',
+    expectedAction: 'GOTO_12',
+  },
+  {
+    name: '80. "question padh ke sunao" in exam -> READ_QUESTION',
+    input: 'question padh ke sunao',
+    context: { examState: 'in-progress', route: '/exam/mock-1' },
+    expectedType: 'READ_QUESTION',
+    expectedAction: 'READ',
+  },
+  {
+    name: '81. "question repeat karo" in exam -> REPEAT_QUESTION',
+    input: 'question repeat karo',
+    context: { examState: 'in-progress', route: '/exam/mock-1' },
+    expectedType: 'REPEAT_QUESTION',
+    expectedAction: 'READ',
+  },
+  {
+    name: '82. "answer submit karo" in exam -> INITIATE_SUBMIT',
+    input: 'answer submit karo',
+    context: { examState: 'in-progress', route: '/exam/mock-1' },
+    expectedType: 'INITIATE_SUBMIT',
+    expectedAction: 'SUBMIT',
+  },
 ];
+
 
 console.log('═══════════════════════════════════════════════════════════════');
 console.log('  VOICE COMMAND INTENT RECOGNITION TEST SUITE');

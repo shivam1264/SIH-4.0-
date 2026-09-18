@@ -174,12 +174,12 @@ export function normalizeTranscript(raw: string): string {
     [/\b(?:options?\s+see|options?\s+sea|options?\s+si)\b/g, 'option c'],
     [/\b(?:options?\s+dee|options?\s+di)\b/g, 'option d'],
     // Hindi & Devanagari exam vocabulary mappings
-    [/अगला\s*(सवाल|प्रश्न)?/g, 'next question'],
+    [/अगला\s*(सवाल|प्रश्न|क्वेश्चन)?(\s*खोलो)?/g, 'next question'],
     [/आगे\s*(बढ़ो|चलो|जाओ)/g, 'next question'],
-    [/पिछला\s*(सवाल|प्रश्न)?/g, 'previous question'],
+    [/पिछला\s*(सवाल|प्रश्न|क्वेश्चन)?(\s*खोलो)?/g, 'previous question'],
     [/पीछे\s*(जाओ|चलो|आओ)/g, 'previous question'],
-    [/(सवाल|प्रश्न)\s*पढ़ो/g, 'read question'],
-    [/(सवाल|प्रश्न)\s*(दोबारा|फिर\s*से)\s*पढ़ो/g, 'repeat question'],
+    [/(सवाल|प्रश्न|क्वेश्चन)\s*(पढ़कर?\s*सुनाओ|पढ़ो|सुनाओ)/g, 'read question'],
+    [/(सवाल|प्रश्न|क्वेश्चन)\s*(दोबारा|फिर\s*से)\s*(पढ़ो|सुनाओ|बोलो)/g, 'repeat question'],
     [/(दोबारा|फिर\s*से)\s*(पढ़ो|बोलो|सुनाओ)/g, 'repeat question'],
     [/सवाल\s*सुनाओ/g, 'read question'],
     [/ऑप्शन\s*ए|विकल्प\s*ए/g, 'option a'],
@@ -191,6 +191,7 @@ export function normalizeTranscript(raw: string): string {
     [/तीसरा\s*(ऑप्शन|विकल्प)/g, 'option c'],
     [/चौथा\s*(ऑप्शन|विकल्प)/g, 'option d'],
     [/सबमिट\s*(करो|कर\s*दो|परीक्षा)?/g, 'submit exam'],
+    [/उत्तर\s*सबमिट\s*करो|आंसर\s*सबमिट\s*करो/g, 'submit exam'],
     [/जमा\s*करो/g, 'submit exam'],
     [/उत्तर\s*हटाओ|आंसर\s*क्लियर\s*करो/g, 'clear answer'],
     [/उत्तर\s*बदलो|आंसर\s*बदलो/g, 'change answer'],
@@ -207,6 +208,7 @@ export function normalizeTranscript(raw: string): string {
     [/हाँ|हा/g, 'yes'],
     [/नहीं|ना/g, 'no'],
     [/रद्द\s*करो/g, 'cancel'],
+
   ];
 
   for (const [pattern, replacement] of wordReplacements) {
@@ -400,7 +402,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
 
   // ── READ / REPEAT QUESTION / REPEAT LAST SPOKEN CONTENT ──
   if (
-    /\b(repeat\s+that|repeat\s+this|repeat\s+please|repeat\s+(?:the\s+)?question|repeat|read\s+(?:the\s+)?question|padho\s+(?:sawal|question)|sawal\s+padho|dobara\s+(?:padho|bolo|sunao)|phir\s+se\s+(?:padho|bolo)|read\s+again|again|sunao\s+sawal|sawal\s+sunao)\b/i.test(t) &&
+    /\b(repeat\s+that|repeat\s+this|repeat\s+please|repeat\s+(?:the\s+)?question|question\s+repeat(?:\s+karo)?|sawal\s+repeat(?:\s+karo)?|repeat|read\s+(?:the\s+)?question|question\s+padh(?:\s*ke)?\s*(?:sunao|padho)|padho\s+(?:sawal|question)|sawal\s+padho|sawal\s+padh(?:\s*ke)?\s*sunao|padh\s*ke\s*sunao|dobara\s+(?:padho|bolo|sunao)|phir\s+se\s+(?:padho|bolo|sunao)|read\s+again|again|sunao\s+sawal|sawal\s+sunao)\b/i.test(t) &&
     !/\b(options?\s+(?:padho|bolo|sunao)|only\s+options?)\b/i.test(t)
   ) {
     const isRepeatThat = /\b(repeat\s+that|repeat\s+this|repeat\s+please|dobara\s+bolo)\b/i.test(t);
@@ -438,7 +440,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
 
   // ── NEXT QUESTION ──
   if (
-    /\b(next\s+question|agla\s+sawal|agla\s+prashna|next\s+sawal|move\s+to\s+(?:the\s+)?next\s+question|go\s+to\s+(?:the\s+)?next\s+question|go\s+next|aage\s+badho|aage\s+chalo|aage\s+jao|forward)\b/i.test(t) ||
+    /\b(next\s+question|agla\s+question(?:\s+kholo)?|agla\s+sawal|agla\s+prashna|next\s+sawal|move\s+to\s+(?:the\s+)?next\s+question|go\s+to\s+(?:the\s+)?next\s+question|go\s+next|aage\s+badho|aage\s+chalo|aage\s+jao|forward|skip\s+question)\b/i.test(t) ||
     (isExamContext && /^(next|agla|aage|skip)$/i.test(t))
   ) {
     if (!/\b(option|a|b|c|d|dashboard|result|exam)\b/i.test(t)) {
@@ -454,7 +456,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
 
   // ── PREVIOUS QUESTION / GO BACK ──
   if (
-    /\b(previous\s+question|pichla\s+sawal|pichla\s+prashna|move\s+to\s+(?:the\s+)?previous\s+question|go\s+to\s+(?:the\s+)?previous\s+question|go\s+previous|prev\s+question|peeche\s+jao|piche\s+chalo|piche\s+aao)\b/i.test(t) ||
+    /\b(previous\s+question|pichla\s+question(?:\s+kholo)?|pichla\s+sawal|pichla\s+prashna|move\s+to\s+(?:the\s+)?previous\s+question|go\s+to\s+(?:the\s+)?previous\s+question|go\s+previous|prev\s+question|peeche\s+jao|piche\s+chalo|piche\s+aao|pick\s+the\s+question)\b/i.test(t) ||
     (isExamContext && /^(previous|prev|pichla|peeche|piche|back|go back)$/i.test(t))
   ) {
     if (!/\b(dashboard|exam|results|profile|settings|page)\b/i.test(t)) {
@@ -467,6 +469,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
       };
     }
   }
+
 
   // ── OPTION SELECTION & OPTION CHANGE (A, B, C, D) ──
   // Check for explicit "change my answer to X" or "select option X"
@@ -543,7 +546,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
   }
 
   // ── JUMP TO SPECIFIC QUESTION NUMBER ──
-  const qMatch = t.match(/\b(?:question|sawal|prashna|q\.?|number|no\.?)\s*(\d+)\b/i);
+  const qMatch = t.match(/\b(?:question|sawal|prashna|q\.?|number|no\.?)\s*(?:number|no\.?)?\s*(\d+)\b/i);
   if (qMatch) {
     const num = parseInt(qMatch[1], 10);
     if (num >= 1 && num <= 200) {
@@ -560,7 +563,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
 
   // ── SUBMIT THE EXAM (Initiate Confirmation Process) ──
   if (
-    /\b(submit\s+(?:the\s+)?(?:exam|test|paper)|finish\s+(?:the\s+)?(?:exam|test)|end\s+exam|exam\s+khatam|paper\s+jama|jama\s+karo|exam\s+submit)\b/i.test(t) ||
+    /\b(submit\s+(?:the\s+)?(?:exam|test|paper|answer)|answer\s+submit(?:\s+karo)?|exam\s+submit(?:\s+karo)?|finish\s+(?:the\s+)?(?:exam|test)|end\s+exam|exam\s+khatam|paper\s+jama|jama\s+karo)\b/i.test(t) ||
     (isExamContext && /\b(submit|finish|khatam|jama)\b/i.test(t) && !/\b(how|why|when|what)\b/i.test(t))
   ) {
     // Must NOT submit accidentally if it was a question or negation
@@ -574,6 +577,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
       };
     }
   }
+
 
   // ── AMBIGUOUS TARGET WITHOUT ACTION (Do Not Guess) ──
   // If user says "the test", "mock test", "exam" without an action verb (open / start), clarify
@@ -675,7 +679,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
   // ── START THE MOCK TEST (Explicit Start vs Open) ──
   if (
     /\b(start\s+(?:the\s+)?(?:mock\s+)?(?:test|exam|examination|pariksha)|begin\s+(?:the\s+)?(?:mock\s+)?(?:test|exam|examination|pariksha)|ready\s+to\s+begin\s+(?:the\s+)?(?:test|exam|examination)|shuru\s+karo\s+(?:exam|pariksha|test)|chalu\s+karo\s+exam|proceed\s+to\s+exam)\b/i.test(t) ||
-    (context?.examState === 'not-started' && /^(start|begin|shuru|start exam|start test)$/i.test(t))
+    (Boolean(context?.route?.startsWith('/exam/')) && context?.examState === 'not-started' && /^(start|begin|shuru|start exam|start test)$/i.test(t))
   ) {
     return {
       type: 'START_EXAM',

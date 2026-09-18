@@ -4,18 +4,20 @@
 
 import { speechService } from './speechService';
 
-export type WhisperTranscriptCallback = (text: string) => void;
+export type WhisperTranscriptCallback = (text: string, command?: any) => void;
+export type WhisperVoiceState = 'IDLE' | 'LISTENING' | 'PROCESSING' | 'SUCCESS' | 'ERROR';
 export type WhisperStatusCallback = (
-  status: 'connecting' | 'ready' | 'listening' | 'error' | 'disconnected'
+  status: WhisperVoiceState | 'connecting' | 'ready' | 'listening' | 'error' | 'disconnected'
 ) => void;
 
 const WHISPER_WS_URL        = 'ws://localhost:8765/ws/voice';
 const SAMPLE_RATE           = 16000;
 const BUFFER_SIZE           = 2048;   // ~128ms per audio frame (ultra-responsive streaming)
 const BASE_SPEECH_RMS       = 0.012;  // Robust baseline speech threshold (ambient noise floor is ~0.003-0.007)
-const SILENCE_FRAMES_TRIGGER = 3;      // 3 silence frames (~384ms) triggers natural end-of-utterance (was 768ms)
-const MIN_UTTERANCE_MS       = 240;    // Minimum 240ms for fast commands like 'yes', 'no', 'option B'
+const SILENCE_FRAMES_TRIGGER = 3;      // 3 silence frames (~384ms) triggers natural end-of-utterance
+const MIN_UTTERANCE_MS       = 200;    // Minimum 200ms for fast commands like 'B', 'C', 'yes', 'no'
 const MAX_UTTERANCE_MS       = 4500;   // Safety cap: dispatch if continuous speech exceeds 4.5s
+
 
 class WhisperVoiceService {
   private ws: WebSocket | null = null;
@@ -112,28 +114,47 @@ class WhisperVoiceService {
     this.ws.onopen = () => {
       if (!this._active || myId !== this.startId) { this.ws?.close(); return; }
       console.log('[Whisper] ✅ Connected to Python Whisper server');
-      this.onStatus?.('ready');
+      this.onStatus?.('LISTENING');
       this._startSmartStreaming();
     };
+
+    let lastRawText = '';
+    let lastRawTime = 0;
 
     this.ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data as string);
         if (data.transcript?.trim()) {
-          const clean = data.transcript
+          const raw = data.transcript.trim();
+          const now = Date.now();
+
+          // Debounce duplicate incoming messages within 750ms
+          if (raw.toLowerCase() === lastRawText.toLowerCase() && now - lastRawTime < 750) {
+            return;
+          }
+          lastRawText = raw;
+          lastRawTime = now;
+
+          this.onStatus?.('SUCCESS');
+          setTimeout(() => {
+            if (this._active) this.onStatus?.('LISTENING');
+          }, 1000);
+
+          const clean = raw
             .toLowerCase()
             .replace(/[.,!?;:\-_'"`~।]/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
-          if (clean) {
-            console.log(`[Whisper] 🗣️ "${clean}"`);
-            this.onTranscript?.(clean);
-          }
+
+          console.log(`[Whisper] 🗣️ "${raw}"`, data.command ? `[Action: ${data.command.action}]` : '');
+          this.onTranscript?.(clean || raw, data.command);
         }
-      } catch {}
+      } catch (err) {
+        console.warn('[Whisper] Parse error:', err);
+      }
     };
 
-    this.ws.onerror = () => this.onStatus?.('error');
+    this.ws.onerror = () => this.onStatus?.('ERROR');
 
     this.ws.onclose = (e) => {
       console.warn(`[Whisper] WebSocket closed (code=${e.code})`);
@@ -145,6 +166,7 @@ class WhisperVoiceService {
         }, 2000);
       }
     };
+
   }
 
   /**
@@ -285,6 +307,7 @@ class WhisperVoiceService {
       }
 
       if (this.ws?.readyState === WebSocket.OPEN) {
+        this.onStatus?.('PROCESSING');
         this.ws.send(merged.buffer);
         this.ws.send('FLUSH');
         console.log(`[Whisper] 🎙️ Dispatched complete sentence: ${(totalSamples / SAMPLE_RATE).toFixed(2)}s`);
@@ -319,6 +342,7 @@ class WhisperVoiceService {
     console.log('[Whisper] 🔴 Voice service stopped');
     this._active = false;
     this.startId++;
+    this.onStatus?.('IDLE');
     if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
     this._stopSmartStreaming();
     try { this.stream?.getTracks().forEach(t => t.stop()); } catch {}
@@ -326,6 +350,7 @@ class WhisperVoiceService {
     try { this.ws?.close(); } catch {}
     this.ws = null;
   }
+
 
   isActive() { return this._active; }
 }

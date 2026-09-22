@@ -17,6 +17,8 @@ export type VoiceIntentType =
   | 'OPEN_PYQS'
   | 'OPEN_EXAM_HISTORY'
   | 'OPEN_NOTIFICATIONS'
+  | 'READ_NOTIFICATIONS'
+  | 'CLOSE_NOTIFICATIONS'
   | 'NAVIGATE_BACK'
   | 'LOGOUT'
   // Accessibility Toggles (Universal Voice Control)
@@ -95,6 +97,7 @@ export interface VoiceIntent {
   speechFeedback: string;     // Short, natural TTS confirmation for screen-reader/visually impaired candidates
   targetOption?: 'A' | 'B' | 'C' | 'D';
   targetQuestionNumber?: number;
+  targetNotificationIndex?: number;
   targetPage?: string;
   targetExamId?: string;
   targetExamTitle?: string;
@@ -235,7 +238,14 @@ export function normalizeTranscript(raw: string): string {
     [/ऊपर\s*(करो|जाओ|ले\s*जाओ)/g, 'scroll up'],
     [/ऑटो\s*स्क्रॉल\s*(शुरू|चलाओ|करो)/g, 'start auto scroll'],
     [/स्क्रॉल\s*(रोको|बंद\s*करो|रोक\s*दो)/g, 'stop auto scroll'],
-
+    // Hindi Devanagari notification mappings
+    [/(?:पहला|1st)\s*(?:नोटिफिकेशन|नोटीफिकेशन)/gu, 'first notification'],
+    [/(?:दूसरा|2nd)\s*(?:नोटिफिकेशन|नोटीफिकेशन)/gu, 'second notification'],
+    [/(?:तीसरा|3rd)\s*(?:नोटिफिकेशन|नोटीफिकेशन)/gu, 'third notification'],
+    [/(?:नोटिफिकेशन|नोटीफिकेशन)\s*(?:पढ़ो|पढो|सुनाओ|बताओ|बोलकर\s*सुनाओ)/gu, 'read notifications'],
+    [/(?:नोटिफिकेशन|नोटीफिकेशन)\s*खोलो/gu, 'open notifications'],
+    [/(?:नोटिफिकेशन|नोटीफिकेशन)\s*(?:बंद\s*करो|हटाओ)/gu, 'close notifications'],
+    [/(?:नोटिफिकेशन|नोटीफिकेशन)/gu, 'notifications'],
   ];
 
   for (const [pattern, replacement] of wordReplacements) {
@@ -359,6 +369,7 @@ interface MatchResult {
   speechFeedback: string;
   targetOption?: 'A' | 'B' | 'C' | 'D';
   targetQuestionNumber?: number;
+  targetNotificationIndex?: number;
   targetPage?: string;
   targetExamId?: string;
   targetExamTitle?: string;
@@ -885,17 +896,59 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
     };
   }
 
-  // 11. Notifications
+  // 11. Notifications (Read, Open, Close with Full Bilingual & Specific Index Support)
+  // 11A. Read Notifications (explicit reading requests)
   if (
-    /\b(open\s+(?:my\s+)?notifications?|show\s+(?:my\s+)?notifications?|check\s+(?:my\s+)?notifications?|read\s+(?:my\s+)?notifications?|view\s+(?:my\s+)?notifications?|notifications?\s+kholo|notifications?\s+sunao)\b/i.test(t) ||
-    /^(?:notifications?)$/i.test(t)
+    /\b(read\s+(?:the\s+|all\s+|my\s+|unread\s+|latest\s+|first\s+|1st\s+|second\s+|2nd\s+|third\s+|3rd\s+)?notifications?(?:\s+(?:number\s+)?\d+)?|read\s+notification\s+box|read\s+(?:the\s+)?notifications?\s+in\s+(?:the\s+)?(?:notification\s+)?box|(?:first|1st|second|2nd|third|3rd|pehla|dusra|teesra)?\s*notifications?\s*(?:number\s*\d+|\d+)?\s*(?:padho|sunao|batao)|box\s+(?:me|ke)\s+notifications?\s+padho)\b/i.test(t) ||
+    /(?:^|\s)(?:पहला|दूसरा|तीसरा)?\s*(?:नोटिफिकेशन|नोटीफिकेशन)\s*(?:नंबर\s*\d+|\d+)?\s*(?:पढ़ो|पढो|सुनाओ|बताओ|बोलकर\s*सुनाओ)(?:\s|$)/u.test(t)
+  ) {
+    let notifIdx: number | undefined = undefined;
+    const numDirect = t.match(/\b(?:notification\s+(?:number\s+)?(\d+)|notification\s+(\d+))\b/i) || t.match(/(?:नोटिफिकेशन|नोटीफिकेशन)\s*(\d+)/u);
+    if (numDirect) {
+      notifIdx = parseInt(numDirect[1] || numDirect[2], 10);
+    } else if (/\b(first|1st|pehla)\b/i.test(t) || /(?:^|\s)(?:पहला|1st)(?:\s|$)/u.test(t)) {
+      notifIdx = 1;
+    } else if (/\b(second|2nd|dusra)\b/i.test(t) || /(?:^|\s)(?:दूसरा|2nd)(?:\s|$)/u.test(t)) {
+      notifIdx = 2;
+    } else if (/\b(third|3rd|teesra)\b/i.test(t) || /(?:^|\s)(?:तीसरा|3rd)(?:\s|$)/u.test(t)) {
+      notifIdx = 3;
+    }
+    return {
+      type: 'READ_NOTIFICATIONS',
+      action: 'READ_NOTIFICATIONS',
+      label: 'Read Notifications',
+      speechFeedback: 'Reading notifications.',
+      targetNotificationIndex: notifIdx,
+      confidence: 0.98,
+    };
+  }
+
+  // 11B. Close Notifications
+  if (
+    /\b(close\s+(?:the\s+|my\s+)?notifications?|close\s+notification\s+box|hide\s+(?:the\s+|my\s+)?notifications?|notifications?\s+band\s+karo)\b/i.test(t) ||
+    /(?:^|\s)(?:नोटिफिकेशन|नोटीफिकेशन)\s*बंद\s*करो(?:\s|$)/u.test(t)
+  ) {
+    return {
+      type: 'CLOSE_NOTIFICATIONS',
+      action: 'CLOSE_NOTIFICATIONS',
+      label: 'Close Notifications',
+      speechFeedback: 'Closing notifications.',
+      confidence: 0.98,
+    };
+  }
+
+  // 11C. Open / View Notifications
+  if (
+    /\b(open\s+(?:the\s+|my\s+)?notifications?|open\s+notification\s+box|show\s+(?:the\s+|my\s+)?notifications?|view\s+(?:the\s+|my\s+)?notifications?|check\s+(?:the\s+|my\s+)?notifications?|notifications?\s+kholo|notification\s+box)\b/i.test(t) ||
+    /(?:^|\s)(?:नोटिफिकेशन|नोटीफिकेशन)\s*खोलो(?:\s|$)/u.test(t) ||
+    /^(?:notifications?|notification\s+box)$/i.test(t)
   ) {
     return {
       type: 'OPEN_NOTIFICATIONS',
       action: 'OPEN_NOTIFICATIONS',
       label: 'Notifications',
       speechFeedback: 'Opening notifications.',
-      confidence: 0.95,
+      confidence: 0.98,
     };
   }
 
@@ -1349,6 +1402,7 @@ export function classifyVoiceIntent(raw: string, context?: VoiceContext): VoiceI
         speechFeedback: match.speechFeedback,
         targetOption: match.targetOption,
         targetQuestionNumber: match.targetQuestionNumber,
+        targetNotificationIndex: match.targetNotificationIndex,
         targetPage: match.targetPage,
         targetExamId: match.targetExamId,
         targetExamTitle: match.targetExamTitle,
@@ -1404,6 +1458,7 @@ export function classifyVoiceIntent(raw: string, context?: VoiceContext): VoiceI
       speechFeedback: fullMatch.speechFeedback,
       targetOption: fullMatch.targetOption,
       targetQuestionNumber: fullMatch.targetQuestionNumber,
+      targetNotificationIndex: fullMatch.targetNotificationIndex,
       targetPage: fullMatch.targetPage,
       targetExamId: fullMatch.targetExamId,
       targetExamTitle: fullMatch.targetExamTitle,

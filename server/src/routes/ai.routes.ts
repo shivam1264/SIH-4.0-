@@ -515,9 +515,22 @@ function cleanTranscriptText(text: string): string {
     .trim();
 
   const low = cleaned.toLowerCase();
-  const noiseTokens = ['thank you', 'thanks for watching', 'subscribe', 'subtitles by', 'transcribed by'];
+  if (low.length <= 1) return '';
+
+  // Repeated token artifacts (e.g. "you you you", "ha ha ha")
+  if (/\b(\w+)(?:[\s,]+\1){2,}\b/i.test(cleaned)) {
+    return '';
+  }
+
+  const noiseTokens = [
+    'thank you', 'thanks for watching', 'subscribe', 'like and subscribe',
+    'subtitles by', 'transcribed by', 'amara.org', 'opensubtitles',
+    'bye bye', 'goodbye', 'bye', 'you', 'so', 'yeah', 'oh', 'um', 'uh',
+    'धन्यवाद', 'बहुत बहुत धन्यवाद', 'देखने के लिए धन्यवाद', 'कृपया सब्सक्राइब करें',
+    'लाइक करें', 'सब्सक्राइब करें', 'अलविदा', 'नमस्ते'
+  ];
   for (const n of noiseTokens) {
-    if (low === n || low.startsWith(n)) return '';
+    if (low === n || low.startsWith(n + ' ') || low.endsWith(' ' + n)) return '';
   }
   return cleaned;
 }

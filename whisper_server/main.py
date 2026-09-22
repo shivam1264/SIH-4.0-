@@ -115,31 +115,29 @@ model = WhisperModel(
 )
 logger.info(f"✅ Whisper '{MODEL_SIZE}' model successfully loaded and ready for Hindi + Hinglish!")
 
-# ── Bilingual Hindi + Hinglish + English Domain Prompt ────────────
+# ── Bilingual Domain Prompt (Concise to prevent decoder hallucination) ──
 INITIAL_PROMPT = (
-    "अगला प्रश्न खोलो, पिछला प्रश्न, अगला सवाल, पिछला सवाल, सवाल पढ़ो, "
-    "question number 5 par jao, question number 12 par jao, "
-    "option B select karo, option C choose karo, option A, option D, "
-    "question padh ke sunao, question repeat karo, phir se padho, "
-    "answer submit karo, exam submit karo, next question, previous question, "
-    "start exam, pause exam, dashboard, mock test, practice drills, results, settings."
+    "Hindi and English bilingual speech recognition for competitive examination portal. "
+    "प्रश्न, सवाल, विकल्प, उत्तर, ऑप्शन, परीक्षा, नेक्स्ट, पिछला, सबमिट, रिजल्ट, नोटिफिकेशन, "
+    "Question, Option, Next, Previous, Submit, Review, Read, Clear, Flag, Notifications."
 )
 
 SAMPLE_RATE = 16000
-MIN_SAMPLES = int(SAMPLE_RATE * 0.20)  # 0.20s minimum to capture short commands like 'B', 'C', 'no', 'yes'
+MIN_SAMPLES = int(SAMPLE_RATE * 0.28)  # 0.28s minimum to capture short commands like 'B', 'C', 'no', 'yes'
 
 
 def normalize_audio(audio: np.ndarray) -> np.ndarray:
     """
-    Safely adjust gain so quiet speech is normalized to ~0.85 peak without square-wave clipping.
+    Safely adjust gain so speech is normalized to ~0.85 peak without amplifying ambient noise.
     """
     if len(audio) == 0:
         return audio
-    peak = np.max(np.abs(audio))
-    if peak < 0.020:
-        # Ambient noise floor / near silence
+    peak = float(np.max(np.abs(audio)))
+    rms = float(np.sqrt(np.mean(audio ** 2)))
+    if peak < 0.035 or rms < 0.008:
+        # Ambient noise floor / near silence: do NOT amplify!
         return audio
-    gain = min(0.85 / peak, 3.0)
+    gain = min(0.85 / peak, 2.0)
     return audio * gain
 
 
@@ -400,6 +398,47 @@ def parse_exam_command(raw_transcript: str) -> Dict[str, Any]:
             "label": "Stop Speaking"
         }
 
+    # 15. READ NOTIFICATIONS
+    if re.search(r"\b(read\s+(?:the\s+|all\s+|my\s+|unread\s+|latest\s+)?notifications?|read\s+notification\s+box|read\s+(?:the\s+)?notifications?\s+in\s+(?:the\s+)?(?:notification\s+)?box|notifications?\s+padho|notifications?\s+sunao|notifications?\s+batao|box\s+(?:me|ke)\s+notifications?\s+padho|नोटिफिकेशन\s*(?:पढ़ो|सुनाओ|बताओ))\b", t_clean, re.I):
+        notif_idx = None
+        idx_match = re.search(r"\b(?:notification\s+(\d+)|(?:first|1st|pehla|ek)\s+notification)\b", t_clean, re.I)
+        if idx_match:
+            if idx_match.group(1):
+                notif_idx = int(idx_match.group(1))
+            else:
+                notif_idx = 1
+        elif re.search(r"\b(?:second|2nd|dusra|do)\s+notification\b", t_clean, re.I):
+            notif_idx = 2
+        return {
+            "action": "READ_NOTIFICATIONS",
+            "targetOption": None,
+            "questionNumber": None,
+            "notificationIndex": notif_idx,
+            "confidence": 0.98,
+            "label": "Read Notifications"
+        }
+
+    # 16. OPEN NOTIFICATIONS
+    if re.search(r"\b(open\s+(?:the\s+|my\s+)?notifications?|open\s+notification\s+box|show\s+(?:the\s+|my\s+)?notifications?|view\s+(?:the\s+|my\s+)?notifications?|check\s+(?:the\s+|my\s+)?notifications?|notifications?\s+kholo|notification\s+box|नोटिफिकेशन\s*खोलो)\b", t_clean, re.I) or \
+       re.match(r"^(?:notifications?|notification\s+box)$", t_clean, re.I):
+        return {
+            "action": "OPEN_NOTIFICATIONS",
+            "targetOption": None,
+            "questionNumber": None,
+            "confidence": 0.98,
+            "label": "Open Notifications"
+        }
+
+    # 17. CLOSE NOTIFICATIONS
+    if re.search(r"\b(close\s+(?:the\s+|my\s+)?notifications?|close\s+notification\s+box|hide\s+(?:the\s+|my\s+)?notifications?|notifications?\s+band\s+karo|नोटिफिकेशन\s*बंद\s*करो)\b", t_clean, re.I):
+        return {
+            "action": "CLOSE_NOTIFICATIONS",
+            "targetOption": None,
+            "questionNumber": None,
+            "confidence": 0.98,
+            "label": "Close Notifications"
+        }
+
     return {
         "action": "UNKNOWN",
         "targetOption": None,
@@ -422,7 +461,13 @@ def transcribe_pcm(pcm_bytes: bytes) -> Dict[str, Any]:
         # Float32 in [-1, 1]
         audio = int16.astype(np.float32) / 32768.0
 
-        # Gain normalization
+        # Pre-ASR RMS energy gate: drop ambient noise floor / breathing immediately
+        rms = float(np.sqrt(np.mean(audio ** 2)))
+        peak = float(np.max(np.abs(audio)))
+        if rms < 0.0075 or peak < 0.032:
+            return {"transcript": "", "command": None}
+
+        # Gain normalization with weak-signal protection
         audio = normalize_audio(audio)
 
         # ── Whisper Transcription with VAD & Bilingual Prompt ─────
@@ -438,16 +483,27 @@ def transcribe_pcm(pcm_bytes: bytes) -> Dict[str, Any]:
                 temperature=0.0,
                 repetition_penalty=1.15,
                 condition_on_previous_text=False,
-                no_speech_threshold=0.5,
+                no_speech_threshold=0.55,
                 vad_filter=True,
                 vad_parameters=dict(
                     min_silence_duration_ms=350,
                     speech_pad_ms=200,
                 )
             )
-            # If detected language is foreign (not Hindi or English), constrain strictly to 'en' with bilingual prompt
+
+            valid_segments = []
+            for seg in segments:
+                # Reject noise / low confidence hallucinations
+                if getattr(seg, 'no_speech_prob', 0) > 0.45:
+                    continue
+                if getattr(seg, 'avg_logprob', 0) < -1.05:
+                    continue
+                if seg.text and seg.text.strip():
+                    valid_segments.append(seg.text.strip())
+
+            # If detected language is foreign (not Hindi or English), constrain strictly to 'en'
             if info.language not in ['en', 'hi']:
-                logger.info(f"[Whisper] Detected unsupported foreign language '{info.language}'. Re-transcribing strictly in English/Hindi domain...")
+                logger.info(f"[Whisper] Detected unsupported foreign language '{info.language}'. Re-transcribing strictly in English...")
                 segments, info = model.transcribe(
                     audio,
                     language='en',
@@ -458,14 +514,21 @@ def transcribe_pcm(pcm_bytes: bytes) -> Dict[str, Any]:
                     temperature=0.0,
                     repetition_penalty=1.15,
                     condition_on_previous_text=False,
-                    no_speech_threshold=0.5,
+                    no_speech_threshold=0.55,
                     vad_filter=True,
                     vad_parameters=dict(
                         min_silence_duration_ms=350,
                         speech_pad_ms=200,
                     )
                 )
-            text = " ".join(seg.text for seg in segments).strip()
+                valid_segments = []
+                for seg in segments:
+                    if getattr(seg, 'no_speech_prob', 0) > 0.45 or getattr(seg, 'avg_logprob', 0) < -1.05:
+                        continue
+                    if seg.text and seg.text.strip():
+                        valid_segments.append(seg.text.strip())
+
+            text = " ".join(valid_segments).strip()
         except (ValueError, TypeError):
             # VAD filtered all audio (silence / ambient noise)
             return {"transcript": "", "command": None}
@@ -492,18 +555,26 @@ def _clean_transcript(text: str) -> str:
     if not text:
         return ""
 
-    # Repeated token artifacts (e.g. "you you you")
+    low = text.lower().strip()
+
+    # Reject single characters or standalone punctuation
+    if len(low) <= 1 or re.match(r'^[.,!?;:\-_~।\s]+$', low):
+        return ""
+
+    # Repeated token artifacts (e.g. "you you you", "ha ha ha")
     if re.search(r'\b(\w+)(?:[\s,]+\1){2,}\b', text, flags=re.IGNORECASE):
         return ""
 
     noise_phrases = [
         "thank you", "thanks for watching", "subscribe", "like and subscribe",
         "www.", ".com", "subtitles by", "transcribed by", "[music]", "[applause]",
-        "♪", "[ music ]", "[ silence ]",
+        "♪", "[ music ]", "[ silence ]", "amara.org", "opensubtitles",
+        "bye", "bye bye", "goodbye", "you", "so", "yeah", "oh", "um", "uh",
+        "धन्यवाद", "बहुत बहुत धन्यवाद", "देखने के लिए धन्यवाद", "कृपया सब्सक्राइब करें",
+        "लाइक करें", "सब्सक्राइब करें", "अलविदा", "नमस्ते"
     ]
-    low = text.lower().strip()
     for phrase in noise_phrases:
-        if phrase in low:
+        if low == phrase or low.startswith(phrase + " ") or low.endswith(" " + phrase):
             return ""
 
     return text.strip()

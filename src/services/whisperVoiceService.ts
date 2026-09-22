@@ -12,11 +12,29 @@ export type WhisperStatusCallback = (
 
 const WHISPER_WS_URL        = 'ws://localhost:8765/ws/voice';
 const SAMPLE_RATE           = 16000;
-const BUFFER_SIZE           = 2048;   // ~128ms per audio frame (ultra-responsive streaming)
-const BASE_SPEECH_RMS       = 0.012;  // Robust baseline speech threshold (ambient noise floor is ~0.003-0.007)
+const BUFFER_SIZE           = 2048;   // ~128ms per audio frame
+const BASE_SPEECH_RMS       = 0.016;  // Robust baseline speech threshold (rejects room fans & quiet breathing)
 const SILENCE_FRAMES_TRIGGER = 3;      // 3 silence frames (~384ms) triggers natural end-of-utterance
-const MIN_UTTERANCE_MS       = 200;    // Minimum 200ms for fast commands like 'B', 'C', 'yes', 'no'
+const MIN_UTTERANCE_MS       = 320;    // Minimum 320ms to prevent transient click/bump false triggers
 const MAX_UTTERANCE_MS       = 4500;   // Safety cap: dispatch if continuous speech exceeds 4.5s
+
+const KNOWN_HALLUCINATIONS = [
+  'thank you', 'thanks for watching', 'subscribe', 'like and subscribe',
+  'subtitles by', 'transcribed by', 'amara.org', 'bye bye', 'goodbye',
+  'धन्यवाद', 'बहुत बहुत धन्यवाद', 'देखने के लिए धन्यवाद', 'सब्सक्राइब करें',
+  'लाइक करें', 'you', 'yeah', 'oh', 'um', 'uh'
+];
+
+function isWhisperHallucination(text: string): boolean {
+  if (!text) return true;
+  const t = text.toLowerCase().trim();
+  if (t.length <= 1) return true;
+  for (const h of KNOWN_HALLUCINATIONS) {
+    if (t === h || t.startsWith(h + ' ') || t.endsWith(' ' + h)) return true;
+  }
+  if (/^(\w+)(?:\s+\1){2,}$/i.test(t)) return true;
+  return false;
+}
 
 
 class WhisperVoiceService {
@@ -26,6 +44,7 @@ class WhisperVoiceService {
   private processor: ScriptProcessorNode | null = null;
   private gainNode: GainNode | null = null;
   private filterNode: BiquadFilterNode | null = null;
+  private lowpassNode: BiquadFilterNode | null = null;
   private compressorNode: DynamicsCompressorNode | null = null;
   private onTranscript: WhisperTranscriptCallback | null = null;
   private onStatus: WhisperStatusCallback | null = null;
@@ -36,6 +55,7 @@ class WhisperVoiceService {
   // Utterance-level buffering (preserves complete words & sentences)
   private pcmBuffer: Int16Array[] = [];
   private isSpeaking = false;
+  private consecutiveVoicedFrames = 0;
   private silenceFrameCount = 0;
   private speechDurationMs = 0;
   private noiseFloor = 0.005;
@@ -146,6 +166,12 @@ class WhisperVoiceService {
             .replace(/\s+/g, ' ')
             .trim();
 
+          // Reject empty or hallucinated noise transcripts
+          if (!clean || isWhisperHallucination(clean)) {
+            console.log('[Whisper] 🔇 Filtered noise hallucination:', raw);
+            return;
+          }
+
           console.log(`[Whisper] 🗣️ "${raw}"`, data.command ? `[Action: ${data.command.action}]` : '');
           this.onTranscript?.(clean || raw, data.command);
         }
@@ -197,22 +223,27 @@ class WhisperVoiceService {
       // Input source
       const source = this.audioCtx.createMediaStreamSource(this.stream);
 
-      // 1. High-pass filter at 85Hz: Removes desk vibrations, hum, fan noise
+      // 1. High-pass filter at 125Hz: Removes desk vibrations, fan hum, laptop chassis buzz
       this.filterNode = this.audioCtx.createBiquadFilter();
       this.filterNode.type = 'highpass';
-      this.filterNode.frequency.value = 85;
+      this.filterNode.frequency.value = 125;
 
-      // 2. Dynamics Compressor: Clean vocal leveling without pumping or distortion
+      // 2. Low-pass filter at 3800Hz: Cuts out mouse clicks, high-frequency hiss & sizzle
+      this.lowpassNode = this.audioCtx.createBiquadFilter();
+      this.lowpassNode.type = 'lowpass';
+      this.lowpassNode.frequency.value = 3800;
+
+      // 3. Dynamics Compressor: Clean vocal leveling without pumping or distortion
       this.compressorNode = this.audioCtx.createDynamicsCompressor();
-      this.compressorNode.threshold.value = -28;
+      this.compressorNode.threshold.value = -26;
       this.compressorNode.knee.value = 8;
       this.compressorNode.ratio.value = 3;
       this.compressorNode.attack.value = 0.005;
       this.compressorNode.release.value = 0.2;
 
-      // 3. Make-up Gain node: clean 1.6x boost (natural, clean, zero clipping)
+      // 4. Clean Make-up Gain (gentle 1.15x boost to preserve natural dynamic range without noise amplification)
       this.gainNode = this.audioCtx.createGain();
-      this.gainNode.gain.value = 1.6;
+      this.gainNode.gain.value = 1.15;
 
       // ScriptProcessor for raw PCM access
       this.processor = this.audioCtx.createScriptProcessor(BUFFER_SIZE, 1, 1);
@@ -245,36 +276,42 @@ class WhisperVoiceService {
         if (!this.isSpeaking) {
           this.noiseFloor = this.noiseFloor * 0.95 + rms * 0.05;
         }
-        const dynamicThreshold = Math.max(BASE_SPEECH_RMS, this.noiseFloor * 2.4);
+        const dynamicThreshold = Math.max(BASE_SPEECH_RMS, this.noiseFloor * 2.2);
 
         if (rms >= dynamicThreshold) {
-          // ── BARGE-IN: Stop AI speech if user starts talking ──
-          if (speechService.isSpeaking) {
-            console.log('[Whisper] 🛑 Barge-in: User interrupted, stopping AI speech.');
-            speechService.stop();
-          }
+          this.consecutiveVoicedFrames++;
 
-          // Voice detected!
-          this.isSpeaking = true;
-          this.silenceFrameCount = 0;
-          this.speechDurationMs += frameDurationMs;
-          this.pcmBuffer.push(int16);
+          // Require at least 2 consecutive voiced frames (>250ms) to confirm genuine human speech
+          // (Rejects single-frame keyboard clicks, pen taps, coughs, and desk bumps)
+          if (this.consecutiveVoicedFrames >= 2) {
+            // ── BARGE-IN: Stop AI speech if user starts talking ──
+            if (speechService.isSpeaking) {
+              console.log('[Whisper] 🛑 Barge-in: User interrupted, stopping AI speech.');
+              speechService.stop();
+            }
 
-          // If speech continues uninterrupted for > 4.5s, dispatch current chunk
-          if (this.speechDurationMs >= MAX_UTTERANCE_MS) {
-            this._dispatchBufferedUtterance();
+            this.isSpeaking = true;
+            this.silenceFrameCount = 0;
+            this.speechDurationMs += frameDurationMs;
+            this.pcmBuffer.push(int16);
+
+            // If speech continues uninterrupted for > 4.5s, dispatch current chunk
+            if (this.speechDurationMs >= MAX_UTTERANCE_MS) {
+              this._dispatchBufferedUtterance();
+            }
           }
         } else {
+          this.consecutiveVoicedFrames = 0;
           // Silence frame
           if (this.isSpeaking) {
             this.silenceFrameCount++;
-            // Retain up to 2 trailing silence frames (~500ms) to avoid clipping word endings
+            // Retain up to 2 trailing silence frames (~256ms) to avoid clipping word endings
             if (this.silenceFrameCount <= 2) {
               this.pcmBuffer.push(int16);
             }
             this.speechDurationMs += frameDurationMs;
 
-            // When user pauses for ~768ms (3 silence frames), sentence has ended
+            // When user pauses for ~384ms (3 silence frames), sentence has ended
             if (this.silenceFrameCount >= SILENCE_FRAMES_TRIGGER) {
               this._dispatchBufferedUtterance();
             }
@@ -282,9 +319,10 @@ class WhisperVoiceService {
         }
       };
 
-      // Connect DSP audio graph: source -> filter -> compressor -> gain -> processor
+      // Connect DSP audio graph: source -> highpass -> lowpass -> compressor -> gain -> processor
       source.connect(this.filterNode);
-      this.filterNode.connect(this.compressorNode);
+      this.filterNode.connect(this.lowpassNode);
+      this.lowpassNode.connect(this.compressorNode);
       this.compressorNode.connect(this.gainNode);
       this.gainNode.connect(this.processor);
       this.processor.connect(this.audioCtx.destination);
@@ -324,16 +362,19 @@ class WhisperVoiceService {
   private _stopSmartStreaming() {
     this.pcmBuffer = [];
     this.isSpeaking = false;
+    this.consecutiveVoicedFrames = 0;
     this.silenceFrameCount = 0;
     this.speechDurationMs = 0;
     try { this.processor?.disconnect(); } catch {}
     try { this.gainNode?.disconnect(); } catch {}
     try { this.compressorNode?.disconnect(); } catch {}
+    try { this.lowpassNode?.disconnect(); } catch {}
     try { this.filterNode?.disconnect(); } catch {}
     try { this.audioCtx?.close(); } catch {}
     this.processor = null;
     this.gainNode = null;
     this.compressorNode = null;
+    this.lowpassNode = null;
     this.filterNode = null;
     this.audioCtx = null;
   }

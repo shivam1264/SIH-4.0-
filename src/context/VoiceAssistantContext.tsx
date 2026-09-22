@@ -442,34 +442,18 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         return true;
       }
 
+      if (intent.type === 'READ_NOTIFICATIONS' || (intent.type === 'OPEN_NOTIFICATIONS' && /\b(read|sunao|bol\s*kar|padho|batao)\b/i.test(rawText))) {
+        drishtiActionService.readNotifications(intent.targetNotificationIndex);
+        return true;
+      }
+
+      if (intent.type === 'CLOSE_NOTIFICATIONS') {
+        drishtiActionService.closeNotifications();
+        return true;
+      }
+
       if (intent.type === 'OPEN_NOTIFICATIONS') {
-        const wantsToRead = /\b(read|sunao|bol\s*kar|padho)\b/i.test(rawText);
-        const notifBtn = document.getElementById('drishtix-notifications-trigger') as HTMLButtonElement | null;
-        const candidate = accessRef.current.user?.name ? accessRef.current.user.name.split(' ')[0] : '';
-
-        if (wantsToRead) {
-          const allNotifs = notificationService.getAll();
-          const unread = allNotifs.filter(n => !n.read);
-
-          if (unread.length === 0) {
-            const prefix = candidate ? `${candidate}, you` : 'You';
-            speak(`${prefix} have no unread notifications.`);
-          } else {
-            const prefix = candidate ? `${candidate}, you` : 'You';
-            let text = `${prefix} have ${unread.length} unread notification${unread.length > 1 ? 's' : ''}. `;
-            unread.forEach((n, i) => {
-              text += `Notification ${i + 1}: ${n.title}. ${n.message}. `;
-              notificationService.markAsRead(n.id);
-            });
-            speak(text, true);
-          }
-        } else {
-          if (notifBtn) {
-            notifBtn.click();
-          } else {
-            speak(intent.speechFeedback);
-          }
-        }
+        drishtiActionService.openNotifications();
         return true;
       }
 

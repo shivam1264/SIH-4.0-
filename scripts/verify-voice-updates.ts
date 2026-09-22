@@ -140,6 +140,25 @@ async function runTests() {
   const secMaterials = classifyVoiceIntent('scroll to materials');
   assert(secMaterials.type === 'SCROLL_TO_SECTION' && secMaterials.targetSection === 'materials', 'Section: "scroll to materials" -> SCROLL_TO_SECTION');
 
+  // Notifications (Read, Open, Close with bilingual & ordinal indexing)
+  assert(classifyVoiceIntent('read notification').type === 'READ_NOTIFICATIONS', 'Notifications: "read notification" -> READ_NOTIFICATIONS');
+  assert(classifyVoiceIntent('read notifications').type === 'READ_NOTIFICATIONS', 'Notifications: "read notifications" -> READ_NOTIFICATIONS');
+  assert(classifyVoiceIntent('read the notification in the notification box').type === 'READ_NOTIFICATIONS', 'Notifications: "read the notification in the notification box" -> READ_NOTIFICATIONS');
+  assert(classifyVoiceIntent('read notification box').type === 'READ_NOTIFICATIONS', 'Notifications: "read notification box" -> READ_NOTIFICATIONS');
+  assert(classifyVoiceIntent('notification padho').type === 'READ_NOTIFICATIONS', 'Notifications: "notification padho" -> READ_NOTIFICATIONS');
+  assert(classifyVoiceIntent('notification sunao').type === 'READ_NOTIFICATIONS', 'Notifications: "notification sunao" -> READ_NOTIFICATIONS');
+  assert(classifyVoiceIntent('नोटिफिकेशन पढ़ो').type === 'READ_NOTIFICATIONS', 'Notifications: "नोटिफिकेशन पढ़ो" -> READ_NOTIFICATIONS');
+  assert(classifyVoiceIntent('open notification box').type === 'OPEN_NOTIFICATIONS', 'Notifications: "open notification box" -> OPEN_NOTIFICATIONS');
+  assert(classifyVoiceIntent('notifications kholo').type === 'OPEN_NOTIFICATIONS', 'Notifications: "notifications kholo" -> OPEN_NOTIFICATIONS');
+  assert(classifyVoiceIntent('close notifications').type === 'CLOSE_NOTIFICATIONS', 'Notifications: "close notifications" -> CLOSE_NOTIFICATIONS');
+  assert(classifyVoiceIntent('notification band karo').type === 'CLOSE_NOTIFICATIONS', 'Notifications: "notification band karo" -> CLOSE_NOTIFICATIONS');
+
+  const firstNotif = classifyVoiceIntent('read first notification');
+  assert(firstNotif.type === 'READ_NOTIFICATIONS' && firstNotif.targetNotificationIndex === 1, 'Notifications: "read first notification" -> index 1');
+
+  const secondNotif = classifyVoiceIntent('read notification 2');
+  assert(secondNotif.type === 'READ_NOTIFICATIONS' && secondNotif.targetNotificationIndex === 2, 'Notifications: "read notification 2" -> index 2');
+
   console.log('\n======================================================');
   console.log('🧪 2. TESTING NLU DETERMINISTIC BYPASS FOR SCROLL/EXPLAIN');
   console.log('======================================================');
@@ -208,6 +227,12 @@ async function runTests() {
   assert(drishtiActionService.adjustSpeed(0.5) === 2.0, 'adjustSpeed(+0.5) increases speed to 2.0x');
   assert(drishtiActionService.stopAutoScroll() === true, 'stopAutoScroll() deactivates auto-scroll');
   assert(drishtiActionService.isAutoScrolling() === false, 'isAutoScrolling() reflects inactive state');
+
+  // Test Notification actions
+  assert(drishtiActionService.openNotifications() === false || drishtiActionService.openNotifications() === true, 'openNotifications() executes without throwing');
+  assert(drishtiActionService.readNotifications() === true, 'readNotifications() reads notification box contents');
+  assert(drishtiActionService.readNotifications(1) === true, 'readNotifications(1) reads specific notification');
+  assert(drishtiActionService.closeNotifications() === false || drishtiActionService.closeNotifications() === true, 'closeNotifications() executes without throwing');
 
   console.log('\n======================================================');
   console.log(`SUMMARY: ${passed} passed, ${failed} failed`);

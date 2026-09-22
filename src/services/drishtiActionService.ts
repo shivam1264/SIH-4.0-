@@ -2,6 +2,9 @@
 // Hands-free DOM manipulation, continuous auto-scroll, section targeting, and
 // accessible element clicking designed for motor and visual accessibility.
 
+import { notificationService } from './notificationService';
+import { speechService } from './speechService';
+
 export interface ClickResult {
   success: boolean;
   elementLabel?: string;
@@ -578,6 +581,74 @@ class DrishtiActionService {
     setTimeout(() => {
       el.classList.remove('voice-action-target-pulse');
     }, 2200);
+  }
+
+  /**
+   * Opens the Notification Center dropdown box.
+   */
+  public openNotifications(): boolean {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('drishtix_open_notifications', { detail: { announce: true } }));
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Closes the Notification Center dropdown box.
+   */
+  public closeNotifications(): boolean {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('drishtix_close_notifications'));
+      speechService.speak('Notification box closed.', { priority: true });
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Reads notifications in the notification box aloud clearly for visually impaired users.
+   */
+  public readNotifications(targetIndex?: number): boolean {
+    const allNotifs = notificationService.getAll();
+
+    // Ensure visual panel is open so candidates can follow along visually
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('drishtix_open_notifications', { detail: { announce: false } }));
+    }
+
+    if (allNotifs.length === 0) {
+      speechService.speak('Your notification box is empty. You have no notifications.', { priority: true });
+      return true;
+    }
+
+    // Specific notification index requested (e.g. "read notification 1")
+    if (targetIndex && targetIndex > 0 && targetIndex <= allNotifs.length) {
+      const target = allNotifs[targetIndex - 1];
+      notificationService.markAsRead(target.id);
+      speechService.speak(`Notification ${targetIndex}: ${target.title}. ${target.message}.`, { priority: true });
+      return true;
+    }
+
+    const unread = allNotifs.filter(n => !n.read);
+    if (unread.length > 0) {
+      let text = `You have ${unread.length} unread notification${unread.length > 1 ? 's' : ''} in your notification box. `;
+      unread.forEach((n, i) => {
+        text += `Notification ${i + 1}: ${n.title}. ${n.message}. `;
+        notificationService.markAsRead(n.id);
+      });
+      speechService.speak(text, { priority: true });
+      return true;
+    }
+
+    // If no unread notifications, read the active notifications in the box
+    const toRead = allNotifs.slice(0, 3);
+    let text = `You have no new unread notifications. Reading the latest ${toRead.length} notification${toRead.length > 1 ? 's' : ''} in your notification box. `;
+    toRead.forEach((n, i) => {
+      text += `Notification ${i + 1}: ${n.title}. ${n.message}. `;
+    });
+    speechService.speak(text, { priority: true });
+    return true;
   }
 }
 

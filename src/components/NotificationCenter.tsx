@@ -18,6 +18,18 @@ import { notificationService, AppNotification } from '../services/notificationSe
 import { speechService } from '../services/speechService';
 import { audioCueService } from '../services/audioCueService';
 
+export function openNotificationPanel(announce = true) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('drishtix_open_notifications', { detail: { announce } }));
+  }
+}
+
+export function closeNotificationPanel() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('drishtix_close_notifications'));
+  }
+}
+
 export default function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>(() => notificationService.getAll());
@@ -26,6 +38,29 @@ export default function NotificationCenter() {
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerBtnRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleOpen = (e: any) => {
+      setIsOpen(true);
+      const shouldAnnounce = e.detail?.announce !== false;
+      if (shouldAnnounce) {
+        const unread = notificationService.getAll().filter(n => !n.read).length;
+        if (unread > 0) {
+          speechService.speak(`Notifications opened. You have ${unread} unread notification${unread > 1 ? 's' : ''}.`);
+        } else {
+          speechService.speak('Notifications opened. No unread notifications.');
+        }
+      }
+    };
+    const handleClose = () => setIsOpen(false);
+
+    window.addEventListener('drishtix_open_notifications', handleOpen);
+    window.addEventListener('drishtix_close_notifications', handleClose);
+    return () => {
+      window.removeEventListener('drishtix_open_notifications', handleOpen);
+      window.removeEventListener('drishtix_close_notifications', handleClose);
+    };
+  }, []);
 
   useEffect(() => {
     const unsub = notificationService.subscribe((list, latestNew) => {

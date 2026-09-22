@@ -28,10 +28,28 @@ const LOCAL_WHISPER_HEALTH   = 'http://localhost:8765/health';
 
 const SAMPLE_RATE            = 16000;
 const BUFFER_SIZE            = 2048;   // ~128ms per audio frame
-const BASE_SPEECH_RMS        = 0.015;  // Baseline speech energy threshold (avoids laptop fan / breathing false triggers)
+const BASE_SPEECH_RMS        = 0.016;  // Baseline speech energy threshold (rejects room fans & quiet breathing)
 const SILENCE_FRAMES_TRIGGER = 3;      // ~384ms pause triggers utterance submission
 const MIN_UTTERANCE_MS       = 320;    // Minimum 320ms for speech commands
 const MAX_UTTERANCE_MS       = 5000;   // Safety cap: 5 seconds continuous audio
+
+const KNOWN_HALLUCINATIONS = [
+  'thank you', 'thanks for watching', 'subscribe', 'like and subscribe',
+  'subtitles by', 'transcribed by', 'amara.org', 'bye bye', 'goodbye',
+  'धन्यवाद', 'बहुत बहुत धन्यवाद', 'देखने के लिए धन्यवाद', 'सब्सक्राइब करें',
+  'लाइक करें', 'you', 'yeah', 'oh', 'um', 'uh'
+];
+
+function isHallucinationText(text: string): boolean {
+  if (!text) return true;
+  const t = text.toLowerCase().trim();
+  if (t.length <= 1) return true;
+  for (const h of KNOWN_HALLUCINATIONS) {
+    if (t === h || t.startsWith(h + ' ') || t.endsWith(' ' + h)) return true;
+  }
+  if (/^(\w+)(?:\s+\1){2,}$/i.test(t)) return true;
+  return false;
+}
 
 function pcmToWav(pcmData: Int16Array, sampleRate = 16000): Blob {
   const numChannels = 1;
@@ -100,6 +118,7 @@ export class HybridSttService {
   private processor: ScriptProcessorNode | null = null;
   private gainNode: GainNode | null = null;
   private filterNode: BiquadFilterNode | null = null;
+  private lowpassNode: BiquadFilterNode | null = null;
   private compressorNode: DynamicsCompressorNode | null = null;
 
   private onTranscript: SttTranscriptCallback | null = null;
@@ -113,6 +132,7 @@ export class HybridSttService {
   // Utterance Buffering
   private pcmBuffer: Int16Array[] = [];
   private isSpeaking = false;
+  private consecutiveVoicedFrames = 0;
   private silenceFrameCount = 0;
   private speechDurationMs = 0;
   private noiseFloor = 0.005;
@@ -173,6 +193,14 @@ export class HybridSttService {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
+          ...(({
+            googNoiseSuppression: true,
+            googEchoCancellation: true,
+            googAutoGainControl: true,
+            googHighpassFilter: true,
+            googNoiseSuppression2: true,
+            googEchoCancellation2: true,
+          }) as any),
         },
       });
 
@@ -213,22 +241,27 @@ export class HybridSttService {
 
       const source = this.audioCtx.createMediaStreamSource(this.stream);
 
-      // Highpass filter at 85Hz to eliminate hum
+      // 1. High-pass filter at 125Hz to eliminate fan noise, table rumble & chassis vibration
       this.filterNode = this.audioCtx.createBiquadFilter();
       this.filterNode.type = 'highpass';
-      this.filterNode.frequency.value = 85;
+      this.filterNode.frequency.value = 125;
 
-      // Vocal compressor
+      // 2. Low-pass filter at 3800Hz to eliminate high-frequency hiss, sizzle & clicks
+      this.lowpassNode = this.audioCtx.createBiquadFilter();
+      this.lowpassNode.type = 'lowpass';
+      this.lowpassNode.frequency.value = 3800;
+
+      // 3. Dynamics compressor: smooth vocal leveling without pumping
       this.compressorNode = this.audioCtx.createDynamicsCompressor();
-      this.compressorNode.threshold.value = -28;
+      this.compressorNode.threshold.value = -26;
       this.compressorNode.knee.value = 8;
       this.compressorNode.ratio.value = 3;
       this.compressorNode.attack.value = 0.005;
       this.compressorNode.release.value = 0.2;
 
-      // Make-up gain
+      // 4. Clean make-up gain (gentle 1.15x boost preserving natural dynamic range)
       this.gainNode = this.audioCtx.createGain();
-      this.gainNode.gain.value = 1.6;
+      this.gainNode.gain.value = 1.15;
 
       this.processor = this.audioCtx.createScriptProcessor(BUFFER_SIZE, 1, 1);
 
@@ -259,25 +292,31 @@ export class HybridSttService {
         }
 
         const dynamicThreshold = speechService.isSpeaking
-          ? Math.max(BASE_SPEECH_RMS * 1.35, this.noiseFloor * 1.8)
-          : Math.max(BASE_SPEECH_RMS, this.noiseFloor * 2.0);
+          ? Math.max(BASE_SPEECH_RMS * 1.35, this.noiseFloor * 2.0)
+          : Math.max(BASE_SPEECH_RMS, this.noiseFloor * 2.2);
 
         if (rms >= dynamicThreshold) {
-          // Barge-in: immediately cancel AI screen reader speech if candidate speaks
-          if (speechService.isSpeaking) {
-            console.log('[HybridSTT] 🛑 Barge-in: Candidate interrupted, stopping AI speech.');
-            speechService.stop();
-          }
+          this.consecutiveVoicedFrames++;
 
-          this.isSpeaking = true;
-          this.silenceFrameCount = 0;
-          this.speechDurationMs += frameDurationMs;
-          this.pcmBuffer.push(int16);
+          // Require at least 2 consecutive voiced frames (>250ms) to confirm genuine human speech
+          if (this.consecutiveVoicedFrames >= 2) {
+            // Barge-in: immediately cancel AI screen reader speech if candidate speaks
+            if (speechService.isSpeaking) {
+              console.log('[HybridSTT] 🛑 Barge-in: Candidate interrupted, stopping AI speech.');
+              speechService.stop();
+            }
 
-          if (this.speechDurationMs >= MAX_UTTERANCE_MS) {
-            this._dispatchBufferedUtterance();
+            this.isSpeaking = true;
+            this.silenceFrameCount = 0;
+            this.speechDurationMs += frameDurationMs;
+            this.pcmBuffer.push(int16);
+
+            if (this.speechDurationMs >= MAX_UTTERANCE_MS) {
+              this._dispatchBufferedUtterance();
+            }
           }
         } else {
+          this.consecutiveVoicedFrames = 0;
           if (this.isSpeaking) {
             this.silenceFrameCount++;
             if (this.silenceFrameCount <= 2) {
@@ -293,7 +332,8 @@ export class HybridSttService {
       };
 
       source.connect(this.filterNode);
-      this.filterNode.connect(this.compressorNode);
+      this.filterNode.connect(this.lowpassNode);
+      this.lowpassNode.connect(this.compressorNode);
       this.compressorNode.connect(this.gainNode);
       this.gainNode.connect(this.processor);
       this.processor.connect(this.audioCtx.destination);
@@ -343,6 +383,11 @@ export class HybridSttService {
       const result = await this.transcribeAudio(wavBlob);
 
       if (result.success && result.text) {
+        if (isHallucinationText(result.text)) {
+          console.log('[HybridSTT] 🔇 Filtered hallucination result:', result.text);
+          return;
+        }
+
         const now = Date.now();
         // Debounce identical recognized transcripts within 750ms
         if (result.text.toLowerCase() === this.lastTranscript.toLowerCase() && now - this.lastTranscriptTime < 750) {
@@ -491,6 +536,10 @@ export class HybridSttService {
     if (this.filterNode) {
       try { this.filterNode.disconnect(); } catch {}
       this.filterNode = null;
+    }
+    if (this.lowpassNode) {
+      try { this.lowpassNode.disconnect(); } catch {}
+      this.lowpassNode = null;
     }
     if (this.audioCtx) {
       try { this.audioCtx.close(); } catch {}

@@ -500,7 +500,16 @@ const EXAM_VOICE_PROMPT = (
 
 function cleanTranscriptText(text: string): string {
   if (!text) return '';
-  const cleaned = text
+
+  // Strict Two-Language Policy: English (Latin) + Hindi (Devanagari) only.
+  // Strip out unwanted foreign scripts (Arabic, Cyrillic, Chinese, etc.) that can arise from Whisper hallucinations
+  const filtered = text.replace(/[^\u0000-\u007F\u0900-\u097F\s\d.,!?;:\-_'"`~|।]/g, '').trim();
+  if (filtered.length < 2 && text.length >= 2) {
+    // If original text was predominantly in an unsupported foreign script, reject it
+    return '';
+  }
+
+  const cleaned = filtered
     .replace(/[.,!?;:\-_'"`~|।]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();

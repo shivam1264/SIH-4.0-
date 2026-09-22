@@ -496,7 +496,10 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
               DrishtiX is 100% operable without touching a mouse. Use these keystrokes at any point:
             </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxHeight: '55vh', overflowY: 'auto' }}>
+            <div
+              data-scrollable="true"
+              style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxHeight: '55vh', overflowY: 'auto' }}
+            >
               {shortcuts.map(s => (
                 <div key={s.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.75rem', background: 'var(--bg-surface)', borderRadius: '0.4rem', border: '1px solid var(--border)' }}>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text)', fontWeight: 500 }}>{s.desc}</span>

@@ -13,7 +13,9 @@
     "test:accessibility": "npx tsx scripts/verify-accessibility.ts",
     "test:e2e": "npx tsx scripts/test-e2e-api.ts",
     "server": "npm run dev --prefix server",
-    "server:build": "npm run build --prefix server"
+    "server:build": "npm run build --prefix server",
+    "start:all": "start_server.bat",
+    "stop:all": "stop_servers.bat"
   },
   "dependencies": {
     "@types/canvas-confetti": "^1.9.0",

@@ -184,6 +184,7 @@ export default function NotificationCenter() {
       {isOpen && (
         <div
           ref={panelRef}
+          id="notification-panel"
           role="dialog"
           aria-label="Notification Center"
           style={{
@@ -298,7 +299,11 @@ export default function NotificationCenter() {
           </div>
 
           {/* Notification List */}
-          <div style={{ maxHeight: 340, overflowY: 'auto', padding: '0.25rem 0' }}>
+          <div
+            id="notification-panel-list"
+            data-scrollable="true"
+            style={{ maxHeight: 340, overflowY: 'auto', padding: '0.25rem 0' }}
+          >
             {filtered.length === 0 ? (
               <div style={{ padding: '2rem 1.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                 <Check size={28} style={{ margin: '0 auto 0.5rem auto', opacity: 0.5, color: '#10B981' }} />

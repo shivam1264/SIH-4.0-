@@ -46,38 +46,128 @@ class DrishtiActionService {
   }
 
   /**
-   * Finds the primary scrollable container on the active screen.
+   * Deeply scans for the primary scrollable container on the active screen.
    * Priority:
-   * 1. Topmost open modal or dialog (.modal-box, [role="dialog"])
-   * 2. Main content area (#main-content)
-   * 3. An active scrollable container with overflow-y: auto/scroll
-   * 4. Window / documentElement
+   * 1. Open modal, dialog, or drawer ([role="dialog"], .modal-box, .modal-overlay, #notification-panel)
+   *    -> Traverses inside the modal to find the actual element with computed overflow-y: auto/scroll
+   *       (such as [data-scrollable="true"], #shortcuts-modal-scroll, #notification-panel-list)
+   * 2. Active exam question card or question palette (.exam-scroll-area, #exam-question-card, #exam-palette)
+   * 3. Main content area (#main-content) in AppLayout
+   * 4. Any element with [data-scrollable="true"], .overflow-y-auto, .overflow-y-scroll, or scrollable table
+   * 5. Active focused element if scrollable
+   * 6. Window / documentElement
    */
   public getScrollContainer(): HTMLElement | Window {
     if (typeof document === 'undefined') return {} as Window;
 
-    // Check open modal
-    const modal = document.querySelector('.modal-box, [role="dialog"]') as HTMLElement | null;
-    if (modal && modal.scrollHeight > modal.clientHeight) {
-      this._lastActiveContainer = modal;
-      return modal;
+    const isScrollable = (el: HTMLElement | null): boolean => {
+      if (!el) return false;
+      if (el.scrollHeight <= el.clientHeight) return false;
+      if (typeof window === 'undefined') return true;
+      const style = window.getComputedStyle(el);
+      return (
+        style.overflowY === 'auto' ||
+        style.overflowY === 'scroll' ||
+        (style.overflowY === 'visible' && el.clientHeight > 0)
+      );
+    };
+
+    // Helper: find scrollable child inside a parent container
+    const findScrollableChild = (parent: HTMLElement): HTMLElement | null => {
+      // 1. Explicit scrollable targets
+      const tagged = parent.querySelector<HTMLElement>(
+        '[data-scrollable="true"], #shortcuts-modal-scroll, #calibration-wizard-scroll, #notification-panel-list'
+      );
+      if (tagged && tagged.scrollHeight > tagged.clientHeight) return tagged;
+
+      // 2. Query elements with explicit overflow styles or classes
+      const candidates = Array.from(
+        parent.querySelectorAll<HTMLElement>(
+          '.overflow-y-auto, .overflow-y-scroll, [style*="overflow"], div, ul, section'
+        )
+      );
+
+      for (const c of candidates) {
+        if (c.scrollHeight > c.clientHeight + 4) {
+          if (typeof window !== 'undefined') {
+            const style = window.getComputedStyle(c);
+            if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+              return c;
+            }
+          } else {
+            return c;
+          }
+        }
+      }
+
+      return null;
+    };
+
+    // 1. Check open modal or dialog (.modal-box, [role="dialog"], .modal-overlay, [aria-modal="true"])
+    const modal = document.querySelector<HTMLElement>(
+      '.modal-box, [role="dialog"], .modal-overlay, [aria-modal="true"]'
+    );
+    if (modal) {
+      const innerScrollable = findScrollableChild(modal);
+      if (innerScrollable) {
+        this._lastActiveContainer = innerScrollable;
+        return innerScrollable;
+      }
+      if (isScrollable(modal)) {
+        this._lastActiveContainer = modal;
+        return modal;
+      }
     }
 
-    // Check #main-content in AppLayout
+    // 2. Check open NotificationCenter panel
+    const notifPanel = document.querySelector<HTMLElement>('#notification-panel, [aria-label="Notification Center"]');
+    if (notifPanel) {
+      const notifList = findScrollableChild(notifPanel);
+      if (notifList) {
+        this._lastActiveContainer = notifList;
+        return notifList;
+      }
+    }
+
+    // 3. Check exam question scroll area or card if present
+    const examCards = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '.exam-scroll-area, #exam-question-card, .question-scroll-wrapper, .question-card, #exam-palette, .question-palette'
+      )
+    );
+    for (const card of examCards) {
+      if (isScrollable(card)) {
+        this._lastActiveContainer = card;
+        return card;
+      }
+      const child = findScrollableChild(card);
+      if (child) {
+        this._lastActiveContainer = child;
+        return child;
+      }
+    }
+
+    // 4. Check #main-content in AppLayout
     const main = document.getElementById('main-content');
-    if (main && main.scrollHeight > main.clientHeight) {
+    if (main && isScrollable(main)) {
       this._lastActiveContainer = main;
       return main;
     }
 
-    // Check exam question scroll card if present
-    const questionCard = document.querySelector('.exam-scroll-area, #exam-question-card') as HTMLElement | null;
-    if (questionCard && questionCard.scrollHeight > questionCard.clientHeight) {
-      this._lastActiveContainer = questionCard;
-      return questionCard;
+    // 5. Check any explicitly tagged scrollable or table
+    const scrollables = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '[data-scrollable="true"], .overflow-y-auto, .overflow-y-scroll, .table-container'
+      )
+    );
+    for (const el of scrollables) {
+      if (isScrollable(el)) {
+        this._lastActiveContainer = el;
+        return el;
+      }
     }
 
-    // Default to window
+    // 6. Default to window / document.documentElement
     this._lastActiveContainer = typeof window !== 'undefined' ? window : ({} as Window);
     return this._lastActiveContainer;
   }
@@ -85,93 +175,106 @@ class DrishtiActionService {
   // ── Directional Scrolling ──────────────────────────────────────────────────
 
   /**
-   * Smoothly scrolls down by a given amount (default ~420px or 60% viewport).
+   * Smoothly scrolls down by a given amount (default ~420px or 55% viewport).
+   * Universally scrolls active container, modal, #main-content, and window.
    */
   public scrollDown(amount?: number): boolean {
+    if (typeof window === 'undefined') return false;
+    const delta = amount ?? Math.round(window.innerHeight * 0.55);
     const container = this.getScrollContainer();
-    const delta = amount ?? Math.round((typeof window !== 'undefined' ? window.innerHeight : 700) * 0.55);
 
-    if (container === window) {
-      if (typeof window !== 'undefined') {
-        window.scrollBy({ top: delta, behavior: 'smooth' });
-        return true;
-      }
-      return false;
-    }
-
-    const el = container as HTMLElement;
-    if (el && typeof el.scrollBy === 'function') {
+    if (container && container !== window) {
+      const el = container as HTMLElement;
       el.scrollBy({ top: delta, behavior: 'smooth' });
-      return true;
     }
-    return false;
+
+    // Fallback: also scroll #main-content if it is different from container
+    const main = document.getElementById('main-content');
+    if (main && main !== container && main.scrollHeight > main.clientHeight) {
+      main.scrollBy({ top: delta, behavior: 'smooth' });
+    }
+
+    // Also smoothly scroll window / documentElement
+    window.scrollBy({ top: delta, behavior: 'smooth' });
+    if (document.documentElement) {
+      document.documentElement.scrollBy({ top: delta, behavior: 'smooth' });
+    }
+
+    return true;
   }
 
   /**
    * Smoothly scrolls up by a given amount (default ~420px).
+   * Universally scrolls active container, modal, #main-content, and window.
    */
   public scrollUp(amount?: number): boolean {
+    if (typeof window === 'undefined') return false;
+    const delta = amount ?? Math.round(window.innerHeight * 0.55);
     const container = this.getScrollContainer();
-    const delta = amount ?? Math.round((typeof window !== 'undefined' ? window.innerHeight : 700) * 0.55);
 
-    if (container === window) {
-      if (typeof window !== 'undefined') {
-        window.scrollBy({ top: -delta, behavior: 'smooth' });
-        return true;
-      }
-      return false;
-    }
-
-    const el = container as HTMLElement;
-    if (el && typeof el.scrollBy === 'function') {
+    if (container && container !== window) {
+      const el = container as HTMLElement;
       el.scrollBy({ top: -delta, behavior: 'smooth' });
-      return true;
     }
-    return false;
+
+    const main = document.getElementById('main-content');
+    if (main && main !== container && main.scrollHeight > main.clientHeight) {
+      main.scrollBy({ top: -delta, behavior: 'smooth' });
+    }
+
+    window.scrollBy({ top: -delta, behavior: 'smooth' });
+    if (document.documentElement) {
+      document.documentElement.scrollBy({ top: -delta, behavior: 'smooth' });
+    }
+
+    return true;
   }
 
   /**
-   * Smoothly scrolls all the way to the top of the container.
+   * Smoothly scrolls all the way to the top of the active view.
    */
   public scrollToTop(): boolean {
+    if (typeof window === 'undefined') return false;
     const container = this.getScrollContainer();
 
-    if (container === window) {
-      if (typeof window !== 'undefined') {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        return true;
-      }
-      return false;
+    if (container && container !== window) {
+      (container as HTMLElement).scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    const el = container as HTMLElement;
-    if (el && typeof el.scrollTo === 'function') {
-      el.scrollTo({ top: 0, behavior: 'smooth' });
-      return true;
+    const main = document.getElementById('main-content');
+    if (main && typeof main.scrollTo === 'function') {
+      main.scrollTo({ top: 0, behavior: 'smooth' });
     }
-    return false;
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (document.documentElement) {
+      document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    return true;
   }
 
   /**
-   * Smoothly scrolls all the way to the bottom of the container.
+   * Smoothly scrolls all the way to the bottom of the active view.
    */
   public scrollToBottom(): boolean {
+    if (typeof window === 'undefined') return false;
     const container = this.getScrollContainer();
 
-    if (container === window) {
-      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
-        return true;
-      }
-      return false;
+    if (container && container !== window) {
+      const el = container as HTMLElement;
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     }
 
-    const el = container as HTMLElement;
-    if (el && typeof el.scrollTo === 'function') {
-      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-      return true;
+    const main = document.getElementById('main-content');
+    if (main && typeof main.scrollTo === 'function') {
+      main.scrollTo({ top: main.scrollHeight, behavior: 'smooth' });
     }
-    return false;
+
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+    if (document.documentElement) {
+      document.documentElement.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+    }
+    return true;
   }
 
   // ── Continuous Auto-Scroll Mode ───────────────────────────────────────────
@@ -280,24 +383,32 @@ class DrishtiActionService {
     const normalized = sectionTarget.toLowerCase().trim();
     let targetEl: HTMLElement | null = null;
 
-    if (normalized.includes('option') || normalized.includes('choice')) {
+    if (normalized.includes('notification') || normalized.includes('alert') || normalized.includes('notice')) {
+      targetEl = document.querySelector('#notification-panel, #notification-panel-list, #drishtix-notifications-trigger, [aria-label*="Notification"]') as HTMLElement;
+    } else if (normalized.includes('option') || normalized.includes('choice') || normalized.includes('answer')) {
       targetEl = document.querySelector('#exam-options, .options-grid, [aria-label*="Options"], [role="radiogroup"]') as HTMLElement;
-    } else if (normalized.includes('question') || normalized.includes('problem')) {
-      targetEl = document.querySelector('#question-text, #exam-question-card, .question-card, h2[id*="question"]') as HTMLElement;
+    } else if (normalized.includes('question') || normalized.includes('problem') || normalized.includes('sawal')) {
+      targetEl = document.querySelector('#question-text, #exam-question-card, .question-card, h2[id*="question"], [aria-label*="Question"]') as HTMLElement;
+    } else if (normalized.includes('formula') || normalized.includes('equation') || normalized.includes('math')) {
+      targetEl = document.querySelector('.math-formula, #math-formula-view, [aria-label*="formula"], .katex') as HTMLElement;
+    } else if (normalized.includes('diagram') || normalized.includes('chart') || normalized.includes('graph') || normalized.includes('figure') || normalized.includes('image')) {
+      targetEl = document.querySelector('.exam-diagram, #diagram-view, svg.exam-chart, img[alt*="diagram"]') as HTMLElement;
     } else if (normalized.includes('submit') || normalized.includes('finish')) {
       targetEl = document.querySelector('#submit-exam-btn, button[aria-label*="Submit"], button:has(svg.lucide-send)') as HTMLElement;
     } else if (normalized.includes('timer') || normalized.includes('clock') || normalized.includes('time')) {
-      targetEl = document.querySelector('[aria-label*="Time remaining"], .exam-timer') as HTMLElement;
+      targetEl = document.querySelector('[aria-label*="Time remaining"], .exam-timer, #exam-timer') as HTMLElement;
     } else if (normalized.includes('palette') || normalized.includes('grid') || normalized.includes('overview')) {
       targetEl = document.querySelector('.question-palette, #exam-palette, [aria-label*="Question Palette"]') as HTMLElement;
     } else if (normalized.includes('instruction') || normalized.includes('guideline') || normalized.includes('rule')) {
       targetEl = document.querySelector('.instructions-card, #exam-instructions, [aria-label*="Instructions"]') as HTMLElement;
     } else if (normalized.includes('header') || normalized.includes('top bar') || normalized.includes('navbar')) {
       targetEl = document.querySelector('header, nav, #app-header') as HTMLElement;
-    } else if (normalized.includes('table') || normalized.includes('score') || normalized.includes('result')) {
-      targetEl = document.querySelector('table, .results-grid, #score-card') as HTMLElement;
+    } else if (normalized.includes('table') || normalized.includes('score') || normalized.includes('result') || normalized.includes('scorecard')) {
+      targetEl = document.querySelector('table, .results-grid, #score-card, .table-container') as HTMLElement;
     } else if (normalized.includes('solution') || normalized.includes('explanation')) {
       targetEl = document.querySelector('.solution-card, #solution-view, [aria-label*="Explanation"]') as HTMLElement;
+    } else if (normalized.includes('material') || normalized.includes('note') || normalized.includes('study')) {
+      targetEl = document.querySelector('.study-materials-grid, #study-materials-container, [aria-label*="Study"]') as HTMLElement;
     }
 
     // Generic fallback: match by id or class

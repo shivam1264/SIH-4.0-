@@ -1,9 +1,18 @@
 // ── High-Fidelity Human-Quality Text-to-Speech Service ──────────
+// Strictly restricted to English & Hindi languages.
+// Eliminates audio breaking, avoids browser synthesis stalling,
+// and supports graceful task queueing during page explanations.
+
 export interface VoiceOption {
   name: string;
   lang: string;
   label: string;
   recommended?: boolean;
+}
+
+export interface QueuedTask {
+  action: () => void | Promise<void>;
+  label?: string;
 }
 
 class SpeechService {
@@ -19,6 +28,16 @@ class SpeechService {
   public lastSpeechEndTime = 0;
   public lastSpokenText: string = '';
 
+  // Interruption buffering support for page explanation
+  private _isPageExplaining = false;
+  private _pageExplainingName = '';
+  private _queuedInterruptedTask: QueuedTask | null = null;
+
+  // Queue of sentence utterances for long-text streaming without Chromium 15s freeze
+  private _sentenceQueue: string[] = [];
+  private _currentSentenceIndex = 0;
+  private _sentenceOnEndCallback: (() => void) | null = null;
+
   constructor() {
     this.initVoices();
   }
@@ -28,17 +47,68 @@ class SpeechService {
     return () => this._stopListeners.delete(cb);
   }
 
-  repeatLast(): boolean {
+  public repeatLast(): boolean {
     if (!this.lastSpokenText) return false;
     this.speak(this.lastSpokenText, { priority: true });
     return true;
+  }
+
+  // ── Page Explanation & Interruption Tracking ──
+  public setPageExplaining(val: boolean, pageName = '') {
+    this._isPageExplaining = val;
+    this._pageExplainingName = pageName;
+    if (!val) {
+      this._queuedInterruptedTask = null;
+    }
+  }
+
+  public get isPageExplaining(): boolean {
+    return this._isPageExplaining;
+  }
+
+  public get pageExplainingName(): string {
+    return this._pageExplainingName;
+  }
+
+  public queueInterruptedTask(action: () => void | Promise<void>, label?: string): boolean {
+    this._queuedInterruptedTask = { action, label };
+    console.log(`[SpeechService] 📋 Interrupted task queued while explaining page: "${label || 'action'}"`);
+    return true;
+  }
+
+  public hasQueuedTask(): boolean {
+    return !!this._queuedInterruptedTask;
+  }
+
+  public clearQueuedTask() {
+    this._queuedInterruptedTask = null;
+  }
+
+  public executeQueuedTask(): boolean {
+    if (!this._queuedInterruptedTask) return false;
+    const task = this._queuedInterruptedTask;
+    this._queuedInterruptedTask = null;
+    this._isPageExplaining = false;
+    console.log(`[SpeechService] 🚀 Executing queued interrupted task: "${task.label || 'action'}"`);
+    try {
+      task.action();
+      return true;
+    } catch (err) {
+      console.error('[SpeechService] Error executing queued interrupted task:', err);
+      return false;
+    }
   }
 
   private initVoices() {
     if (typeof window === 'undefined' || !this.synth) return;
 
     const load = () => {
-      this.voices = this.synth?.getVoices() || [];
+      const raw = this.synth?.getVoices() || [];
+      // STRICT TWO-LANGUAGE POLICY: Only English and Hindi voices are allowed.
+      this.voices = raw.filter(v => {
+        const lang = (v.lang || '').toLowerCase();
+        return lang.startsWith('en') || lang.startsWith('hi');
+      });
       this.selectBestVoice();
     };
 
@@ -48,10 +118,59 @@ class SpeechService {
     }
   }
 
+  /**
+   * Detects whether text contains Devanagari Hindi characters
+   */
+  public isHindiText(text: string): boolean {
+    if (!text) return false;
+    // Devanagari Unicode block [\u0900-\u097F]
+    return /[\u0900-\u097F]/.test(text);
+  }
+
+  /**
+   * Selects the optimal voice matching the specific language of the text.
+   * Hindi text -> Native Hindi voice (or Indian English fallback).
+   * English / Hinglish -> Natural Indian English or Google/Microsoft English.
+   */
+  public getVoiceForText(text: string): SpeechSynthesisVoice | null {
+    if (!this.voices.length) return null;
+
+    const isHindi = this.isHindiText(text);
+
+    if (isHindi) {
+      // 1. Try native Hindi voice
+      const hindiVoice = this.voices.find(v => {
+        const lang = (v.lang || '').toLowerCase();
+        const name = (v.name || '').toLowerCase();
+        return lang.startsWith('hi') || name.includes('hindi') || name.includes('हिन्दी') || name.includes('hemant') || name.includes('kalpana') || name.includes('swara') || name.includes('madhur');
+      });
+      if (hindiVoice) return hindiVoice;
+
+      // 2. Fallback to Indian English voice which handles Hindi phonetics decently
+      const indianVoice = this.voices.find(v => {
+        const lang = (v.lang || '').toLowerCase();
+        const name = (v.name || '').toLowerCase();
+        return lang.includes('en-in') || name.includes('india') || name.includes('heera') || name.includes('neerja') || name.includes('ravi') || name.includes('prabhat');
+      });
+      if (indianVoice) return indianVoice;
+    }
+
+    // If user explicitly picked a preferred voice that is currently available
+    if (this.preferredVoiceName) {
+      const match = this.voices.find(v => v.name === this.preferredVoiceName);
+      if (match) return match;
+    }
+
+    // Default: use currently selected best English voice
+    if (!this.selectedVoice) {
+      this.selectBestVoice();
+    }
+    return this.selectedVoice;
+  }
+
   private selectBestVoice() {
     if (!this.voices.length) return;
 
-    // If user explicitly picked a preferred voice that exists, use it
     if (this.preferredVoiceName) {
       const match = this.voices.find(v => v.name === this.preferredVoiceName);
       if (match) {
@@ -60,10 +179,7 @@ class SpeechService {
       }
     }
 
-    // Curated high-fidelity voice ranking for both Edge & Chrome:
-    // - Edge Natural/Online voices (Neerja, Prabhat, Sonia)
-    // - Google UK / US voices in Chrome
-    // - Microsoft Heera / Zira / Ravi desktop voices
+    // Curated ranking for English & Indian English voices
     const ranking = [
       (v: SpeechSynthesisVoice) => (v.name.includes('Natural') || v.name.includes('Online')) && (v.lang.startsWith('en-IN') || v.name.includes('India')),
       (v: SpeechSynthesisVoice) => v.name.includes('Google UK English Female'),
@@ -80,7 +196,6 @@ class SpeechService {
     ];
 
     for (const test of ranking) {
-      // Exclude harsh robotic desktop voices (David/Mark)
       const found = this.voices.find(v => test(v) && !v.name.includes('David') && !v.name.includes('Mark'));
       if (found) {
         this.selectedVoice = found;
@@ -88,20 +203,20 @@ class SpeechService {
       }
     }
 
-    // Fallback: any voice that is not David
     this.selectedVoice = this.voices.find(v => !v.name.includes('David')) || this.voices[0] || null;
   }
 
   getAvailableVoices(): VoiceOption[] {
     if (!this.voices.length && this.synth) {
-      this.voices = this.synth.getVoices();
+      const raw = this.synth.getVoices();
+      this.voices = raw.filter(v => {
+        const lang = (v.lang || '').toLowerCase();
+        return lang.startsWith('en') || lang.startsWith('hi');
+      });
       this.selectBestVoice();
     }
 
-    // Return English & Hindi friendly options
-    const filtered = this.voices.filter(v => v.lang.startsWith('en') || v.lang.startsWith('hi'));
-    
-    return filtered.map(v => {
+    return this.voices.map(v => {
       let label = v.name;
       let recommended = false;
 
@@ -119,8 +234,9 @@ class SpeechService {
         label = 'Google UK Male (Calm & Professional)';
       } else if (v.name.includes('Ravi')) {
         label = 'Microsoft Ravi (Indian English Male)';
-      } else if (v.name.includes('Google हिन्दी')) {
-        label = 'Google Hindi (Natural Hindi Speech)';
+      } else if (v.name.includes('Google हिन्दी') || v.lang.startsWith('hi')) {
+        label = `${v.name} (Natural Hindi Speech)`;
+        recommended = true;
       }
 
       return {
@@ -146,7 +262,6 @@ class SpeechService {
   }
 
   configure(rate: number, pitch: number, voiceName?: string) {
-    // Keep rate in pleasant range (0.85 – 1.1) and pitch gently warm (0.9 – 1.05)
     this.rate = rate;
     this.pitch = pitch;
     if (voiceName) {
@@ -160,6 +275,29 @@ class SpeechService {
 
   get isSpeaking(): boolean {
     return this._isSpeaking;
+  }
+
+  /**
+   * Splits longer text into natural sentence fragments to prevent Chromium speech freeze
+   */
+  private splitIntoSentences(text: string): string[] {
+    if (!text) return [];
+    // Match sentence terminators (. ! ? । \n) while keeping abbreviations reasonably safe
+    const raw = text.split(/(?<=[.!?|।\n])\s+/);
+    const result: string[] = [];
+    for (const chunk of raw) {
+      const trimmed = chunk.trim();
+      if (trimmed) {
+        // If single chunk is exceptionally long (>220 chars without punctuation), split by comma or semi-colon
+        if (trimmed.length > 220) {
+          const sub = trimmed.split(/(?<=[,;])\s+/);
+          result.push(...sub.map(s => s.trim()).filter(Boolean));
+        } else {
+          result.push(trimmed);
+        }
+      }
+    }
+    return result.length > 0 ? result : [text];
   }
 
   speak(
@@ -186,7 +324,9 @@ class SpeechService {
       this._fallbackTimer = null;
     }
 
+    // Clear previous queued sentences if priority
     if (priority) {
+      this._sentenceQueue = [];
       try {
         this.synth.cancel();
       } catch {}
@@ -194,32 +334,71 @@ class SpeechService {
     }
 
     this.lastSpokenText = text;
+    const cleaned = this.mathToPhonetic(text);
+    if (!cleaned) return;
 
-    if (!this.selectedVoice) {
-      this.selectBestVoice();
+    // Sentence-level queueing for natural, non-breaking speech
+    const sentences = this.splitIntoSentences(cleaned);
+    if (sentences.length > 1) {
+      this._sentenceQueue = sentences;
+      this._currentSentenceIndex = 0;
+      this._sentenceOnEndCallback = onEnd || null;
+      this.playNextSentence();
+      return;
     }
 
-    const cleaned = this.mathToPhonetic(text);
-    const utt = new SpeechSynthesisUtterance(cleaned);
+    this.speakSingleUtterance(cleaned, onEnd);
+  }
 
+  private playNextSentence() {
+    if (!this._sentenceQueue.length || this._currentSentenceIndex >= this._sentenceQueue.length) {
+      this._sentenceQueue = [];
+      const onEnd = this._sentenceOnEndCallback;
+      this._sentenceOnEndCallback = null;
+      this._isSpeaking = false;
+      this.lastSpeechEndTime = Date.now();
+
+      onEnd?.();
+
+      if (this._queuedInterruptedTask) {
+        setTimeout(() => this.executeQueuedTask(), 80);
+      } else {
+        this._isPageExplaining = false;
+      }
+      return;
+    }
+
+    const currentText = this._sentenceQueue[this._currentSentenceIndex];
+    this._currentSentenceIndex++;
+
+    this.speakSingleUtterance(currentText, () => {
+      this.playNextSentence();
+    });
+  }
+
+  private speakSingleUtterance(cleaned: string, onEnd?: () => void) {
+    if (!this.synth) return;
+
+    const utt = new SpeechSynthesisUtterance(cleaned);
     utt.rate = this.rate;
     utt.pitch = this.pitch;
 
-    if (this.selectedVoice) {
-      utt.voice = this.selectedVoice;
-      utt.lang = this.selectedVoice.lang;
+    // Dynamic voice selection matching content language (Hindi vs English)
+    const voice = this.getVoiceForText(cleaned);
+    if (voice) {
+      utt.voice = voice;
+      utt.lang = voice.lang;
     } else {
-      utt.lang = 'en-IN';
+      utt.lang = this.isHindiText(cleaned) ? 'hi-IN' : 'en-IN';
     }
 
-    // Retain global reference so Chromium GC doesn't collect the utterance and drop onend
+    // Retain global reference so Chromium GC doesn't collect utterance and drop onend
     (window as any).__activeUtterance = utt;
 
     const wordCount = cleaned.split(/\s+/).length;
-    const maxDurationMs = Math.max(3000, (wordCount / 2.0) * 1000 + 2000);
+    const maxDurationMs = Math.max(2500, (wordCount / 1.8) * 1000 + 2000);
 
     let finished = false;
-
     const finish = () => {
       if (finished) return;
       finished = true;
@@ -230,7 +409,17 @@ class SpeechService {
       this._isSpeaking = false;
       this.lastSpeechEndTime = Date.now();
       try { delete (window as any).__activeUtterance; } catch {}
+
       onEnd?.();
+
+      // If single utterance ended and a task was queued during page explanation
+      if (!this._sentenceQueue.length) {
+        if (this._queuedInterruptedTask) {
+          setTimeout(() => this.executeQueuedTask(), 80);
+        } else {
+          this._isPageExplaining = false;
+        }
+      }
     };
 
     utt.onstart = () => {
@@ -245,7 +434,9 @@ class SpeechService {
     this.synth.speak(utt);
   }
 
-  stop() {
+  stop(clearQueue = true) {
+    this._sentenceQueue = [];
+    this._sentenceOnEndCallback = null;
     if (this._fallbackTimer) {
       clearTimeout(this._fallbackTimer);
       this._fallbackTimer = null;
@@ -257,6 +448,10 @@ class SpeechService {
       } catch {}
     }
     this._isSpeaking = false;
+    if (clearQueue) {
+      this._isPageExplaining = false;
+      this._queuedInterruptedTask = null;
+    }
     this.lastSpeechEndTime = Date.now();
     this._stopListeners.forEach(cb => {
       try { cb(); } catch (err) { console.error('[SpeechService] onStop listener error:', err); }
@@ -279,7 +474,7 @@ class SpeechService {
       .replace(/\\frac\{3\}\{4\}/g, 'three fourths')
       .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '$1 over $2')
       .replace(/\\sqrt\{([^}]+)\}/g, 'square root of $1')
-      // Measurement units (must precede standalone ² and ³)
+      // Measurement units
       .replace(/cm³/g, ' cubic centimeters ')
       .replace(/m³\b/g, ' cubic meters ')
       .replace(/cm²\b/g, ' square centimeters ')
@@ -335,14 +530,3 @@ class SpeechService {
 }
 
 export const speechService = new SpeechService();
-
-// Chromium / Edge SpeechSynthesis Heartbeat to prevent premature audio stalling
-if (typeof window !== 'undefined') {
-  setInterval(() => {
-    if (window.speechSynthesis && window.speechSynthesis.speaking) {
-      window.speechSynthesis.pause();
-      window.speechSynthesis.resume();
-    }
-  }, 10000);
-}
-

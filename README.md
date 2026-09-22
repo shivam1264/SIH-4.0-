@@ -12,7 +12,28 @@
 
 ## 🚀 Quick Start Instructions
 
-### 1. Run the Express Backend Server
+### 🌟 One-Click All-in-One Launch (Frontend + Backend + Whisper Server)
+In the project root (`SIH-4.0-`), run:
+```bat
+.\start_server.bat
+```
+*(Or in PowerShell: `.\start_server.ps1` or `npm run start:all`)*
+
+This automatically launches all three services in separate, dedicated terminal windows:
+1. **Backend API**: `http://localhost:5000`
+2. **Whisper Voice Server**: `ws://localhost:8765/ws/voice`
+3. **Frontend Application**: `http://localhost:5173`
+
+To stop all three services at once, run:
+```bat
+.\stop_servers.bat
+```
+
+---
+
+### Manual / Individual Component Start
+
+#### 1. Run the Express Backend Server
 In the project root, run:
 ```bash
 npm run server
@@ -26,7 +47,15 @@ npm run dev
 The backend will launch on **`http://localhost:5000`** with live auto-reload via `tsx`.
 - Health Check: `http://localhost:5000/api/health`
 
-### 2. Run the React Frontend Application
+#### 2. Run the Whisper Voice Recognition Server
+From the `whisper_server/` directory:
+```bash
+cd whisper_server
+.\start_server.bat
+```
+The Whisper WebSocket service will launch on **`ws://localhost:8765`**.
+
+#### 3. Run the React Frontend Application
 In a separate terminal at the project root:
 ```bash
 npm run dev

@@ -422,7 +422,11 @@ export default function PreExamCalibrationWizard({
         </div>
 
         {/* Wizard Body */}
-        <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}>
+        <div
+          id="calibration-wizard-scroll"
+          data-scrollable="true"
+          style={{ padding: '1.5rem', overflowY: 'auto', flex: 1 }}
+        >
           {/* STEP 1: Audio & Earcon Verification */}
           {step === 1 && (
             <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>

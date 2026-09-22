@@ -77,6 +77,7 @@ export type VoiceIntentType =
   | 'CLICK_ELEMENT'
   | 'FOCUS_NEXT'
   | 'FOCUS_PREV'
+  | 'EXPLAIN_PAGE'
   | 'UNRECOGNIZED';
 
 export interface ConversationalMemory {
@@ -169,10 +170,25 @@ export function normalizeTranscript(raw: string): string {
     [/\b(?:repeet|repat)\b/g, 'repeat'],
     [/\b(?:perfomance|performent|anlytics)\b/g, 'performance'],
     [/\b(?:setings|seting)\b/g, 'settings'],
+    // Acoustic Whisper misrecognitions for scrolling
+    [/\b(?:scrol|scrool|scrowl|skroll|strole)\b/g, 'scroll'],
+    [/\b(?:stroll|crawl)\s+(down|up|top|bottom)\b/g, 'scroll $1'],
+    [/\b(?:cold\s+down|call\s+down)\b/g, 'scroll down'],
+    [/\b(?:cold\s+up|call\s+up)\b/g, 'scroll up'],
+    [/\b(?:scroll\s+the\s+page\s+down|scroll\s+page\s+down|scroll\s+screen\s+down)\b/g, 'scroll down'],
+    [/\b(?:scroll\s+the\s+page\s+up|scroll\s+page\s+up|scroll\s+screen\s+up)\b/g, 'scroll up'],
+    [/\b(?:scroll\s+a\s+bit\s+down|scroll\s+a\s+little\s+down|scroll\s+a\s+bit|scroll\s+a\s+little|scroll\s+further)\b/g, 'scroll down'],
+    [/\b(?:scroll\s+a\s+bit\s+up|scroll\s+a\s+little\s+up)\b/g, 'scroll up'],
+    [/\b(?:aur\s+niche|aur\s+neeche|thoda\s+aur\s+niche|thoda\s+aur\s+neeche)\b/g, 'scroll down'],
+    [/\b(?:aur\s+upar|aur\s+oopar|thoda\s+aur\s+upar|thoda\s+aur\s+oopar)\b/g, 'scroll up'],
+    [/\b(?:ekdam\s+niche|ek\s+dam\s+niche|ekdam\s+neeche|ek\s+dam\s+neeche)\b/g, 'scroll to bottom'],
+    [/\b(?:ekdam\s+upar|ek\s+dam\s+upar|ekdam\s+oopar|ek\s+dam\s+oopar)\b/g, 'scroll to top'],
+    [/\b(?:and\s+scroll\s+down|and\s+scroll\s+up)\b/g, 'scroll down'],
     // Phonetic option letter substitutions
-    [/\b(?:options?\s+bee|options?\s+be)\b/g, 'option b'],
-    [/\b(?:options?\s+see|options?\s+sea|options?\s+si)\b/g, 'option c'],
-    [/\b(?:options?\s+dee|options?\s+di)\b/g, 'option d'],
+    [/\b(?:options?\s+ay|opt\s+a)\b/g, 'option a'],
+    [/\b(?:options?\s+bee|options?\s+be|opt\s+b)\b/g, 'option b'],
+    [/\b(?:options?\s+see|options?\s+sea|options?\s+si|opt\s+c)\b/g, 'option c'],
+    [/\b(?:options?\s+dee|options?\s+di|opt\s+d)\b/g, 'option d'],
     // Hindi & Devanagari exam vocabulary mappings
     [/अगला\s*(सवाल|प्रश्न|क्वेश्चन)?(\s*खोलो)?/g, 'next question'],
     [/आगे\s*(बढ़ो|चलो|जाओ)/g, 'next question'],
@@ -208,6 +224,17 @@ export function normalizeTranscript(raw: string): string {
     [/हाँ|हा/g, 'yes'],
     [/नहीं|ना/g, 'no'],
     [/रद्द\s*करो/g, 'cancel'],
+    // Hindi Devanagari scrolling mappings
+    [/सबसे\s*ऊपर(\s*जाओ)?/g, 'scroll to top'],
+    [/एकदम\s*ऊपर/g, 'scroll to top'],
+    [/सबसे\s*नीचे(\s*जाओ)?/g, 'scroll to bottom'],
+    [/एकदम\s*नीचे/g, 'scroll to bottom'],
+    [/और\s*नीचे|थोड़ा\s*और\s*नीचे/g, 'scroll down'],
+    [/और\s*ऊपर|थोड़ा\s*और\s*ऊपर/g, 'scroll up'],
+    [/नीचे\s*(करो|जाओ|ले\s*जाओ)/g, 'scroll down'],
+    [/ऊपर\s*(करो|जाओ|ले\s*जाओ)/g, 'scroll up'],
+    [/ऑटो\s*स्क्रॉल\s*(शुरू|चलाओ|करो)/g, 'start auto scroll'],
+    [/स्क्रॉल\s*(रोको|बंद\s*करो|रोक\s*दो)/g, 'stop auto scroll'],
 
   ];
 
@@ -860,8 +887,8 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
 
   // 11. Notifications
   if (
-    /\b(open\s+(?:my\s+)?notifications?|show\s+(?:my\s+)?notifications?|check\s+(?:my\s+)?notifications?|read\s+(?:my\s+)?notifications?|view\s+(?:my\s+)?notifications?|notifications?\s+kholo|notifications?\s+sunao|notifications?)\b/i.test(t) ||
-    /^(notifications?)$/i.test(t)
+    /\b(open\s+(?:my\s+)?notifications?|show\s+(?:my\s+)?notifications?|check\s+(?:my\s+)?notifications?|read\s+(?:my\s+)?notifications?|view\s+(?:my\s+)?notifications?|notifications?\s+kholo|notifications?\s+sunao)\b/i.test(t) ||
+    /^(?:notifications?)$/i.test(t)
   ) {
     return {
       type: 'OPEN_NOTIFICATIONS',
@@ -960,46 +987,88 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
   }
 
   // ── STOP SPEECH / VOICE CONTROL ──
-  if (/\b(stop\s+speaking|chup\s+ho\s+jao|quiet|shant|stop\s+audio|mute\s+audio)\b/i.test(t)) {
-    return { type: 'STOP_SPEAKING', action: 'STOP_SPEAKING', label: 'Stop Speaking', speechFeedback: '', confidence: 0.95 };
+  if (
+    /^(?:stop|ruko|ruk\s*jao|chup|pause|cancel|shant|quiet|रुको|रुक\s*जाओ|चुप|शांत)$/i.test(t) ||
+    /\b(stop\s+speaking|stop\s+talking|chup\s+ho\s+jao|chup\s+raho|shant\s+ho\s+jao|quiet|stop\s+audio|mute\s+audio|audio\s+stop|speech\s+stop)\b/i.test(t)
+  ) {
+    return { type: 'STOP_SPEAKING', action: 'STOP_SPEAKING', label: 'Stop Speaking', speechFeedback: 'Stopped.', confidence: 0.98 };
   }
   if (/\b(stop\s+voice|voice\s+off|mic\s+off|band\s+karo\s+mic|mute\s+mic)\b/i.test(t)) {
     return { type: 'STOP_VOICE', action: 'STOP_VOICE', label: 'Voice Off', speechFeedback: 'Voice assistant muted.', confidence: 0.95 };
   }
 
+  // ── PAGE ORIENTATION & EXPLANATION ──
+  if (
+    /\b(explain\s+(?:this\s+)?page|page\s+(?:details|overview|briefing|info)|tell\s+(?:me\s+)?all\s+details|is\s+page\s+(?:ke\s+bare\s+mein\s+batao|me\s+kya\s+hai)|screen\s+par\s+kya\s+hai|kya\s+likha\s+hai\s+is\s+screen\s+par|page\s+(?:sunao|padho)|page\s+kya\s+hai)\b/i.test(t) ||
+    /(?:पेज\s*(?:के\s*बारे\s*में\s*बताओ|समझाओ|सुनाओ)|स्क्रीन\s*पर\s*क्या\s*है)/.test(t)
+  ) {
+    return { type: 'EXPLAIN_PAGE', action: 'EXPLAIN_PAGE', label: 'Explain Page', speechFeedback: 'Explaining page details.', confidence: 0.98 };
+  }
+
   // ── AUTONOMOUS VOICE SCROLLING & ELEMENT ACTIONS ──
-  // 1. Directional Scrolling (Down, Up, Top, Bottom)
-  if (/\b(scroll\s+(?:the\s+page\s+)?down|scroll\s+down|neeche\s+scroll|scroll\s+neeche|page\s+down)\b/i.test(t)) {
-    return { type: 'SCROLL_DOWN', action: 'SCROLL_DOWN', label: 'Scroll Down', speechFeedback: 'Scrolling down.', confidence: 0.98 };
-  }
-  if (/\b(scroll\s+(?:the\s+)?(?:page\s+)?up|scroll\s+up|upar\s+scroll|scroll\s+upar|page\s+up)\b/i.test(t)) {
-    return { type: 'SCROLL_UP', action: 'SCROLL_UP', label: 'Scroll Up', speechFeedback: 'Scrolling up.', confidence: 0.98 };
-  }
-  if (/\b(scroll\s+(?:to\s+(?:the\s+)?)?top|go\s+to\s+(?:the\s+)?top|sabse\s+upar\s+jao|sabse\s+upar|top\s+par\s+jao)\b/i.test(t)) {
+  // 1. Directional Scrolling (Top and Bottom take priority over Down and Up)
+  if (
+    /\b(scroll\s+(?:to\s+(?:the\s+)?)?top|go\s+to\s+(?:the\s+)?top|sabse\s+upar\s+jao|sabse\s+upar|top\s+par\s+jao|top\s+pe\s+jao|top\s+par|shuru\s+me\s+jao|ekdam\s+upar|ek\s+dam\s+upar)\b/i.test(t) ||
+    /(?:सबसे\s*ऊपर|टॉप\s*पर|एकदम\s*ऊपर)/.test(t)
+  ) {
     return { type: 'SCROLL_TOP', action: 'SCROLL_TOP', label: 'Scroll to Top', speechFeedback: 'Scrolling to top.', confidence: 0.98 };
   }
-  if (/\b(scroll\s+(?:to\s+(?:the\s+)?)?bottom|go\s+to\s+(?:the\s+)?bottom|sabse\s+neeche\s+jao|sabse\s+neeche|bottom\s+par\s+jao)\b/i.test(t)) {
+  if (
+    /\b(scroll\s+(?:to\s+(?:the\s+)?)?bottom|go\s+to\s+(?:the\s+)?bottom|sabse\s+neeche\s+jao|sabse\s+neeche|sabse\s+niche\s+jao|sabse\s+niche|bottom\s+par\s+jao|bottom\s+pe\s+jao|bottom\s+par|aakhri\s+me\s+jao|last\s+me\s+jao|ekdam\s+niche|ek\s+dam\s+niche|ekdam\s+neeche|ek\s+dam\s+neeche)\b/i.test(t) ||
+    /(?:सबसे\s*नीचे|बॉटम\s*पर|एकदम\s*नीचे)/.test(t)
+  ) {
     return { type: 'SCROLL_BOTTOM', action: 'SCROLL_BOTTOM', label: 'Scroll to Bottom', speechFeedback: 'Scrolling to bottom.', confidence: 0.98 };
+  }
+  if (
+    /\b(scroll\s+(?:the\s+page\s+)?down|scroll\s+down|neeche\s+scroll|scroll\s+neeche|niche\s+scroll|scroll\s+niche|page\s+down|neeche\s+jao|niche\s+jao|neeche\s+karo|niche\s+karo|thoda\s+niche|thoda\s+neeche|aur\s+niche|aur\s+neeche|aur\s+scroll|scroll\s+a\s+bit|scroll\s+further)\b/i.test(t) ||
+    /(?:नीचे\s*स्क्रॉल|नीचे\s*करो|नीचे\s*जाओ|थोड़ा\s*नीचे|और\s*नीचे)/.test(t)
+  ) {
+    return { type: 'SCROLL_DOWN', action: 'SCROLL_DOWN', label: 'Scroll Down', speechFeedback: 'Scrolling down.', confidence: 0.98 };
+  }
+  if (
+    /\b(scroll\s+(?:the\s+)?(?:page\s+)?up|scroll\s+up|upar\s+scroll|scroll\s+upar|oopar\s+scroll|page\s+up|upar\s+jao|oopar\s+jao|upar\s+karo|oopar\s+karo|thoda\s+upar|thoda\s+oopar|aur\s+upar|aur\s+oopar)\b/i.test(t) ||
+    /(?:ऊपर\s*स्क्रॉल|ऊपर\s*करो|ऊपर\s*जाओ|थोड़ा\s*ऊपर|और\s*ऊपर)/.test(t)
+  ) {
+    return { type: 'SCROLL_UP', action: 'SCROLL_UP', label: 'Scroll Up', speechFeedback: 'Scrolling up.', confidence: 0.98 };
   }
 
   // 2. Continuous Auto-Scroll
-  if (/\b(start\s+auto\s*scroll|begin\s+auto\s*scroll|auto\s*scroll\s+(?:shuru|start|on)|auto\s*scroll)\b/i.test(t) && !/\b(stop|roko|faster|slower)\b/i.test(t)) {
+  if (
+    (/\b(start\s+auto\s*scroll|begin\s+auto\s*scroll|auto\s*scroll\s+(?:shuru|start|on|chalu)|auto\s*scroll|scroll\s+automatically)\b/i.test(t) || /(?:ऑटो\s*स्क्रॉल(?:\s*(?:शुरू|चलाओ|करो))?)/.test(t)) &&
+    !/\b(stop|roko|faster|slower|band|ruk)\b/i.test(t)
+  ) {
     return { type: 'AUTO_SCROLL_START', action: 'AUTO_SCROLL_START', label: 'Auto Scroll Started', speechFeedback: 'Auto scrolling started.', confidence: 0.98 };
   }
-  if (/\b(stop\s+auto\s*scroll|stop\s+scroll|end\s+auto\s*scroll|auto\s*scroll\s+(?:roko|band|stop)|scroll\s+roko|pause\s+scroll)\b/i.test(t)) {
+  if (
+    /\b(stop\s+auto\s*scroll|stop\s+scroll|end\s+auto\s*scroll|auto\s*scroll\s+(?:roko|band|stop)|scroll\s+(?:roko|band|ruk)|pause\s+scroll)\b/i.test(t) ||
+    /(?:स्क्रॉल\s*रोको|ऑटो\s*स्क्रॉल\s*बंद|रोक\s*दो)/.test(t)
+  ) {
     return { type: 'AUTO_SCROLL_STOP', action: 'AUTO_SCROLL_STOP', label: 'Auto Scroll Stopped', speechFeedback: 'Auto scrolling stopped.', confidence: 0.98 };
   }
-  if (/\b(scroll\s+faster|auto\s*scroll\s+faster|fast\s+scroll|tez\s+scroll|scroll\s+speed\s+badhao)\b/i.test(t)) {
+  if (
+    /\b(scroll\s+faster|auto\s*scroll\s+faster|fast\s+scroll|tez\s+scroll|scroll\s+speed\s+badhao|speed\s+badhao)\b/i.test(t) ||
+    /(?:तेज\s*स्क्रॉल|स्पीड\s*बढ़ाओ)/.test(t)
+  ) {
     return { type: 'AUTO_SCROLL_FASTER', action: 'AUTO_SCROLL_FASTER', label: 'Scroll Faster', speechFeedback: 'Increasing scroll speed.', confidence: 0.95 };
   }
-  if (/\b(scroll\s+slower|auto\s*scroll\s+slower|slow\s+scroll|dheere\s+scroll|scroll\s+speed\s+kam\s+karo)\b/i.test(t)) {
+  if (
+    /\b(scroll\s+slower|auto\s*scroll\s+slower|slow\s+scroll|dheere\s+scroll|scroll\s+speed\s+kam\s+karo|speed\s+kam\s+karo)\b/i.test(t) ||
+    /(?:धीरे\s*स्क्रॉल|स्पीड\s*कम\s*करो)/.test(t)
+  ) {
     return { type: 'AUTO_SCROLL_SLOWER', action: 'AUTO_SCROLL_SLOWER', label: 'Scroll Slower', speechFeedback: 'Decreasing scroll speed.', confidence: 0.95 };
   }
 
   // 3. Smart Section Jumps
-  const sectionMatch = t.match(/\b(?:scroll\s+to|jump\s+to|navigate\s+to|go\s+to\s+section)\s+(?:the\s+)?(options?|questions?|submit|instructions?|overview|summary|header|palette)\b/i);
+  const sectionMatch = t.match(/\b(?:scroll\s+to|jump\s+to|navigate\s+to|go\s+to\s+section)\s+(?:the\s+)?(options?|questions?|submit|instructions?|overview|summary|header|palette|notifications?|formula|diagram|charts?|graphs?|tables?|results?|solutions?|explanations?|materials?|notes?|timer)\b/i);
   if (sectionMatch) {
-    const sectionKey = sectionMatch[1].toLowerCase();
+    let sectionKey = sectionMatch[1].toLowerCase();
+    if (sectionKey.startsWith('notification')) sectionKey = 'notification';
+    else if (sectionKey.startsWith('option')) sectionKey = 'options';
+    else if (sectionKey.startsWith('question')) sectionKey = 'question';
+    else if (sectionKey.startsWith('solution')) sectionKey = 'solutions';
+    else if (sectionKey.startsWith('material')) sectionKey = 'materials';
+    else if (sectionKey.startsWith('table')) sectionKey = 'table';
+    else if (sectionKey.startsWith('result')) sectionKey = 'results';
     return {
       type: 'SCROLL_TO_SECTION',
       action: `SCROLL_SECTION_${sectionKey.toUpperCase()}`,

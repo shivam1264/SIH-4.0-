@@ -187,7 +187,11 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
         </div>
 
         {/* Content */}
-        <div style={{ padding: '1.25rem 1.5rem', overflowY: 'auto', flex: 1 }}>
+        <div
+          id="shortcuts-modal-scroll"
+          data-scrollable="true"
+          style={{ padding: '1.25rem 1.5rem', overflowY: 'auto', flex: 1 }}
+        >
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
             {shortcutSections.map(sec => {
               const Icon = sec.icon;

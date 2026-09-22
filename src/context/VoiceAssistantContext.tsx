@@ -140,10 +140,41 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
 
   // ── Unified Intent Dispatcher: Context-aware Navigation, Controls & Q&A ──
   useEffect(() => {
-    const unregister = globalVoiceService.register(async (rawText: string) => {
+    const unregister = globalVoiceService.register(async (rawText: string, parsedCommand?: any) => {
       const activePage = currentPageRef.current;
       const currentItems = pageRegistryRef.current.get(activePage) || [];
       const currentRoute = location.pathname;
+
+      if (parsedCommand?.action === 'SCROLL_DOWN') {
+        drishtiActionService.scrollDown();
+        speak('Scrolling down.');
+        return true;
+      }
+      if (parsedCommand?.action === 'SCROLL_UP') {
+        drishtiActionService.scrollUp();
+        speak('Scrolling up.');
+        return true;
+      }
+      if (parsedCommand?.action === 'SCROLL_TOP') {
+        drishtiActionService.scrollToTop();
+        speak('Scrolled to top.');
+        return true;
+      }
+      if (parsedCommand?.action === 'SCROLL_BOTTOM') {
+        drishtiActionService.scrollToBottom();
+        speak('Scrolled to bottom.');
+        return true;
+      }
+      if (parsedCommand?.action === 'AUTO_SCROLL_START') {
+        drishtiActionService.startAutoScroll();
+        speak('Auto scrolling started.');
+        return true;
+      }
+      if (parsedCommand?.action === 'AUTO_SCROLL_STOP') {
+        drishtiActionService.stopAutoScroll();
+        speak('Auto scrolling stopped.');
+        return true;
+      }
 
       console.log(`[VoiceAssistant] Transcript: "${rawText}" on [${activePage}] (route=${currentRoute})`);
 
@@ -215,6 +246,16 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
           ? `I am Drishti. You can say start exam, read notifications, open mock tests, or on this screen say: ${sampleQuestions}.`
           : intent.speechFeedback || 'I am Drishti. You can say start exam, read notifications, open mock tests, AI practice, show results, or accessibility settings.';
         speak(helpMsg, true);
+        return true;
+      }
+
+      // ── Handle Page Orientation & Explanation Intent ──
+      if (intent.type === 'EXPLAIN_PAGE') {
+        const info = screenReaderAnnouncer.orientCurrentPage(location.pathname, true);
+        if (!info) {
+          speechService.setPageExplaining(true, activePage);
+          speak(`You are currently on the ${activePage} screen. You can navigate, scroll, or ask any question.`, true);
+        }
         return true;
       }
 
@@ -568,26 +609,26 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
 
       // ── AUTONOMOUS VOICE SCROLLING & ACTION ENGINE ──
       if (intent.type === 'SCROLL_DOWN') {
-        const ok = drishtiActionService.scrollDown();
-        if (ok) speak('Scrolling down.');
+        drishtiActionService.scrollDown();
+        speak('Scrolling down.');
         return true;
       }
 
       if (intent.type === 'SCROLL_UP') {
-        const ok = drishtiActionService.scrollUp();
-        if (ok) speak('Scrolling up.');
+        drishtiActionService.scrollUp();
+        speak('Scrolling up.');
         return true;
       }
 
       if (intent.type === 'SCROLL_TOP') {
-        const ok = drishtiActionService.scrollToTop();
-        if (ok) speak('Scrolled to top.');
+        drishtiActionService.scrollToTop();
+        speak('Scrolled to top.');
         return true;
       }
 
       if (intent.type === 'SCROLL_BOTTOM') {
-        const ok = drishtiActionService.scrollToBottom();
-        if (ok) speak('Scrolled to bottom.');
+        drishtiActionService.scrollToBottom();
+        speak('Scrolled to bottom.');
         return true;
       }
 

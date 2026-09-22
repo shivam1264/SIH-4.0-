@@ -164,6 +164,7 @@ class ScreenReaderAnnouncer {
       try {
         audioCueService.navigation();
       } catch {}
+      speechService.setPageExplaining(true, info.title);
       speechService.speak(text, { priority: true });
     }
 

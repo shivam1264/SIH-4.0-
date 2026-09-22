@@ -6,8 +6,9 @@ import { hybridSttService, SttResult, SttVoiceState } from './hybridSttService';
 import { groqVoiceService } from './groqVoiceService';
 import { whisperVoiceService } from './whisperVoiceService';
 import { speechService } from './speechService';
+import { drishtiActionService } from './drishtiActionService';
 
-export type TranscriptHandler = (text: string) => boolean | Promise<boolean>; // return true = handled
+export type TranscriptHandler = (text: string, parsedCommand?: any) => boolean | Promise<boolean>; // return true = handled
 export type EngineType = 'groq' | 'whisper' | 'chrome' | 'none';
 
 class GlobalVoiceService {
@@ -108,7 +109,7 @@ class GlobalVoiceService {
         (result: SttResult) => {
           if (result.success && result.text) {
             this._setEngine(result.provider === 'local' ? 'whisper' : 'groq');
-            this._dispatch(result.text);
+            this._dispatch(result.text, result.command);
           }
         },
         (state: SttVoiceState, message?: string) => {
@@ -149,24 +150,132 @@ class GlobalVoiceService {
     this._setStatus('Muted');
   }
 
-  private async _dispatch(rawText: string) {
+  private async _runHandlers(text: string, parsedCommand?: any): Promise<boolean> {
+    const handlersCopy = [...this._handlers].reverse();
+    for (const handler of handlersCopy) {
+      try {
+        const handled = await handler(text, parsedCommand);
+        if (handled) {
+          return true; // successfully handled!
+        }
+      } catch (err) {
+        console.error('[GlobalVoice] Handler error:', err);
+      }
+    }
+    return false;
+  }
+
+  private async _dispatch(rawText: string, parsedCommand?: any) {
     const text = rawText.trim();
     if (!text) return;
 
-    // ── Universal Interruption: Immediately halt any running AI speech ──
+    const lower = text.toLowerCase();
+
+    // ── Check for explicit standalone stop commands ──
+    const isStopCommand =
+      parsedCommand?.action === 'STOP_VOICE' ||
+      /^(?:stop|ruko|ruk\s*jao|chup|pause|cancel|shant|quiet|रुको|रुक\s*जाओ|चुप|शांत)$/i.test(lower) ||
+      /\b(stop\s+speaking|stop\s+talking|chup\s+ho\s+jao|chup\s+raho|shant\s+ho\s+jao|stop\s+audio|mute\s+audio|audio\s+stop|speech\s+stop)\b/i.test(lower);
+
+    if (isStopCommand) {
+      console.log('[GlobalVoice] 🛑 Explicit stop command received:', text);
+      speechService.stop(true);
+      this._lastTranscript = text;
+      this._transcriptListeners.forEach(cb => cb(text));
+      speechService.speak('Stopped.', { priority: true });
+      return;
+    }
+
+    // ── Intelligent Interruption Handling ──
+    // When the assistant is currently explaining page details / briefing:
+    if (speechService.isSpeaking && speechService.isPageExplaining) {
+      // 1. Directional scrolling & auto-scroll commands run immediately without stopping speech:
+      const isScrollDown =
+        parsedCommand?.action === 'SCROLL_DOWN' ||
+        /\b(scroll\s+(?:the\s+page\s+)?down|scroll\s+down|neeche\s+scroll|scroll\s+neeche|niche\s+scroll|scroll\s+niche|page\s+down|neeche\s+jao|niche\s+jao|neeche\s+karo|niche\s+karo|thoda\s+niche|thoda\s+neeche|aur\s+niche|aur\s+neeche|aur\s+scroll|scroll\s+a\s+bit|scroll\s+further|नीचे\s*स्क्रॉल|नीचे\s*करो|नीचे\s*जाओ|थोड़ा\s*नीचे|और\s*नीचे)\b/i.test(lower);
+
+      const isScrollUp =
+        parsedCommand?.action === 'SCROLL_UP' ||
+        /\b(scroll\s+(?:the\s+)?(?:page\s+)?up|scroll\s+up|upar\s+scroll|scroll\s+upar|oopar\s+scroll|page\s+up|upar\s+jao|oopar\s+jao|upar\s+karo|oopar\s+karo|thoda\s+upar|thoda\s+oopar|aur\s+upar|aur\s+oopar|ऊपर\s*स्क्रॉल|ऊपर\s*करो|ऊपर\s*जाओ|थोड़ा\s*ऊपर|और\s*ऊपर)\b/i.test(lower);
+
+      const isScrollTop =
+        parsedCommand?.action === 'SCROLL_TOP' ||
+        /\b(scroll\s+(?:to\s+(?:the\s+)?)?top|go\s+to\s+(?:the\s+)?top|sabse\s+upar\s+jao|sabse\s+upar|top\s+par\s+jao|top\s+pe\s+jao|top\s+par|shuru\s+me\s+jao|ekdam\s+upar|ek\s+dam\s+upar|सबसे\s*ऊपर|टॉप\s*पर|एकदम\s*ऊपर)\b/i.test(lower);
+
+      const isScrollBottom =
+        parsedCommand?.action === 'SCROLL_BOTTOM' ||
+        /\b(scroll\s+(?:to\s+(?:the\s+)?)?bottom|go\s+to\s+(?:the\s+)?bottom|sabse\s+neeche\s+jao|sabse\s+neeche|sabse\s+niche\s+jao|sabse\s+niche|bottom\s+par\s+jao|bottom\s+pe\s+jao|bottom\s+par|aakhri\s+me\s+jao|last\s+me\s+jao|ekdam\s+niche|ek\s+dam\s+niche|ekdam\s+neeche|ek\s+dam\s+neeche|सबसे\s*नीचे|बॉटम\s*पर|एकदम\s*नीचे)\b/i.test(lower);
+
+      const isAutoScrollStart =
+        parsedCommand?.action === 'AUTO_SCROLL_START' ||
+        ((/\b(start\s+auto\s*scroll|begin\s+auto\s*scroll|auto\s*scroll\s+(?:shuru|start|on|chalu)|auto\s*scroll|scroll\s+automatically|ऑटो\s*स्क्रॉल(?:\s*(?:शुरू|चलाओ|करो))?)\b/i.test(lower)) && !/\b(stop|roko|faster|slower|band|ruk)\b/i.test(lower));
+
+      const isAutoScrollStop =
+        parsedCommand?.action === 'AUTO_SCROLL_STOP' ||
+        /\b(stop\s+auto\s*scroll|stop\s+scroll|end\s+auto\s*scroll|auto\s*scroll\s+(?:roko|band|stop)|scroll\s+(?:roko|band|ruk)|pause\s+scroll|स्क्रॉल\s*रोको|ऑटो\s*स्क्रॉल\s*बंद|रोक\s*दो)\b/i.test(lower);
+
+      if (isScrollDown) {
+        drishtiActionService.scrollDown();
+        this._lastTranscript = text;
+        this._transcriptListeners.forEach(cb => cb(text));
+        return;
+      }
+      if (isScrollUp) {
+        drishtiActionService.scrollUp();
+        this._lastTranscript = text;
+        this._transcriptListeners.forEach(cb => cb(text));
+        return;
+      }
+      if (isScrollTop) {
+        drishtiActionService.scrollToTop();
+        this._lastTranscript = text;
+        this._transcriptListeners.forEach(cb => cb(text));
+        return;
+      }
+      if (isScrollBottom) {
+        drishtiActionService.scrollToBottom();
+        this._lastTranscript = text;
+        this._transcriptListeners.forEach(cb => cb(text));
+        return;
+      }
+      if (isAutoScrollStart) {
+        drishtiActionService.startAutoScroll();
+        this._lastTranscript = text;
+        this._transcriptListeners.forEach(cb => cb(text));
+        return;
+      }
+      if (isAutoScrollStop) {
+        drishtiActionService.stopAutoScroll();
+        this._lastTranscript = text;
+        this._transcriptListeners.forEach(cb => cb(text));
+        return;
+      }
+
+      // 2. Action / Navigation interruption:
+      // The assistant listens properly, finishes explaining page details, and then executes the interrupted task.
+      console.log(`[GlobalVoice] 👂 Heard action during page explanation: "${text}". Queuing for execution upon explanation finish.`);
+      this._lastTranscript = text;
+      this._transcriptListeners.forEach(cb => cb(text));
+      speechService.queueInterruptedTask(async () => {
+        await this._runHandlers(text, parsedCommand);
+      }, text);
+      return;
+    }
+
+    // Normal speech reading (e.g. question reading):
+    // Universal barge-in halts speech immediately so user can issue commands.
     if (speechService.isSpeaking) {
       console.log('[GlobalVoice] 🛑 Interrupting active speech for incoming voice command:', text);
       speechService.stop();
     }
 
     // Echo suppression: only suppress if audio is a long verbatim sentence echoed from computer speakers
-    const lower = text.toLowerCase();
     const lastSpokenLower = this._lastSpoken.toLowerCase();
     const timeSinceSpeech = Date.now() - speechService.lastSpeechEndTime;
     const isRecentSpeech = speechService.isSpeaking || timeSinceSpeech < 500;
 
     // Candidate action keywords that must NEVER be suppressed as echoes:
-    const isActionKeyword = /\b(stop|chup|ruko|skip|pause|cancel|confirm|yes|no|next|prev|previous|option|opt|select|clear|ans|answer|submit|drishti|time|flag|read|repeat|sunao|batao|help|dark|light|yellow|contrast|font|start|open|history|practice|result|performance|profile|setting|paper|material)\b/i.test(lower);
+    const isActionKeyword = /\b(stop|chup|ruko|skip|pause|cancel|confirm|yes|no|next|prev|previous|option|opt|select|clear|ans|answer|submit|drishti|time|flag|read|repeat|sunao|batao|help|dark|light|yellow|contrast|font|start|open|history|practice|result|performance|profile|setting|paper|material|scroll|niche|neeche|upar)\b/i.test(lower);
 
     if (isRecentSpeech && lastSpokenLower && !isActionKeyword) {
       if (lower === lastSpokenLower && lower.length > 20) {
@@ -191,18 +300,7 @@ class GlobalVoiceService {
     this._lastTranscript = text;
     this._transcriptListeners.forEach(cb => cb(text));
 
-    // Run handlers in reverse (newest/most specific page handler gets first pick)
-    const handlersCopy = [...this._handlers].reverse();
-    for (const handler of handlersCopy) {
-      try {
-        const handled = await handler(text);
-        if (handled) {
-          return; // successfully handled!
-        }
-      } catch (err) {
-        console.error('[GlobalVoice] Handler error:', err);
-      }
-    }
+    await this._runHandlers(text, parsedCommand);
   }
 
   private _startChrome() {
@@ -267,8 +365,15 @@ class GlobalVoiceService {
           // 1. If we have finalized transcript, dispatch for command execution
           if (finalPhrase) {
             if (speechService.isSpeaking) {
-              console.log('[GlobalVoice] 🛑 Barge-in: Candidate spoke final phrase, stopping AI speech.');
-              speechService.stop();
+              const isStop =
+                /^(?:stop|ruko|ruk\s*jao|chup|pause|cancel|shant|quiet|रुको|रुक\s*जाओ|चुप|शांत)$/i.test(finalPhrase) ||
+                /\b(stop\s+speaking|stop\s+talking|chup\s+ho\s+jao|stop\s+audio)\b/i.test(finalPhrase);
+              if (isStop) {
+                speechService.stop(true);
+              } else if (!speechService.isPageExplaining) {
+                console.log('[GlobalVoice] 🛑 Barge-in: Candidate spoke final phrase, stopping AI speech.');
+                speechService.stop();
+              }
             }
             if (this._interimDispatchTimer) {
               clearTimeout(this._interimDispatchTimer);
@@ -282,10 +387,17 @@ class GlobalVoiceService {
           // 2. If we only have interim transcript:
           // Update live visual indicator ONLY (shows candidate what is currently being heard)
           if (interimPhrase) {
-            // ── BARGE-IN: Stop AI speech if user starts talking ──
+            // ── BARGE-IN: Stop AI speech if user starts talking (unless page explaining) ──
             if (speechService.isSpeaking) {
-              console.log('[GlobalVoice] 🛑 Barge-in: User interrupted, stopping AI speech.');
-              speechService.stop();
+              const isStop =
+                /^(?:stop|ruko|ruk\s*jao|chup|pause|cancel|shant|quiet|रुको|रुक\s*जाओ|चुप|शांत)$/i.test(interimPhrase) ||
+                /\b(stop\s+speaking|stop\s+talking|chup\s+ho\s+jao|stop\s+audio)\b/i.test(interimPhrase);
+              if (isStop) {
+                speechService.stop(true);
+              } else if (!speechService.isPageExplaining) {
+                console.log('[GlobalVoice] 🛑 Barge-in: User interrupted, stopping AI speech.');
+                speechService.stop();
+              }
             }
 
             this._transcriptListeners.forEach(cb => cb(interimPhrase));

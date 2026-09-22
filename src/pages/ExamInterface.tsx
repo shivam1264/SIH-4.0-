@@ -36,6 +36,7 @@ import { useAuth } from '../context/AuthContext';
 import { classifyVoiceCommand, classifyVoiceIntent, VoiceCommandMatch } from '../services/voiceCommandClassifier';
 import { drishtiNluService, DrishtiNluResult } from '../services/drishtiNluService';
 import { globalVoiceService } from '../services/globalVoiceService';
+import { drishtiActionService } from '../services/drishtiActionService';
 import PreExamCalibrationWizard from '../components/PreExamCalibrationWizard';
 import AccessibleMathViewer, { verbalizeMathExpression } from '../components/AccessibleMathViewer';
 import AccessibleDiagramViewer from '../components/AccessibleDiagramViewer';
@@ -849,6 +850,30 @@ export default function ExamInterface() {
         }
         break;
       case 'STOP_VOICE': toggleVoice(); break;
+      case 'SCROLL_DOWN':
+        drishtiActionService.scrollDown();
+        speechService.speak('Scrolling down.');
+        break;
+      case 'SCROLL_UP':
+        drishtiActionService.scrollUp();
+        speechService.speak('Scrolling up.');
+        break;
+      case 'SCROLL_TOP':
+        drishtiActionService.scrollToTop();
+        speechService.speak('Scrolled to top.');
+        break;
+      case 'SCROLL_BOTTOM':
+        drishtiActionService.scrollToBottom();
+        speechService.speak('Scrolled to bottom.');
+        break;
+      case 'AUTO_SCROLL_START':
+        drishtiActionService.startAutoScroll();
+        speechService.speak('Auto scrolling started.');
+        break;
+      case 'AUTO_SCROLL_STOP':
+        drishtiActionService.stopAutoScroll();
+        speechService.speak('Auto scrolling stopped.');
+        break;
     }
 
     // Record voice activity audit trail for autonomous proctoring transparency
@@ -1124,6 +1149,48 @@ export default function ExamInterface() {
       return true;
     }
 
+    // N. Autonomous Hands-Free Voice Scrolling & Page Navigation
+    if (intent.type === 'SCROLL_DOWN') {
+      drishtiActionService.scrollDown();
+      speechService.speak('Scrolling down.');
+      return true;
+    }
+    if (intent.type === 'SCROLL_UP') {
+      drishtiActionService.scrollUp();
+      speechService.speak('Scrolling up.');
+      return true;
+    }
+    if (intent.type === 'SCROLL_TOP') {
+      drishtiActionService.scrollToTop();
+      speechService.speak('Scrolled to top.');
+      return true;
+    }
+    if (intent.type === 'SCROLL_BOTTOM') {
+      drishtiActionService.scrollToBottom();
+      speechService.speak('Scrolled to bottom.');
+      return true;
+    }
+    if (intent.type === 'AUTO_SCROLL_START') {
+      drishtiActionService.startAutoScroll();
+      speechService.speak('Auto scrolling started.');
+      return true;
+    }
+    if (intent.type === 'AUTO_SCROLL_STOP') {
+      drishtiActionService.stopAutoScroll();
+      speechService.speak('Auto scrolling stopped.');
+      return true;
+    }
+    if (intent.type === 'AUTO_SCROLL_FASTER') {
+      const spd = drishtiActionService.adjustSpeed(0.25);
+      speechService.speak(`Scroll speed increased to ${spd.toFixed(1)}x.`);
+      return true;
+    }
+    if (intent.type === 'AUTO_SCROLL_SLOWER') {
+      const spd = drishtiActionService.adjustSpeed(-0.25);
+      speechService.speak(`Scroll speed decreased to ${spd.toFixed(1)}x.`);
+      return true;
+    }
+
     return false;
   }, [
     goNext,
@@ -1170,7 +1237,20 @@ export default function ExamInterface() {
     });
 
     // Register our high-priority exam transcript handler
-    const unregister = globalVoiceService.register(async (rawText: string) => {
+    const unregister = globalVoiceService.register(async (rawText: string, parsedCommand?: any) => {
+      if (parsedCommand?.action) {
+        const knownExamActions = new Set([
+          'SELECT_A', 'SELECT_B', 'SELECT_C', 'SELECT_D', 'NEXT', 'PREV',
+          'FLAG', 'READ', 'SUBMIT', 'CLEAR', 'TIME', 'READ_OPTIONS', 'MATH',
+          'DIAGRAM', 'EXPLAIN', 'SHORTCUTS', 'START_EXAM', 'STOP_VOICE',
+          'SCROLL_DOWN', 'SCROLL_UP', 'SCROLL_TOP', 'SCROLL_BOTTOM',
+          'AUTO_SCROLL_START', 'AUTO_SCROLL_STOP'
+        ]);
+        if (knownExamActions.has(parsedCommand.action)) {
+          handleVoiceCmd(parsedCommand.action);
+          return true;
+        }
+      }
       const clean = rawText.toLowerCase().trim();
       return await processTranscript(clean);
     });

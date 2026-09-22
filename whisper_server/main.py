@@ -331,6 +331,75 @@ def parse_exam_command(raw_transcript: str) -> Dict[str, Any]:
             "label": "Pause Exam"
         }
 
+    # 10. SCROLL DOWN
+    if re.search(r"\b(scroll\s+down|neeche\s+scroll|niche\s+scroll|scroll\s+neeche|scroll\s+niche|page\s+down|neeche\s+jao|niche\s+jao|neeche\s+karo|niche\s+karo|नीचे\s*स्क्रॉल|नीचे\s*करो|नीचे\s*जाओ)\b", t_clean, re.I) or \
+       re.search(r"(नीचे\s*स्क्रॉल|नीचे\s*करो|नीचे\s*जाओ)", raw_transcript):
+        return {
+            "action": "SCROLL_DOWN",
+            "targetOption": None,
+            "questionNumber": None,
+            "confidence": 0.98,
+            "label": "Scroll Down"
+        }
+
+    # 11. SCROLL UP
+    if re.search(r"\b(scroll\s+up|upar\s+scroll|oopar\s+scroll|scroll\s+upar|scroll\s+oopar|page\s+up|upar\s+jao|oopar\s+jao|upar\s+karo|oopar\s+karo|ऊपर\s*स्क्रॉल|ऊपर\s*करो|ऊपर\s*जाओ)\b", t_clean, re.I) or \
+       re.search(r"(ऊपर\s*स्क्रॉल|ऊपर\s*करो|ऊपर\s*जाओ)", raw_transcript):
+        return {
+            "action": "SCROLL_UP",
+            "targetOption": None,
+            "questionNumber": None,
+            "confidence": 0.98,
+            "label": "Scroll Up"
+        }
+
+    # 12. SCROLL TO TOP / BOTTOM
+    if re.search(r"\b(scroll\s+to\s+top|go\s+to\s+top|top\s+par\s+jao|top\s+par|sabse\s+upar|सबसे\s*ऊपर|टॉप\s*पर)\b", t_clean, re.I):
+        return {
+            "action": "SCROLL_TOP",
+            "targetOption": None,
+            "questionNumber": None,
+            "confidence": 0.98,
+            "label": "Scroll to Top"
+        }
+    if re.search(r"\b(scroll\s+to\s+bottom|go\s+to\s+bottom|bottom\s+par\s+jao|bottom\s+par|sabse\s+neeche|sabse\s+niche|सबसे\s*नीचे|बॉटम\s*पर)\b", t_clean, re.I):
+        return {
+            "action": "SCROLL_BOTTOM",
+            "targetOption": None,
+            "questionNumber": None,
+            "confidence": 0.98,
+            "label": "Scroll to Bottom"
+        }
+
+    # 13. AUTO SCROLL START / STOP
+    if re.search(r"\b(start\s+auto\s*scroll|auto\s*scroll\s+shuru|ऑटो\s*स्क्रॉल)\b", t_clean, re.I) and not re.search(r"\b(stop|roko|band)\b", t_clean, re.I):
+        return {
+            "action": "AUTO_SCROLL_START",
+            "targetOption": None,
+            "questionNumber": None,
+            "confidence": 0.98,
+            "label": "Auto Scroll Start"
+        }
+    if re.search(r"\b(stop\s+auto\s*scroll|stop\s+scroll|scroll\s+roko|scroll\s+band|ऑटो\s*स्क्रॉल\s*बंद)\b", t_clean, re.I):
+        return {
+            "action": "AUTO_SCROLL_STOP",
+            "targetOption": None,
+            "questionNumber": None,
+            "confidence": 0.98,
+            "label": "Auto Scroll Stop"
+        }
+
+    # 14. STOP SPEAKING / READING
+    if re.search(r"^(?:stop|ruko|ruk\s*jao|chup|pause|cancel|shant|quiet|रुको|रुक\s*जाओ|चुप|शांत)$", t_clean, re.I) or \
+       re.search(r"\b(stop\s+speaking|stop\s+reading|chup\s+ho\s+jao|chup\s+raho|shant\s+ho\s+jao|stop\s+audio)\b", t_clean, re.I):
+        return {
+            "action": "STOP_SPEAKING",
+            "targetOption": None,
+            "questionNumber": None,
+            "confidence": 0.98,
+            "label": "Stop Speaking"
+        }
+
     return {
         "action": "UNKNOWN",
         "targetOption": None,
@@ -357,7 +426,7 @@ def transcribe_pcm(pcm_bytes: bytes) -> Dict[str, Any]:
         audio = normalize_audio(audio)
 
         # ── Whisper Transcription with VAD & Bilingual Prompt ─────
-        # language=None lets Whisper automatically detect Hindi or English
+        # Strict Two-Language Policy: English and Hindi ONLY.
         try:
             segments, info = model.transcribe(
                 audio,
@@ -376,6 +445,26 @@ def transcribe_pcm(pcm_bytes: bytes) -> Dict[str, Any]:
                     speech_pad_ms=200,
                 )
             )
+            # If detected language is foreign (not Hindi or English), constrain strictly to 'en' with bilingual prompt
+            if info.language not in ['en', 'hi']:
+                logger.info(f"[Whisper] Detected unsupported foreign language '{info.language}'. Re-transcribing strictly in English/Hindi domain...")
+                segments, info = model.transcribe(
+                    audio,
+                    language='en',
+                    task="transcribe",
+                    initial_prompt=INITIAL_PROMPT,
+                    beam_size=BEAM_SIZE,
+                    best_of=BEAM_SIZE,
+                    temperature=0.0,
+                    repetition_penalty=1.15,
+                    condition_on_previous_text=False,
+                    no_speech_threshold=0.5,
+                    vad_filter=True,
+                    vad_parameters=dict(
+                        min_silence_duration_ms=350,
+                        speech_pad_ms=200,
+                    )
+                )
             text = " ".join(seg.text for seg in segments).strip()
         except (ValueError, TypeError):
             # VAD filtered all audio (silence / ambient noise)

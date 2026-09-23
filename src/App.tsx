@@ -9,16 +9,15 @@ import { VoiceAssistantProvider } from './context/VoiceAssistantContext';
 const Landing       = lazy(() => import('./pages/Landing'));
 const Login         = lazy(() => import('./pages/Login'));
 const Register      = lazy(() => import('./pages/Register'));
-const Onboarding    = lazy(() => import('./pages/Onboarding'));
 const Dashboard     = lazy(() => import('./pages/Dashboard'));
 const ExamSelection = lazy(() => import('./pages/ExamSelection'));
 const ExamInterface = lazy(() => import('./pages/ExamInterface'));
 const Results       = lazy(() => import('./pages/Results'));
 const Practice      = lazy(() => import('./pages/Practice'));
-const Performance   = lazy(() => import('./pages/Performance'));
 const StudyMaterials = lazy(() => import('./pages/StudyMaterials'));
 const PreviousYearPapers = lazy(() => import('./pages/PreviousYearPapers'));
-const ExamHistory   = lazy(() => import('./pages/ExamHistory'));
+const Performance   = lazy(() => import('./pages/Performance'));
+const History       = lazy(() => import('./pages/History'));
 const Profile       = lazy(() => import('./pages/Profile'));
 const Settings      = lazy(() => import('./pages/Settings'));
 const AdminDashboard= lazy(() => import('./pages/AdminDashboard'));
@@ -59,7 +58,7 @@ function AppRoutes() {
         <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
 
         {/* Student */}
-        <Route path="/onboarding"      element={<Onboarding />} />
+        <Route path="/onboarding"      element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard"       element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="/exams"           element={<ProtectedRoute><ExamSelection /></ProtectedRoute>} />
         <Route path="/mock-exams"      element={<Navigate to="/exams" replace />} />
@@ -69,8 +68,9 @@ function AppRoutes() {
         <Route path="/practice"        element={<ProtectedRoute><Practice /></ProtectedRoute>} />
         <Route path="/study-materials" element={<ProtectedRoute><StudyMaterials /></ProtectedRoute>} />
         <Route path="/pyqs"            element={<ProtectedRoute><PreviousYearPapers /></ProtectedRoute>} />
+        <Route path="/past-papers"     element={<Navigate to="/pyqs" replace />} />
         <Route path="/performance"     element={<ProtectedRoute><Performance /></ProtectedRoute>} />
-        <Route path="/history"         element={<ProtectedRoute><ExamHistory /></ProtectedRoute>} />
+        <Route path="/history"         element={<ProtectedRoute><History /></ProtectedRoute>} />
         <Route path="/profile"         element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/settings"        element={<ProtectedRoute><Settings /></ProtectedRoute>} />
 

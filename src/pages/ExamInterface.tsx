@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   Mic,
   MicOff,
@@ -46,8 +46,12 @@ import type { Exam, ExamAttempt, SubjectBreakdown } from '../types';
 export default function ExamInterface() {
   const { examId } = useParams<{ examId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { prefs } = useAccessibility();
   const { user } = useAuth();
+
+  const searchParams = new URLSearchParams(location.search);
+  const autostart = searchParams.get('autostart') === 'true';
 
   const [exam, setExam] = useState<Exam | undefined>(() => {
     return EXAMS.find(e => e.id === examId);
@@ -129,6 +133,7 @@ export default function ExamInterface() {
   const isSpeakingAloudRef = useRef(false);
   const restartTimerRef   = useRef<any>(null);
   const startedRef        = useRef(started);
+  const showCalibrationWizardRef = useRef(showCalibrationWizard);
 
   const isMountedRef      = useRef(true);
   const isListeningRef    = useRef(false);
@@ -142,6 +147,7 @@ export default function ExamInterface() {
   timeLeftRef.current      = timeLeft;
   isSpeakingAloudRef.current = isSpeakingAloud;
   startedRef.current       = started;
+  showCalibrationWizardRef.current = showCalibrationWizard;
 
   const enableMicrophone = async () => {
     try {
@@ -191,9 +197,28 @@ export default function ExamInterface() {
 
     await enableMicrophone();
     audioCueService.examStart();
-    const qCount = examRef.current?.questions.length ?? 10;
-    speechService.speak(`Your ${qCount}-question mock test has started in Autonomous Scribe-Free Mode with ${timeMultiplier}x time allocation. Good luck!`, { priority: true });
+    const qCount = examRef.current?.questions.length ?? 15;
+    speechService.speak(
+      `Your ${qCount}-question mock test has started in Autonomous Scribe-Free Mode with ${timeMultiplier}x time allocation. Good luck!`,
+      {
+        priority: true,
+        onEnd: () => {
+          readQuestion();
+        },
+      }
+    );
   }, [timeMultiplier]);
+
+  // Immediate auto-start when requested via URL query param (e.g. from pre-exam calibration completion)
+  useEffect(() => {
+    if (autostart && exam && !startedRef.current && !showCalibrationWizard) {
+      console.log('[ExamInterface] autostart requested via URL. Launching examination...');
+      const timer = setTimeout(() => {
+        startExamNow();
+      }, 250);
+      return () => clearTimeout(timer);
+    }
+  }, [autostart, exam, showCalibrationWizard, startExamNow]);
 
   const verbalizeCurrentFormula = useCallback(() => {
     const ex = examRef.current;
@@ -431,17 +456,23 @@ export default function ExamInterface() {
 
   // Auto-read exam instructions upon opening pre-exam screen
   useEffect(() => {
-    if (started || !exam) return;
+    if (started || !exam || showCalibrationWizard) return;
     const timer = setTimeout(() => {
       readPreExamOverview();
     }, 450);
     return () => clearTimeout(timer);
-  }, [exam, started, readPreExamOverview]);
+  }, [exam, started, showCalibrationWizard, readPreExamOverview]);
 
-  // Pre-exam keyboard shortcut (Enter / Space starts exam)
+  // Pre-exam keyboard shortcut (Enter / Space starts exam, C opens calibration)
   useEffect(() => {
-    if (started) return;
+    if (started || showCalibrationWizard) return;
     function onPreExamKey(e: KeyboardEvent) {
+      if (showCalibrationWizardRef.current) return;
+      if (e.key === 'c' || e.key === 'C') {
+        e.preventDefault();
+        setShowCalibrationWizard(true);
+        return;
+      }
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         startExamNow();
@@ -449,7 +480,7 @@ export default function ExamInterface() {
     }
     window.addEventListener('keydown', onPreExamKey);
     return () => window.removeEventListener('keydown', onPreExamKey);
-  }, [started, startExamNow]);
+  }, [started, showCalibrationWizard, startExamNow]);
 
   // Auto-read question when page changes
   useEffect(() => {
@@ -749,6 +780,7 @@ export default function ExamInterface() {
 
     // If autoReadQuestion or autonomousMode is active, automatically read out the question!
     if (prefs.autoReadQuestion || autonomousMode) {
+      if (speechService.isSpeaking) return;
       try {
         audioCueService.navigation();
       } catch {}
@@ -807,23 +839,79 @@ export default function ExamInterface() {
       case 'SELECT_C': selectOption('C'); break;
       case 'SELECT_D': selectOption('D'); break;
       case 'NEXT':     goNext(); break;
-      case 'PREV':     goPrev(); break;
-      case 'FLAG':     toggleFlag(); break;
-      case 'READ':     readQuestion(); break;
-      case 'SUBMIT':   setShowSubmitDlg(true); break;
-      case 'CLEAR': {
+      case 'PREV':
+      case 'BACK':
+      case 'NAVIGATE_BACK':
+        goPrev(); break;
+      case 'FLAG':
+      case 'FLAG_QUESTION':
+        toggleFlag(); break;
+      case 'READ':
+      case 'REPEAT_QUESTION':
+        readQuestion(); break;
+      case 'SUBMIT':
+      case 'INITIATE_SUBMIT':
+        setShowSubmitDlg(true); break;
+      case 'CANCEL':
+      case 'CANCEL_SUBMIT':
+      case 'CANCEL_NO':
+        if (showSubmitDlgRef.current) {
+          setShowSubmitDlg(false);
+          speechService.speak('Resuming examination.');
+        } else {
+          const ex = examRef.current;
+          if (ex) {
+            const cur = currentRef.current;
+            setAnswers(a => { const n = { ...a }; delete n[ex.questions[cur].id]; return n; });
+            answersRef.current = { ...answersRef.current };
+            delete answersRef.current[ex.questions[cur].id];
+            audioCueService.select();
+            speechService.speak('Answer cleared.');
+          }
+        }
+        break;
+      case 'CLEAR':
+      case 'CLEAR_ANSWER': {
         const ex = examRef.current;
         if (ex) {
           const cur = currentRef.current;
           setAnswers(a => { const n = { ...a }; delete n[ex.questions[cur].id]; return n; });
+          answersRef.current = { ...answersRef.current };
+          delete answersRef.current[ex.questions[cur].id];
           audioCueService.select();
+          speechService.speak('Answer cleared.');
         }
         break;
       }
-      case 'TIME': {
+      case 'TIME':
+      case 'TIME_REMAINING': {
         const m = Math.floor(timeLeftRef.current / 60);
         const s = timeLeftRef.current % 60;
         speechService.speak(`You have ${m} minutes and ${s} seconds remaining.`, true);
+        break;
+      }
+      case 'MARKS':
+      case 'SCORE':
+      case 'RESULT':
+      case 'EXAM_STATUS': {
+        const ex = examRef.current;
+        const cur = currentRef.current;
+        const total = ex?.questions.length ?? 15;
+        const attempted = Object.keys(answersRef.current).length;
+        const flaggedCount = Object.values(flaggedRef.current).filter(Boolean).length;
+        const totalMarks = total * 2;
+        speechService.speak(
+          `Question ${cur + 1} of ${total}. You have answered ${attempted} questions, ${total - attempted} unanswered, and ${flaggedCount} flagged for review. Total examination marks: ${totalMarks}.`,
+          true
+        );
+        break;
+      }
+      case 'UNANSWERED_COUNT': {
+        const ex = examRef.current;
+        const total = ex?.questions.length ?? 15;
+        const attempted = Object.keys(answersRef.current).length;
+        const unanswered = total - attempted;
+        speechService.speak(`You have ${unanswered} unanswered question${unanswered === 1 ? '' : 's'} remaining.`, true);
         break;
       }
       case 'READ_OPTIONS': {
@@ -949,6 +1037,9 @@ export default function ExamInterface() {
 
     // 2. Pre-exam screen commands (Before candidate enters the exam)
     if (!startedRef.current) {
+      if (showCalibrationWizardRef.current) {
+        return false;
+      }
       const preIntent = await drishtiNluService.understand(clean, {
         examState: 'not-started',
         route: '/exam/',
@@ -1043,8 +1134,8 @@ export default function ExamInterface() {
       return true;
     }
 
-    // B. Previous Question
-    if (intent.type === 'PREV_QUESTION') {
+    // B. Previous Question / Go Back
+    if (intent.type === 'PREV_QUESTION' || intent.type === 'NAVIGATE_BACK') {
       goPrev();
       return true;
     }
@@ -1101,6 +1192,28 @@ export default function ExamInterface() {
       const m = Math.floor(timeLeftRef.current / 60);
       const s = timeLeftRef.current % 60;
       speechService.speak(`You have ${m} minutes and ${s} seconds remaining.`, { priority: true });
+      return true;
+    }
+
+    // H2. Exam Status / Marks / Progress
+    if (intent.type === 'EXAM_STATUS') {
+      const attempted = Object.keys(answersRef.current).length;
+      const total = ex?.questions.length ?? 15;
+      const flaggedCount = Object.values(flaggedRef.current).filter(Boolean).length;
+      const totalMarks = total * 2;
+      speechService.speak(
+        `Question ${cur + 1} of ${total}. You have answered ${attempted} questions, ${total - attempted} unanswered, and ${flaggedCount} flagged for review. Total examination marks: ${totalMarks}.`,
+        { priority: true }
+      );
+      return true;
+    }
+
+    // H3. Unanswered Count
+    if (intent.type === 'UNANSWERED_COUNT') {
+      const attempted = Object.keys(answersRef.current).length;
+      const total = ex?.questions.length ?? 15;
+      const unanswered = total - attempted;
+      speechService.speak(`You have ${unanswered} unanswered question${unanswered === 1 ? '' : 's'} remaining.`, { priority: true });
       return true;
     }
 
@@ -1238,18 +1351,18 @@ export default function ExamInterface() {
 
     // Register our high-priority exam transcript handler
     const unregister = globalVoiceService.register(async (rawText: string, parsedCommand?: any) => {
-      if (parsedCommand?.action) {
         const knownExamActions = new Set([
-          'SELECT_A', 'SELECT_B', 'SELECT_C', 'SELECT_D', 'NEXT', 'PREV',
-          'FLAG', 'READ', 'SUBMIT', 'CLEAR', 'TIME', 'READ_OPTIONS', 'MATH',
-          'DIAGRAM', 'EXPLAIN', 'SHORTCUTS', 'START_EXAM', 'STOP_VOICE',
+          'SELECT_A', 'SELECT_B', 'SELECT_C', 'SELECT_D', 'NEXT', 'PREV', 'BACK', 'NAVIGATE_BACK',
+          'FLAG', 'FLAG_QUESTION', 'READ', 'REPEAT_QUESTION', 'SUBMIT', 'INITIATE_SUBMIT',
+          'CLEAR', 'CLEAR_ANSWER', 'CANCEL', 'CANCEL_SUBMIT', 'CANCEL_NO',
+          'TIME', 'TIME_REMAINING', 'READ_OPTIONS', 'MATH', 'DIAGRAM', 'EXPLAIN', 'SHORTCUTS',
+          'START_EXAM', 'STOP_VOICE', 'MARKS', 'SCORE', 'RESULT', 'EXAM_STATUS', 'UNANSWERED_COUNT',
           'SCROLL_DOWN', 'SCROLL_UP', 'SCROLL_TOP', 'SCROLL_BOTTOM',
           'AUTO_SCROLL_START', 'AUTO_SCROLL_STOP'
         ]);
-        if (knownExamActions.has(parsedCommand.action)) {
-          handleVoiceCmd(parsedCommand.action);
-          return true;
-        }
+      if (parsedCommand?.action && (knownExamActions.has(parsedCommand.action) || parsedCommand.action.startsWith('GOTO_'))) {
+        handleVoiceCmd(parsedCommand.action);
+        return true;
       }
       const clean = rawText.toLowerCase().trim();
       return await processTranscript(clean);
@@ -1398,18 +1511,19 @@ export default function ExamInterface() {
             <p style={{ color: 'var(--text-muted)', marginBottom: '2rem', fontSize: '0.9rem' }}>{exam.description}</p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '2rem' }}>
               {[
-                [<HelpCircle size={22} color="var(--primary)" />, 'Questions', `${exam.totalQuestions}`],
-                [<Clock size={22} color="var(--secondary)" />, 'Duration', `${exam.durationMinutes} min`],
+                [<HelpCircle size={22} color="var(--primary)" />, 'Questions', `${exam.totalQuestions} Questions`],
+                [<Clock size={22} color="var(--secondary)" />, 'Duration', `${Math.round(exam.durationMinutes * timeMultiplier)} min (${timeMultiplier}x PwD Time)`],
                 [<BarChart3 size={22} color="var(--warning)" />, 'Difficulty', exam.difficulty],
-                [<Terminal size={22} color="var(--accent)" />, 'Controls', 'Keys 1-4, N, P, F, R, V'],
+                [<ShieldCheck size={22} color="var(--accent)" />, 'Accommodations', 'RPwD Act 2016 Compliant'],
               ].map(([icon, label, val], idx) => (
-                <div key={idx} style={{ background: 'var(--bg-surface)', borderRadius: '0.6rem', padding: '0.85rem', textAlign: 'center', border: '1px solid var(--border)' }}>
+                <div key={idx} style={{ background: 'var(--bg-surface)', borderRadius: '0.6rem', padding: '0.85rem', textAlign: 'center', border: '1.5px solid var(--border)' }}>
                   <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.35rem' }}>{icon}</div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500 }}>{label}</div>
-                  <div style={{ fontWeight: 700, color: 'var(--text)', fontSize: '0.875rem' }}>{val}</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 600 }}>{label}</div>
+                  <div style={{ fontWeight: 800, color: 'var(--text)', fontSize: '0.875rem' }}>{val}</div>
                 </div>
               ))}
             </div>
+
             <div style={{ background: 'var(--primary-light)', borderRadius: '0.6rem', padding: '1rem', marginBottom: '1.5rem', textAlign: 'left', fontSize: '0.8rem', border: '1px solid var(--primary)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', marginBottom: '0.5rem', fontWeight: 700 }}>
                 <Terminal size={16} /> Keyboard Shortcuts Reference
@@ -1507,7 +1621,10 @@ export default function ExamInterface() {
             setTimeMultiplier(tm);
             setAutonomousMode(am);
             setShowCalibrationWizard(false);
-            setTimeLeft(Math.round(exam.durationMinutes * 60 * tm));
+            const newAllocated = Math.round(exam.durationMinutes * 60 * tm);
+            setTimeLeft(newAllocated);
+            timeLeftRef.current = newAllocated;
+            totalAllocatedSecondsRef.current = newAllocated;
             startExamNow();
           }}
           examTitle={exam.title}
@@ -1551,10 +1668,16 @@ export default function ExamInterface() {
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-          {/* Timer */}
-          <div style={{ background: `${timerColor}20`, border: `2px solid ${timerColor}`, borderRadius: '0.5rem', padding: '0.35rem 0.75rem', fontFamily: 'monospace', fontWeight: 900, fontSize: '1.05rem', color: timerColor, display: 'flex', alignItems: 'center', gap: '0.35rem' }} aria-label={`Time remaining: ${mins} minutes and ${secs} seconds`} aria-live="off">
-            <Clock size={15} /> {mins}:{secs}
+          {/* Timer with RPwD Act 2016 Compensatory Time Badge */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <div style={{ background: `${timerColor}20`, border: `2px solid ${timerColor}`, borderRadius: '0.5rem', padding: '0.35rem 0.75rem', fontFamily: 'monospace', fontWeight: 900, fontSize: '1.05rem', color: timerColor, display: 'flex', alignItems: 'center', gap: '0.35rem' }} aria-label={`Time remaining: ${mins} minutes and ${secs} seconds with compensatory extra time applied.`} aria-live="off">
+              <Clock size={15} /> {mins}:{secs}
+            </div>
+            <span style={{ fontSize: '0.68rem', fontWeight: 800, padding: '0.2rem 0.45rem', borderRadius: '4px', background: 'var(--bg-surface)', border: '1px solid var(--border)', color: 'var(--text)' }} title="RPwD Act 2016 Compensatory Extra Time Allocation">
+              +{Math.round((timeMultiplier - 1) * 100)}% PwD Time
+            </span>
           </div>
+
           {/* Keyboard shortcuts helper button */}
           <button
             className="btn-ghost"

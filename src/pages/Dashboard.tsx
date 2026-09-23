@@ -18,6 +18,9 @@ import {
   TrendingUp,
   Volume2,
   HelpCircle,
+  FileSpreadsheet,
+  Award,
+  ShieldCheck,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
 import { useAuth } from '../context/AuthContext';
@@ -170,6 +173,8 @@ interface StatCardProps {
   label: string;
   chartGraphic?: React.ReactNode;
   fadeClass?: string;
+  onClick?: () => void;
+  ariaLabel?: string;
 }
 
 function StatCard({
@@ -183,10 +188,16 @@ function StatCard({
   label,
   chartGraphic,
   fadeClass = '',
+  onClick,
+  ariaLabel,
 }: StatCardProps) {
   return (
     <div
       className={`card card-interactive fade-in ${fadeClass}`}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      aria-label={ariaLabel || label}
       style={{
         padding: '1.15rem 1.25rem',
         borderRadius: '0.85rem',
@@ -194,6 +205,13 @@ function StatCard({
         flexDirection: 'column',
         justifyContent: 'space-between',
         gap: '0.9rem',
+        cursor: onClick ? 'pointer' : undefined,
+      }}
+      onKeyDown={e => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) {
+          e.preventDefault();
+          onClick();
+        }
       }}
     >
       {/* Top Row: Icon + Badge */}
@@ -285,9 +303,9 @@ export default function Dashboard() {
     ? Math.max(...attempts.map(a => a.percentage))
     : 80;
 
-  const briefingText = `Dashboard. Your current score is ${avgScore} percent. You have completed ${
+  const briefingText = `Dashboard. Your current average score is ${avgScore} percent across ${
     attempts.length || 4
-  } tests. Your weak topics are Pipes and Cisterns and History. You have recommended practice sessions ready. Say Start practice, or Show exams.`;
+  } tests. Press 1 for Mock Tests, Press 2 for Practice Drills, Press 3 for Results and Review, Press 4 for Settings, or say Start Practice.`;
 
   // Universal Keyboard Accessibility in Dashboard
   useEffect(() => {
@@ -298,10 +316,8 @@ export default function Dashboard() {
       switch (e.key) {
         case '1': e.preventDefault(); navigate('/exams'); break;
         case '2': e.preventDefault(); navigate('/practice'); break;
-        case '3': e.preventDefault(); navigate('/study-materials'); break;
-        case '4': e.preventDefault(); navigate('/pyqs'); break;
-        case '5': e.preventDefault(); navigate('/performance'); break;
-        case '6': e.preventDefault(); navigate('/history'); break;
+        case '3': e.preventDefault(); navigate('/results'); break;
+        case '4': e.preventDefault(); navigate('/settings'); break;
         case 'b': case 'B': case 'o': case 'O':
           e.preventDefault();
           speechService.speak(briefingText, { priority: true });
@@ -345,9 +361,9 @@ export default function Dashboard() {
       action: () => navigate('/exams'),
     },
     {
-      triggers: ['analytics', 'performance', 'pradarshan'],
-      answer: () => 'Performance analytics par le ja rahe hain.',
-      action: () => navigate('/performance'),
+      triggers: ['analytics', 'performance', 'pradarshan', 'results', 'natija', 'score card'],
+      answer: () => 'Results and review section khola ja raha hai.',
+      action: () => navigate('/results'),
     },
   ]);
 
@@ -556,6 +572,8 @@ export default function Dashboard() {
             value={attempts.length || 4}
             label="Tests Attempted"
             fadeClass="card-fade-blue"
+            onClick={() => navigate('/history')}
+            ariaLabel="Tests Attempted. Click to view examination attempt history."
           />
 
           {/* Card 2: Average Score */}
@@ -569,6 +587,8 @@ export default function Dashboard() {
             value={`${avgScore}%`}
             label="Average Score"
             fadeClass="card-fade-purple"
+            onClick={() => navigate('/performance')}
+            ariaLabel="Average Score. Click to view performance analytics."
             chartGraphic={
               <svg width="60" height="24" viewBox="0 0 60 24" fill="none">
                 <path
@@ -599,6 +619,8 @@ export default function Dashboard() {
             value={`${bestScore}%`}
             label="Best Score"
             fadeClass="card-fade-emerald"
+            onClick={() => navigate('/results')}
+            ariaLabel="Best Score. Click to view latest scorecard."
             chartGraphic={
               <svg width="48" height="24" viewBox="0 0 48 24" fill="none">
                 <path
@@ -630,6 +652,8 @@ export default function Dashboard() {
             value="4"
             label="Focus Areas Detected"
             fadeClass="card-fade-orange"
+            onClick={() => navigate('/practice')}
+            ariaLabel="Focus Areas Detected. Click to start AI practice drills."
             chartGraphic={
               <svg width="32" height="24" viewBox="0 0 32 24" fill="none">
                 <rect x="4" y="14" width="4" height="10" rx="2" fill="#F97316" fillOpacity="0.4" />
@@ -674,651 +698,173 @@ export default function Dashboard() {
               </button>
             </div>
 
-            {/* 2x2 Grid of Exams */}
+            {/* Dynamic Grid of Available Competitive Exams */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-              {/* Card 1: SSC CGL */}
-              <div
-                className="card card-interactive fade-in card-fade-blue"
-                style={{
-                  padding: '1.25rem',
-                  borderRadius: '1rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '1rem',
-                  cursor: 'pointer',
-                }}
-                onClick={() => navigate('/exam/ssc-reasoning-01')}
-              >
-                <div>
-                  {/* Top Badges & Icon */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                      <span
-                        style={{
-                          background: 'rgba(37, 99, 235, 0.09)',
-                          color: '#1D4ED8',
-                          border: '1px solid rgba(37, 99, 235, 0.28)',
-                          fontWeight: 800,
-                          fontSize: '0.74rem',
-                          padding: '0.2rem 0.6rem',
-                          borderRadius: '999px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                        }}
-                      >
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#2563EB', boxShadow: '0 0 6px #2563EB' }} />
-                        SSC
-                      </span>
-                      <span
-                        style={{
-                          background: 'rgba(245, 158, 11, 0.09)',
-                          color: '#B45309',
-                          border: '1px solid rgba(245, 158, 11, 0.28)',
-                          fontWeight: 700,
-                          fontSize: '0.72rem',
-                          padding: '0.2rem 0.55rem',
-                          borderRadius: '999px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.3rem',
-                        }}
-                      >
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#F59E0B' }} />
-                        Medium
-                      </span>
-                    </div>
+              {EXAMS.slice(0, 4).map((ex) => {
+                const isSSC = ex.category === 'SSC';
+                const isBank = ex.category === 'Banking';
+                const isUPSC = ex.category === 'UPSC';
+                const accentColor = isSSC ? '#2563EB' : isBank ? '#EA580C' : isUPSC ? '#D97706' : '#059669';
+                const fadeClass = isSSC ? 'card-fade-blue' : isBank ? 'card-fade-orange' : isUPSC ? 'card-fade-amber' : 'card-fade-emerald';
+                const Icon = isSSC ? FileText : isBank ? Calculator : isUPSC ? Landmark : BookOpen;
 
-                    <div
-                      style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: '0.65rem',
-                        background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
-                        border: '1.5px solid rgba(37, 99, 235, 0.25)',
-                        boxShadow: '0 4px 12px rgba(37, 99, 235, 0.16)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <FileText size={18} color="#2563EB" />
-                    </div>
-                  </div>
-
-                  {/* Title */}
-                  <h3 style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text)', lineHeight: 1.35, marginBottom: '0.4rem' }}>
-                    SSC CGL — General Intelligence & Reasoning
-                  </h3>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: '0.85rem' }}>
-                    Comprehensive mock test covering syllogism, number series, directions, and analogies.
-                  </p>
-
-                  {/* Metadata Frosted Shelf */}
+                return (
                   <div
+                    key={ex.id}
+                    className={`card card-interactive fade-in ${fadeClass}`}
                     style={{
+                      padding: '1.25rem',
+                      borderRadius: '1rem',
                       display: 'flex',
-                      alignItems: 'center',
+                      flexDirection: 'column',
                       justifyContent: 'space-between',
-                      background: 'rgba(255, 255, 255, 0.78)',
-                      backdropFilter: 'blur(8px)',
-                      padding: '0.55rem 0.75rem',
-                      borderRadius: '0.65rem',
-                      border: '1px solid rgba(37, 99, 235, 0.16)',
-                      fontSize: '0.78rem',
-                      marginBottom: '0.85rem',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
-                      <HelpCircle size={14} color="#2563EB" />
-                      <span><strong>10</strong> Questions</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
-                      <Clock size={14} color="#059669" />
-                      <span><strong>12</strong> Minutes</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Button Row */}
-                <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigate('/exam/ssc-reasoning-01'); }}
-                    aria-label="Start SSC CGL General Intelligence & Reasoning mock examination"
-                    style={{
-                      flex: 1,
-                      padding: '0.72rem 1rem',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.5rem',
-                      fontWeight: 800,
-                      fontSize: '0.86rem',
-                      background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '0.65rem',
+                      gap: '1rem',
                       cursor: 'pointer',
-                      boxShadow: '0 6px 16px -2px rgba(37, 99, 235, 0.45)',
                     }}
+                    onClick={() => navigate(`/exam/${ex.id}`)}
                   >
-                    <span style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Play size={10} fill="#ffffff" color="#ffffff" style={{ marginLeft: 1 }} />
-                    </span>
-                    <span>Start Mock Examination</span>
-                    <ArrowRight size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      speechService.speak('SSC CGL General Intelligence & Reasoning. 10 questions. 12 minutes.');
-                    }}
-                    aria-label="Listen to specifications for SSC CGL General Intelligence & Reasoning"
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '0.65rem',
-                      background: 'rgba(255, 255, 255, 0.85)',
-                      border: '1.5px solid rgba(59, 130, 246, 0.32)',
-                      color: '#2563EB',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                    }}
-                    title="Listen aloud"
-                  >
-                    <Volume2 size={16} />
-                  </button>
-                </div>
-              </div>
+                    <div>
+                      {/* Top Badges & Icon */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                          <span
+                            style={{
+                              background: `${accentColor}18`,
+                              color: accentColor,
+                              border: `1px solid ${accentColor}40`,
+                              fontWeight: 800,
+                              fontSize: '0.74rem',
+                              padding: '0.2rem 0.6rem',
+                              borderRadius: '999px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                            }}
+                          >
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: accentColor }} />
+                            {ex.category}
+                          </span>
+                          <span
+                            style={{
+                              background: ex.difficulty === 'Easy' ? '#DCFCE7' : ex.difficulty === 'Medium' ? '#FEF3C7' : '#FEE2E2',
+                              color: ex.difficulty === 'Easy' ? '#16A34A' : ex.difficulty === 'Medium' ? '#D97706' : '#DC2626',
+                              fontWeight: 700,
+                              fontSize: '0.72rem',
+                              padding: '0.2rem 0.55rem',
+                              borderRadius: '999px',
+                            }}
+                          >
+                            {ex.difficulty}
+                          </span>
+                        </div>
 
-              {/* Card 2: Banking PO */}
-              <div
-                className="card card-interactive fade-in card-fade-orange"
-                style={{
-                  padding: '1.25rem',
-                  borderRadius: '1rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '1rem',
-                  cursor: 'pointer',
-                }}
-                onClick={() => navigate('/exam/banking-quant-01')}
-              >
-                <div>
-                  {/* Top Badges & Icon */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                      <span
+                        <div
+                          style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: '0.65rem',
+                            background: `${accentColor}15`,
+                            border: `1.5px solid ${accentColor}30`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Icon size={18} color={accentColor} />
+                        </div>
+                      </div>
+
+                      {/* Title */}
+                      <h3 style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text)', lineHeight: 1.35, marginBottom: '0.4rem' }}>
+                        {ex.title}
+                      </h3>
+                      <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: '0.85rem' }}>
+                        {ex.description}
+                      </p>
+
+                      {/* Metadata Frosted Shelf */}
+                      <div
                         style={{
-                          background: 'rgba(234, 88, 12, 0.09)',
-                          color: '#C2410C',
-                          border: '1px solid rgba(234, 88, 12, 0.28)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          background: 'rgba(255, 255, 255, 0.78)',
+                          backdropFilter: 'blur(8px)',
+                          padding: '0.55rem 0.75rem',
+                          borderRadius: '0.65rem',
+                          border: `1px solid ${accentColor}25`,
+                          fontSize: '0.78rem',
+                          marginBottom: '0.85rem',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
+                          <HelpCircle size={14} color={accentColor} />
+                          <span><strong>{ex.totalQuestions}</strong> Questions</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
+                          <Clock size={14} color="#059669" />
+                          <span><strong>{ex.durationMinutes}</strong> Minutes</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Button Row */}
+                    <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigate(`/exam/${ex.id}`); }}
+                        aria-label={`Start ${ex.title} mock examination`}
+                        style={{
+                          flex: 1,
+                          padding: '0.72rem 1rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.5rem',
                           fontWeight: 800,
-                          fontSize: '0.74rem',
-                          padding: '0.2rem 0.6rem',
-                          borderRadius: '999px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
+                          fontSize: '0.86rem',
+                          background: `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}DD 100%)`,
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: '0.65rem',
+                          cursor: 'pointer',
+                          boxShadow: `0 6px 16px -2px ${accentColor}40`,
                         }}
                       >
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#EA580C', boxShadow: '0 0 6px #EA580C' }} />
-                        Banking
-                      </span>
-                      <span
+                        <span style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Play size={10} fill="#ffffff" color="#ffffff" style={{ marginLeft: 1 }} />
+                        </span>
+                        <span>Start Mock Examination</span>
+                        <ArrowRight size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          speechService.speak(`${ex.title}. ${ex.totalQuestions} questions. ${ex.durationMinutes} minutes.`);
+                        }}
+                        aria-label={`Listen to specifications for ${ex.title}`}
                         style={{
-                          background: 'rgba(239, 68, 68, 0.09)',
-                          color: '#B91C1C',
-                          border: '1px solid rgba(239, 68, 68, 0.28)',
-                          fontWeight: 700,
-                          fontSize: '0.72rem',
-                          padding: '0.2rem 0.55rem',
-                          borderRadius: '999px',
-                          display: 'inline-flex',
+                          width: 40,
+                          height: 40,
+                          borderRadius: '0.65rem',
+                          background: 'rgba(255, 255, 255, 0.85)',
+                          border: `1.5px solid ${accentColor}40`,
+                          color: accentColor,
+                          display: 'flex',
                           alignItems: 'center',
-                          gap: '0.3rem',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          flexShrink: 0,
                         }}
+                        title="Listen aloud"
                       >
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#EF4444' }} />
-                        Hard
-                      </span>
-                    </div>
-
-                    <div
-                      style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: '0.65rem',
-                        background: 'linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)',
-                        border: '1.5px solid rgba(234, 88, 12, 0.25)',
-                        boxShadow: '0 4px 12px rgba(234, 88, 12, 0.16)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Calculator size={18} color="#EA580C" />
+                        <Volume2 size={16} />
+                      </button>
                     </div>
                   </div>
-
-                  {/* Title */}
-                  <h3 style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text)', lineHeight: 1.35, marginBottom: '0.4rem' }}>
-                    Banking PO — Quantitative Aptitude
-                  </h3>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: '0.85rem' }}>
-                    High-speed quantitative mock covering number series, data interpretation, and profit-loss.
-                  </p>
-
-                  {/* Metadata Frosted Shelf */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      background: 'rgba(255, 255, 255, 0.78)',
-                      backdropFilter: 'blur(8px)',
-                      padding: '0.55rem 0.75rem',
-                      borderRadius: '0.65rem',
-                      border: '1px solid rgba(234, 88, 12, 0.16)',
-                      fontSize: '0.78rem',
-                      marginBottom: '0.85rem',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
-                      <HelpCircle size={14} color="#EA580C" />
-                      <span><strong>8</strong> Questions</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
-                      <Clock size={14} color="#059669" />
-                      <span><strong>15</strong> Minutes</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Button Row */}
-                <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigate('/exam/banking-quant-01'); }}
-                    aria-label="Start Banking PO Quantitative Aptitude mock examination"
-                    style={{
-                      flex: 1,
-                      padding: '0.72rem 1rem',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.5rem',
-                      fontWeight: 800,
-                      fontSize: '0.86rem',
-                      background: 'linear-gradient(135deg, #EA580C 0%, #C2410C 100%)',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '0.65rem',
-                      cursor: 'pointer',
-                      boxShadow: '0 6px 16px -2px rgba(234, 88, 12, 0.45)',
-                    }}
-                  >
-                    <span style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Play size={10} fill="#ffffff" color="#ffffff" style={{ marginLeft: 1 }} />
-                    </span>
-                    <span>Start Mock Examination</span>
-                    <ArrowRight size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      speechService.speak('Banking PO Quantitative Aptitude. 8 questions. 15 minutes.');
-                    }}
-                    aria-label="Listen to specifications for Banking PO Quantitative Aptitude"
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '0.65rem',
-                      background: 'rgba(255, 255, 255, 0.85)',
-                      border: '1.5px solid rgba(249, 115, 22, 0.32)',
-                      color: '#EA580C',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                    }}
-                    title="Listen aloud"
-                  >
-                    <Volume2 size={16} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Card 3: UPSC Prelims */}
-              <div
-                className="card card-interactive fade-in card-fade-amber"
-                style={{
-                  padding: '1.25rem',
-                  borderRadius: '1rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '1rem',
-                  cursor: 'pointer',
-                }}
-                onClick={() => navigate('/exam/upsc-gs1-01')}
-              >
-                <div>
-                  {/* Top Badges & Icon */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                      <span
-                        style={{
-                          background: 'rgba(217, 119, 6, 0.09)',
-                          color: '#B45309',
-                          border: '1px solid rgba(217, 119, 6, 0.28)',
-                          fontWeight: 800,
-                          fontSize: '0.74rem',
-                          padding: '0.2rem 0.6rem',
-                          borderRadius: '999px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                        }}
-                      >
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#D97706', boxShadow: '0 0 6px #D97706' }} />
-                        UPSC
-                      </span>
-                      <span
-                        style={{
-                          background: 'rgba(239, 68, 68, 0.09)',
-                          color: '#B91C1C',
-                          border: '1px solid rgba(239, 68, 68, 0.28)',
-                          fontWeight: 700,
-                          fontSize: '0.72rem',
-                          padding: '0.2rem 0.55rem',
-                          borderRadius: '999px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.3rem',
-                        }}
-                      >
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#EF4444' }} />
-                        Hard
-                      </span>
-                    </div>
-
-                    <div
-                      style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: '0.65rem',
-                        background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
-                        border: '1.5px solid rgba(217, 119, 6, 0.25)',
-                        boxShadow: '0 4px 12px rgba(217, 119, 6, 0.16)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Landmark size={18} color="#B45309" />
-                    </div>
-                  </div>
-
-                  {/* Title */}
-                  <h3 style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text)', lineHeight: 1.35, marginBottom: '0.4rem' }}>
-                    UPSC Prelims — General Studies (History & Polity)
-                  </h3>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: '0.85rem' }}>
-                    Analytical questions on Modern Indian History, Constitutional Law, and Polity.
-                  </p>
-
-                  {/* Metadata Frosted Shelf */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      background: 'rgba(255, 255, 255, 0.78)',
-                      backdropFilter: 'blur(8px)',
-                      padding: '0.55rem 0.75rem',
-                      borderRadius: '0.65rem',
-                      border: '1px solid rgba(217, 119, 6, 0.16)',
-                      fontSize: '0.78rem',
-                      marginBottom: '0.85rem',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
-                      <HelpCircle size={14} color="#D97706" />
-                      <span><strong>8</strong> Questions</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
-                      <Clock size={14} color="#059669" />
-                      <span><strong>16</strong> Minutes</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Button Row */}
-                <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigate('/exam/upsc-gs1-01'); }}
-                    aria-label="Start UPSC Prelims General Studies mock examination"
-                    style={{
-                      flex: 1,
-                      padding: '0.72rem 1rem',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.5rem',
-                      fontWeight: 800,
-                      fontSize: '0.86rem',
-                      background: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '0.65rem',
-                      cursor: 'pointer',
-                      boxShadow: '0 6px 16px -2px rgba(217, 119, 6, 0.45)',
-                    }}
-                  >
-                    <span style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Play size={10} fill="#ffffff" color="#ffffff" style={{ marginLeft: 1 }} />
-                    </span>
-                    <span>Start Mock Examination</span>
-                    <ArrowRight size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      speechService.speak('UPSC Prelims General Studies. 8 questions. 16 minutes.');
-                    }}
-                    aria-label="Listen to specifications for UPSC Prelims General Studies"
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '0.65rem',
-                      background: 'rgba(255, 255, 255, 0.85)',
-                      border: '1.5px solid rgba(217, 119, 6, 0.32)',
-                      color: '#D97706',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                    }}
-                    title="Listen aloud"
-                  >
-                    <Volume2 size={16} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Card 4: Railway RRB */}
-              <div
-                className="card card-interactive fade-in card-fade-emerald"
-                style={{
-                  padding: '1.25rem',
-                  borderRadius: '1rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  gap: '1rem',
-                  cursor: 'pointer',
-                }}
-                onClick={() => navigate('/exam/railway-gk-01')}
-              >
-                <div>
-                  {/* Top Badges & Icon */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                      <span
-                        style={{
-                          background: 'rgba(5, 150, 105, 0.09)',
-                          color: '#047857',
-                          border: '1px solid rgba(5, 150, 105, 0.28)',
-                          fontWeight: 800,
-                          fontSize: '0.74rem',
-                          padding: '0.2rem 0.6rem',
-                          borderRadius: '999px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                        }}
-                      >
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', backgroundColor: '#059669', boxShadow: '0 0 6px #059669' }} />
-                        Railway
-                      </span>
-                      <span
-                        style={{
-                          background: 'rgba(16, 185, 129, 0.09)',
-                          color: '#047857',
-                          border: '1px solid rgba(16, 185, 129, 0.28)',
-                          fontWeight: 700,
-                          fontSize: '0.72rem',
-                          padding: '0.2rem 0.55rem',
-                          borderRadius: '999px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.3rem',
-                        }}
-                      >
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', backgroundColor: '#10B981' }} />
-                        Easy
-                      </span>
-                    </div>
-
-                    <div
-                      style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: '0.65rem',
-                        background: 'linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)',
-                        border: '1.5px solid rgba(5, 150, 105, 0.25)',
-                        boxShadow: '0 4px 12px rgba(5, 150, 105, 0.16)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      <BookOpen size={18} color="#059669" />
-                    </div>
-                  </div>
-
-                  {/* Title */}
-                  <h3 style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text)', lineHeight: 1.35, marginBottom: '0.4rem' }}>
-                    Railway RRB — General Knowledge & Science
-                  </h3>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: '0.85rem' }}>
-                    Topic-wise practice covering Physics, Chemistry, Biology, and Current Affairs.
-                  </p>
-
-                  {/* Metadata Frosted Shelf */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      background: 'rgba(255, 255, 255, 0.78)',
-                      backdropFilter: 'blur(8px)',
-                      padding: '0.55rem 0.75rem',
-                      borderRadius: '0.65rem',
-                      border: '1px solid rgba(5, 150, 105, 0.16)',
-                      fontSize: '0.78rem',
-                      marginBottom: '0.85rem',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
-                      <HelpCircle size={14} color="#059669" />
-                      <span><strong>10</strong> Questions</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
-                      <Clock size={14} color="#059669" />
-                      <span><strong>10</strong> Minutes</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Button Row */}
-                <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center' }}>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigate('/exam/railway-gk-01'); }}
-                    aria-label="Start Railway RRB General Knowledge & Science mock examination"
-                    style={{
-                      flex: 1,
-                      padding: '0.72rem 1rem',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '0.5rem',
-                      fontWeight: 800,
-                      fontSize: '0.86rem',
-                      background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '0.65rem',
-                      cursor: 'pointer',
-                      boxShadow: '0 6px 16px -2px rgba(5, 150, 105, 0.45)',
-                    }}
-                  >
-                    <span style={{ width: 20, height: 20, borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Play size={10} fill="#ffffff" color="#ffffff" style={{ marginLeft: 1 }} />
-                    </span>
-                    <span>Start Mock Examination</span>
-                    <ArrowRight size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      speechService.speak('Railway RRB General Knowledge & Science. 10 questions. 10 minutes.');
-                    }}
-                    aria-label="Listen to specifications for Railway RRB General Knowledge & Science"
-                    style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: '0.65rem',
-                      background: 'rgba(255, 255, 255, 0.85)',
-                      border: '1.5px solid rgba(16, 185, 129, 0.32)',
-                      color: '#059669',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      flexShrink: 0,
-                    }}
-                    title="Listen aloud"
-                  >
-                    <Volume2 size={16} />
-                  </button>
-                </div>
-              </div>
+                );
+              })}
             </div>
           </div>
 
@@ -1466,6 +1012,59 @@ export default function Dashboard() {
               >
                 <Target size={16} /> Start Practice Now →
               </button>
+            </div>
+
+            {/* Accessible Quick Hub Cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1.25rem' }}>
+              <div
+                className="card card-interactive fade-in"
+                onClick={() => navigate('/study-materials')}
+                style={{
+                  padding: '1rem 1.15rem',
+                  borderRadius: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '0.55rem', background: 'rgba(37,99,235,0.1)', color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <BookOpen size={18} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--text)' }}>Study Materials & Audio Notes</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Formula sheets & Polity summaries</div>
+                  </div>
+                </div>
+                <ArrowRight size={15} color="var(--text-muted)" />
+              </div>
+
+              <div
+                className="card card-interactive fade-in"
+                onClick={() => navigate('/pyqs')}
+                style={{
+                  padding: '1rem 1.15rem',
+                  borderRadius: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '0.55rem', background: 'rgba(190,24,93,0.1)', color: '#BE185D', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <FileSpreadsheet size={18} />
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--text)' }}>Past Year Solved Papers (PYQs)</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Official solved papers 2022–2024</div>
+                  </div>
+                </div>
+                <ArrowRight size={15} color="var(--text-muted)" />
+              </div>
             </div>
           </div>
         </div>

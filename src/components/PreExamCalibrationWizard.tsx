@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Volume2,
   Mic,
@@ -59,18 +59,288 @@ export default function PreExamCalibrationWizard({
 
   const cleanupVoiceRef = useRef<(() => void) | null>(null);
 
+  const handleTestAudio = useCallback(() => {
+    audioCueService.select();
+    speechService.configure(speechRate, prefs.voicePitch, prefs.voiceName);
+    speechService.speak(
+      'Audio output verified. Drishti AI speech synthesis is crystal clear and responsive. Say "Next" or press Enter to proceed to Step 2.',
+      {
+        priority: true,
+        onEnd: () => {
+          setAudioTested(true);
+          audioCueService.examStart();
+        },
+      }
+    );
+    screenReaderAnnouncer.announceAssertive('Audio output verified. Press Enter to proceed to Step 2.');
+  }, [speechRate, prefs.voicePitch, prefs.voiceName]);
+
+  const handleStartMicTest = useCallback(async () => {
+    setListening(true);
+    setHeardText('Listening… speak "Option A" or "Next"');
+    speechService.speak('Microphone is listening. Please speak now, say Option A or Next.', { priority: true });
+    screenReaderAnnouncer.announcePolite('Microphone listening.');
+    try {
+      if (!globalVoiceService.isActive()) {
+        await globalVoiceService.start();
+      }
+    } catch {}
+  }, []);
+
+  const handleFinish = useCallback(() => {
+    localStorage.setItem('sight_exam_calibrated', 'true');
+    localStorage.setItem('sight_time_multiplier', timeMultiplier.toString());
+    localStorage.setItem('sight_screen_reader_mode', screenReaderMode.toString());
+    localStorage.setItem('sight_autonomous_mode', autonomousMode.toString());
+
+    audioCueService.examStart();
+    speechService.speak(
+      'Accessibility calibration complete. Launching autonomous examination now with your accommodations.',
+      {
+        priority: true,
+        onEnd: () => {
+          onComplete({
+            timeMultiplier,
+            autonomousMode,
+            screenReaderMode,
+          });
+        },
+      }
+    );
+    setTimeout(() => {
+      onComplete({
+        timeMultiplier,
+        autonomousMode,
+        screenReaderMode,
+      });
+    }, 1800);
+  }, [timeMultiplier, screenReaderMode, autonomousMode, onComplete]);
+
+  const speakStepGuidance = useCallback((currentStep: number) => {
+    speechService.stop();
+    let text = '';
+    switch (currentStep) {
+      case 1:
+        text = 'Step 1 of 4: Audio output. Say "Test Audio" or press T to verify speech narration and chime cues. Say "Next" or press Enter to proceed to Step 2.';
+        break;
+      case 2:
+        text = 'Step 2 of 4: Microphone speech recognition. The microphone is actively listening. Please say "Option A", "Next", or any phrase now. Say "Next" or press Enter to proceed to Step 3.';
+        break;
+      case 3:
+        text = `Step 3 of 4: Visual display and screen reader mode. Current theme is ${prefs.theme === 'default' ? 'Light Clean' : prefs.theme === 'high-contrast' ? 'High Contrast Dark' : 'Yellow on Black'}. Say "Next" or press Enter to continue. Or say "High Contrast", "Dark Mode", "Screen Reader Mode", or press C to change theme, S for screen reader.`;
+        break;
+      case 4:
+        text = `Step 4 of 4: Accommodations. Compensatory time is set to ${timeMultiplier}x. Autonomous Scribe-Free Mode is enabled. Say "Begin Exam", "Start Exam", or press Enter to launch your mock test now. Or say "Double time" or "Standard time" to adjust.`;
+        break;
+    }
+    speechService.speak(text, { priority: true });
+    screenReaderAnnouncer.announceAssertive(text);
+  }, [timeMultiplier, prefs.theme]);
+
+  const handleNext = useCallback(() => {
+    if (step < 4) {
+      const nextStep = step + 1;
+      setStep(nextStep);
+      speakStepGuidance(nextStep);
+    } else {
+      handleFinish();
+    }
+  }, [step, speakStepGuidance, handleFinish]);
+
+  const handlePrev = useCallback(() => {
+    if (step > 1) {
+      const prevStep = step - 1;
+      setStep(prevStep);
+      speakStepGuidance(prevStep);
+    }
+  }, [step, speakStepGuidance]);
+
+  // Initial welcome and instruction on open
   useEffect(() => {
     if (!isOpen) return;
 
-    // Spoken introduction
-    const intro = `Pre-Exam Accessibility Calibration for ${examTitle}. Step 1 of 4: Audio and Earcon Verification. Press R to hear this instruction again.`;
+    setStep(1);
+    setAudioTested(false);
+    setMicTested(false);
+
+    const intro = `Pre-Exam Accessibility Calibration for ${examTitle}. Step 1 of 4: Audio Output Verification. Testing speech narration and sound cues. Say "Test Audio" or press T to test sound. Say "Next" or press Enter to proceed to Step 2. You can also say "Skip" at any time to start the exam directly.`;
     speechService.speak(intro, { priority: true });
+    screenReaderAnnouncer.announceAssertive(intro);
+
+    if (!globalVoiceService.isActive()) {
+      globalVoiceService.start().catch(() => {});
+    }
 
     return () => {
       speechService.stop();
-      if (cleanupVoiceRef.current) cleanupVoiceRef.current();
     };
   }, [isOpen, examTitle]);
+
+  // Auto-listen when Step 2 (Microphone Check) is active
+  useEffect(() => {
+    if (!isOpen || step !== 2) return;
+    setListening(true);
+    setHeardText('Listening… speak "Option A" or "Next"');
+    if (!globalVoiceService.isActive()) {
+      globalVoiceService.start().catch(() => {});
+    }
+  }, [isOpen, step]);
+
+  // Dedicated Voice Command Listener for the Calibration Wizard
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const unregister = globalVoiceService.register((raw: string) => {
+      const lower = raw.trim().toLowerCase();
+      console.log(`[PreExamCalibrationWizard Voice] 🗣️ Heard: "${raw}" on Step ${step}`);
+
+      // 1. Skip / Direct Start
+      if (/\b(skip|skip\s+calibration|bypass|skip\s+test|seedha\s+start|direct\s+start|chodo)\b/i.test(lower)) {
+        audioCueService.select();
+        speechService.speak('Skipping calibration. Starting examination with 1.5x extra time and autonomous mode.', { priority: true });
+        handleFinish();
+        return true;
+      }
+
+      // 2. Start / Begin Exam
+      if (
+        step === 4 ||
+        /\b(begin\s+(?:the\s+)?exam|start\s+(?:the\s+)?exam|launch\s+exam|shuru\s+karo|exam\s+shuru|exam\s+start|start\s+mock\s+test|begin\s+mock\s+test|finish|done)\b/i.test(lower)
+      ) {
+        if (
+          /\b(begin|start|launch|finish|done|shuru|proceed)\b/i.test(lower) &&
+          !/\b(next|mic|voice|audio|sound)\b/i.test(lower)
+        ) {
+          audioCueService.examStart();
+          handleFinish();
+          return true;
+        }
+      }
+
+      // 3. Next / Advance
+      if (/\b(next\s+step|next|agla|aage\s+badho|aage|forward|continue|proceed|samne)\b/i.test(lower)) {
+        audioCueService.navigation();
+        handleNext();
+        return true;
+      }
+
+      // 4. Back / Previous
+      if (/\b(previous\s+step|previous|prev|pichla|peeche\s+jao|back|go\s+back)\b/i.test(lower)) {
+        audioCueService.navigation();
+        if (step > 1) {
+          handlePrev();
+        } else {
+          speechService.speak('You are at the first step.');
+        }
+        return true;
+      }
+
+      // 5. Repeat / Guidance
+      if (/\b(repeat|repeat\s+audio|help|guidance|kya\s+karein|sunao|dobara|batao|instruction)\b/i.test(lower)) {
+        speakStepGuidance(step);
+        return true;
+      }
+
+      // 6. Cancel / Close
+      if (/\b(cancel|close|exit|radd\s+karo|band\s+karo)\b/i.test(lower)) {
+        audioCueService.select();
+        speechService.speak('Calibration cancelled.');
+        onClose();
+        return true;
+      }
+
+      // ── Step-Specific Commands ──
+
+      // Step 1: Audio Test
+      if (step === 1) {
+        if (/\b(test\s+audio|check\s+audio|audio\s+test|sound\s+test|check\s+sound|play\s+sound|audio|sound|chime)\b/i.test(lower)) {
+          handleTestAudio();
+          return true;
+        }
+      }
+
+      // Step 2: Microphone Test
+      if (step === 2) {
+        setHeardText(`Heard: "${raw}"`);
+        setMicTested(true);
+        audioCueService.select();
+        speechService.speak(`Microphone verified! Heard: ${raw}. Say "Next" or press Enter to continue.`, { priority: true });
+        screenReaderAnnouncer.announcePolite(`Microphone verified: ${raw}`);
+        if (/\b(next|agla|aage)\b/i.test(lower)) {
+          setTimeout(() => handleNext(), 1200);
+        }
+        return true;
+      }
+
+      // Step 3: Theme, Font, Screen Reader
+      if (step === 3) {
+        if (/\b(high\s+contrast|dark\s+mode|dark\s+theme|contrast)\b/i.test(lower)) {
+          setTheme('high-contrast');
+          speechService.speak('High Contrast Dark theme enabled.');
+          return true;
+        }
+        if (/\b(yellow|yellow\s+black|yellow\s+on\s+black)\b/i.test(lower)) {
+          setTheme('yellow-black');
+          speechService.speak('Yellow on Black high contrast theme enabled.');
+          return true;
+        }
+        if (/\b(light\s+mode|light\s+theme|default\s+theme|normal\s+theme)\b/i.test(lower)) {
+          setTheme('default');
+          speechService.speak('Light Clean theme enabled.');
+          return true;
+        }
+        if (/\b(screen\s+reader|external\s+screen\s+reader|nvda|jaws|talkback)\b/i.test(lower)) {
+          const next = !screenReaderMode;
+          setScreenReaderMode(next);
+          speechService.speak(next ? 'External screen reader mode enabled.' : 'External screen reader mode disabled.');
+          return true;
+        }
+        if (/\b(large\s+font|big\s+font|increase\s+font|font\s+size|font)\b/i.test(lower)) {
+          setFontSize('large');
+          speechService.speak('Large font size enabled.');
+          return true;
+        }
+        if (/\b(extra\s+large|huge\s+font)\b/i.test(lower)) {
+          setFontSize('xlarge');
+          speechService.speak('Extra Large font size enabled.');
+          return true;
+        }
+      }
+
+      // Step 4: Accommodations Time Multiplier
+      if (step === 4) {
+        if (/\b(one\s+point\s+zero|standard\s+time|normal\s+time|1\s+point\s+0)\b/i.test(lower)) {
+          setTimeMultiplier(1.0);
+          speechService.speak('Compensatory time set to 1.0x standard time.');
+          return true;
+        }
+        if (/\b(one\s+point\s+five|pwd\s+time|1\s+point\s+5|default\s+time|extra\s+time)\b/i.test(lower)) {
+          setTimeMultiplier(1.5);
+          speechService.speak('Compensatory time set to 1.5x PwD default extra time.');
+          return true;
+        }
+        if (/\b(double\s+time|two\s+point\s+zero|2\s+point\s+0|double)\b/i.test(lower)) {
+          setTimeMultiplier(2.0);
+          speechService.speak('Compensatory time set to 2.0x double extra time.');
+          return true;
+        }
+        if (/\b(autonomous|scribe\s+free|independent)\b/i.test(lower)) {
+          const next = !autonomousMode;
+          setAutonomousMode(next);
+          speechService.speak(next ? 'Autonomous Scribe-Free Mode enabled.' : 'Autonomous Scribe-Free Mode disabled.');
+          return true;
+        }
+      }
+
+      return false;
+    });
+
+    cleanupVoiceRef.current = unregister;
+
+    return () => {
+      unregister();
+    };
+  }, [isOpen, step, timeMultiplier, screenReaderMode, autonomousMode, handleFinish, handleNext, handlePrev, handleTestAudio, speakStepGuidance, onClose, setTheme, setFontSize]);
 
   // Keyboard navigation inside wizard
   useEffect(() => {
@@ -86,25 +356,30 @@ export default function PreExamCalibrationWizard({
         screenReaderAnnouncer.announcePolite('Calibration wizard closed.');
         return;
       }
+      if (e.altKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        speechService.speak('Skipping calibration. Starting examination directly.', { priority: true });
+        handleFinish();
+        return;
+      }
       if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
         speakStepGuidance(step);
         return;
       }
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        if (step < 4) handleNext();
-        else handleFinish();
+        handleNext();
         return;
       }
       if (e.key === 'ArrowRight' || e.key === 'n' || e.key === 'N') {
         e.preventDefault();
-        if (step < 4) handleNext();
+        handleNext();
         return;
       }
       if (e.key === 'ArrowLeft' || e.key === 'p' || e.key === 'P' || e.key === 'Backspace') {
         e.preventDefault();
-        if (step > 1) handlePrev();
+        handlePrev();
         return;
       }
 
@@ -201,115 +476,7 @@ export default function PreExamCalibrationWizard({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, step, audioTested, micTested, timeMultiplier, autonomousMode, screenReaderMode, prefs.theme, prefs.fontSize]);
-
-  const speakStepGuidance = (currentStep: number) => {
-    speechService.stop();
-    let text = '';
-    switch (currentStep) {
-      case 1:
-        text = 'Step 1: Audio output. Click Test Audio or press T to verify speech narration and chime cues. Press Enter to proceed.';
-        break;
-      case 2:
-        text = 'Step 2: Microphone speech recognition. Click Start Voice Test or press M and say Option A or Next. Press Enter to proceed.';
-        break;
-      case 3:
-        text = 'Step 3: Visual display and screen reader mode. Press C to cycle themes, F to cycle font sizes, or S to toggle external screen reader mode. Press Enter to proceed.';
-        break;
-      case 4:
-        text = `Step 4: Accommodations. Time multiplier is ${timeMultiplier}x. Press 1 for standard, 2 for 1.5x, 3 for double time. Press A to toggle autonomous mode. Press Enter to begin examination now.`;
-        break;
-    }
-    speechService.speak(text, { priority: true });
-    screenReaderAnnouncer.announceAssertive(text);
-  };
-
-  const handleTestAudio = () => {
-    audioCueService.select();
-    speechService.configure(speechRate, prefs.voicePitch, prefs.voiceName);
-    speechService.speak(
-      'Audio test verified. SIGHT-EXAM AI speech synthesis is crystal clear and responsive.',
-      {
-        priority: true,
-        onEnd: () => {
-          setAudioTested(true);
-          audioCueService.examStart();
-        },
-      }
-    );
-  };
-
-  const handleStartMicTest = async () => {
-    setListening(true);
-    setHeardText('Listening… please say "Option A" or "Next"');
-    speechService.speak('Listening now. Please say Option A or Next.', { priority: true });
-
-    try {
-      if (!globalVoiceService.isActive()) {
-        await globalVoiceService.start();
-      }
-      const unregister = globalVoiceService.register((raw: string) => {
-        const txt = raw.trim().toLowerCase();
-        setHeardText(`Heard: "${raw}"`);
-        setMicTested(true);
-        audioCueService.select();
-        speechService.speak(`Microphone verified! You said: ${raw}. Perfect!`, { priority: true });
-        setListening(false);
-        unregister();
-        return true;
-      });
-      cleanupVoiceRef.current = unregister;
-    } catch {
-      setHeardText('Microphone active. Fallback voice recognized.');
-      setMicTested(true);
-    }
-  };
-
-  const handleNext = () => {
-    if (step < 4) {
-      const nextStep = step + 1;
-      setStep(nextStep);
-      speakStepGuidance(nextStep);
-    }
-  };
-
-  const handlePrev = () => {
-    if (step > 1) {
-      const prevStep = step - 1;
-      setStep(prevStep);
-      speakStepGuidance(prevStep);
-    }
-  };
-
-  const handleFinish = () => {
-    localStorage.setItem('sight_exam_calibrated', 'true');
-    localStorage.setItem('sight_time_multiplier', timeMultiplier.toString());
-    localStorage.setItem('sight_screen_reader_mode', screenReaderMode.toString());
-    localStorage.setItem('sight_autonomous_mode', autonomousMode.toString());
-
-    audioCueService.examStart();
-    speechService.speak(
-      'Accessibility calibration complete. Launching autonomous examination now with your accommodations.',
-      {
-        priority: true,
-        onEnd: () => {
-          onComplete({
-            timeMultiplier,
-            autonomousMode,
-            screenReaderMode,
-          });
-        },
-      }
-    );
-    // Safety fallback
-    setTimeout(() => {
-      onComplete({
-        timeMultiplier,
-        autonomousMode,
-        screenReaderMode,
-      });
-    }, 1800);
-  };
+  }, [isOpen, step, timeMultiplier, autonomousMode, screenReaderMode, prefs.theme, prefs.fontSize, handleFinish, handleNext, handlePrev, handleTestAudio, handleStartMicTest, speakStepGuidance, onClose, setTheme, setFontSize]);
 
   if (!isOpen) return null;
 
@@ -435,7 +602,7 @@ export default function PreExamCalibrationWizard({
                   Verify Speech Narration & Sound Cues
                 </h3>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  Ensure your headphones or speakers are connected and the volume is clear. SIGHT-EXAM AI reads questions, options, and timer alerts aloud.
+                  Ensure your headphones or speakers are connected and the volume is clear. Drishti AI reads questions, options, and timer alerts aloud.
                 </p>
               </div>
 
@@ -813,7 +980,21 @@ export default function PreExamCalibrationWizard({
             <div />
           )}
 
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            {step < 4 && (
+              <button
+                onClick={() => {
+                  speechService.speak('Skipping calibration. Starting examination directly.', { priority: true });
+                  handleFinish();
+                }}
+                className="btn-ghost"
+                title="Skip calibration and start exam directly (Alt+S or say Skip)"
+                style={{ fontSize: '0.825rem', color: 'var(--text-muted)', padding: '0.55rem 0.85rem' }}
+                aria-label="Skip calibration and start exam directly. Shortcut: Alt plus S"
+              >
+                Skip to Exam (Alt+S)
+              </button>
+            )}
             {step < 4 ? (
               <button
                 onClick={handleNext}

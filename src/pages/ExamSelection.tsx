@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   FileText,
   Clock,
@@ -25,13 +25,16 @@ import AppLayout from '../components/AppLayout';
 import PreExamCalibrationWizard from '../components/PreExamCalibrationWizard';
 import { speechService } from '../services/speechService';
 import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
+import { audioCueService } from '../services/audioCueService';
 import { usePageVoice } from '../hooks/usePageVoice';
 import { useVoiceAssistant } from '../context/VoiceAssistantContext';
+import { globalVoiceService } from '../services/globalVoiceService';
+import { classifyVoiceIntent } from '../services/voiceCommandClassifier';
 import { EXAMS } from '../data/mockData';
 import { examsApi } from '../services/api';
 import type { Exam } from '../types';
 
-const INITIAL_CATEGORIES = ['All', 'SSC', 'Banking', 'UPSC', 'Railway'];
+const INITIAL_CATEGORIES = ['All', 'SSC', 'Banking', 'UPSC', 'Railway', 'Defence', 'State PSC'];
 const DIFFICULTIES = ['All', 'Easy', 'Medium', 'Hard'];
 
 interface ExamCardProps {
@@ -148,6 +151,46 @@ function ExamCard({ exam, index, total, onStart }: ExamCardProps) {
       accentColor: '#059669',
       icon: BookOpen,
     },
+    Defence: {
+      cardBg: 'linear-gradient(155deg, #ffffff 0%, #f4fbf7 45%, #ecfdf5 100%)',
+      cardBorder: 'rgba(16, 185, 129, 0.32)',
+      glowGradient: 'radial-gradient(circle at 95% 5%, rgba(6, 95, 70, 0.14) 0%, transparent 60%)',
+      ribbonGradient: 'linear-gradient(90deg, #065F46 0%, #047857 50%, #10B981 100%)',
+      badgeBg: 'rgba(6, 95, 70, 0.09)',
+      badgeText: '#065F46',
+      badgeBorder: 'rgba(6, 95, 70, 0.28)',
+      iconBgGradient: 'linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)',
+      iconColor: '#065F46',
+      iconBorder: 'rgba(6, 95, 70, 0.25)',
+      iconShadow: '0 4px 14px rgba(6, 95, 70, 0.16)',
+      metaBg: 'rgba(255, 255, 255, 0.78)',
+      metaBorder: 'rgba(6, 95, 70, 0.16)',
+      btnGradient: 'linear-gradient(135deg, #065F46 0%, #047857 100%)',
+      btnShadow: '0 6px 18px -2px rgba(6, 95, 70, 0.45)',
+      btnShadowHover: '0 10px 26px -2px rgba(6, 95, 70, 0.55)',
+      accentColor: '#065F46',
+      icon: ShieldCheck,
+    },
+    'State PSC': {
+      cardBg: 'linear-gradient(155deg, #ffffff 0%, #faf5ff 45%, #f3e8ff 100%)',
+      cardBorder: 'rgba(147, 51, 234, 0.32)',
+      glowGradient: 'radial-gradient(circle at 95% 5%, rgba(126, 34, 206, 0.14) 0%, transparent 60%)',
+      ribbonGradient: 'linear-gradient(90deg, #6B21A8 0%, #7E22CE 50%, #A855F7 100%)',
+      badgeBg: 'rgba(126, 34, 206, 0.09)',
+      badgeText: '#6B21A8',
+      badgeBorder: 'rgba(126, 34, 206, 0.28)',
+      iconBgGradient: 'linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%)',
+      iconColor: '#7E22CE',
+      iconBorder: 'rgba(126, 34, 206, 0.25)',
+      iconShadow: '0 4px 14px rgba(126, 34, 206, 0.16)',
+      metaBg: 'rgba(255, 255, 255, 0.78)',
+      metaBorder: 'rgba(126, 34, 206, 0.16)',
+      btnGradient: 'linear-gradient(135deg, #7E22CE 0%, #6B21A8 100%)',
+      btnShadow: '0 6px 18px -2px rgba(126, 34, 206, 0.45)',
+      btnShadowHover: '0 10px 26px -2px rgba(126, 34, 206, 0.55)',
+      accentColor: '#7E22CE',
+      icon: Layers,
+    },
   };
 
   const theme = catThemes[exam.category] || catThemes['SSC'];
@@ -177,6 +220,7 @@ function ExamCard({ exam, index, total, onStart }: ExamCardProps) {
 
   const handleStart = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    audioCueService.start();
     if (isPlayingAudio) {
       speechService.stop();
       setIsPlayingAudio(false);
@@ -186,6 +230,7 @@ function ExamCard({ exam, index, total, onStart }: ExamCardProps) {
 
   const handleToggleAudio = (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    audioCueService.toggle();
     if (isPlayingAudio) {
       speechService.stop();
       setIsPlayingAudio(false);
@@ -579,8 +624,11 @@ function ExamCard({ exam, index, total, onStart }: ExamCardProps) {
 
 export default function ExamSelection() {
   const navigate = useNavigate();
-  const [cat, setCat] = useState('All');
-  const [diff, setDiff] = useState('All');
+  const [searchParams] = useSearchParams();
+  const initialCategory = searchParams.get('category') || 'All';
+  const initialDifficulty = searchParams.get('difficulty') || 'All';
+  const [cat, setCat] = useState(initialCategory);
+  const [diff, setDiff] = useState(initialDifficulty);
   const [search, setSearch] = useState('');
   const [examsList, setExamsList] = useState<Exam[]>(EXAMS);
   const { active: voiceActive, toggleVoice, status: voiceStatus } = useVoiceAssistant();
@@ -630,6 +678,7 @@ export default function ExamSelection() {
   }, [examsList, cat, diff, search]);
 
   const handleResetFilters = () => {
+    audioCueService.filter();
     setCat('All');
     setDiff('All');
     setSearch('');
@@ -639,6 +688,7 @@ export default function ExamSelection() {
   };
 
   const handleCategorySelect = (selectedCategory: string) => {
+    audioCueService.filter();
     setCat(selectedCategory);
     const count = examsList.filter(e => {
       const catOk = selectedCategory === 'All' || e.category === selectedCategory;
@@ -656,6 +706,7 @@ export default function ExamSelection() {
   };
 
   const handleDifficultySelect = (selectedDifficulty: string) => {
+    audioCueService.filter();
     setDiff(selectedDifficulty);
     const count = examsList.filter(e => {
       const catOk = cat === 'All' || e.category === cat;
@@ -671,6 +722,33 @@ export default function ExamSelection() {
     speechService.speak(text, { priority: true });
     screenReaderAnnouncer.announcePolite(text);
   };
+
+  useEffect(() => {
+    const qCat = searchParams.get('category');
+    const qDiff = searchParams.get('difficulty');
+    if (qCat && qCat !== cat) handleCategorySelect(qCat);
+    if (qDiff && qDiff !== diff) handleDifficultySelect(qDiff);
+  }, [searchParams]);
+
+  useEffect(() => {
+    const unregister = globalVoiceService.register((text: string, parsedCommand?: any) => {
+      const cmd = parsedCommand || classifyVoiceIntent(text);
+      if (cmd?.type === 'FILTER_CATEGORY' && cmd.targetCategory) {
+        handleCategorySelect(cmd.targetCategory);
+        return true;
+      }
+      if (cmd?.type === 'FILTER_DIFFICULTY' && cmd.targetDifficulty) {
+        handleDifficultySelect(cmd.targetDifficulty);
+        return true;
+      }
+      if (cmd?.type === 'RESET_FILTERS') {
+        handleResetFilters();
+        return true;
+      }
+      return false;
+    });
+    return unregister;
+  }, [examsList, diff, cat]);
 
   const speakFilteredExams = () => {
     if (filtered.length === 0) {
@@ -694,6 +772,7 @@ export default function ExamSelection() {
     // Check if candidate has completed accessibility calibration
     const hasCalibrated = localStorage.getItem('sight_exam_calibrated') === 'true';
     if (!hasCalibrated) {
+      audioCueService.navigation();
       setSelectedExamForCalibration(exam);
       setShowCalibrationWizard(true);
       return;
@@ -701,6 +780,7 @@ export default function ExamSelection() {
 
     if (isStartingRef.current) return;
     isStartingRef.current = true;
+    audioCueService.start();
     speechService.stop();
     speechService.speak(
       `Opening ${exam.title}. ${exam.totalQuestions} questions. ${exam.durationMinutes} minutes. Starting examination now.`,
@@ -905,6 +985,39 @@ export default function ExamSelection() {
       },
     },
     {
+      triggers: [
+        'start test 5',
+        'open test 5',
+        'test 5',
+        'fifth test',
+        'fifth exam',
+        'start fifth exam',
+        'panchva test',
+        'open fifth exam',
+      ],
+      answer: () => (filtered[4] ? `Starting ${filtered[4].title}.` : 'No mock test available at position 5.'),
+      action: () => {
+        if (filtered[4]) startExamWithAnnouncement(filtered[4]);
+      },
+    },
+    {
+      triggers: [
+        'start test 6',
+        'open test 6',
+        'test 6',
+        'sixth test',
+        'sixth exam',
+        'start sixth exam',
+        'chatha test',
+        'chhatha test',
+        'open sixth exam',
+      ],
+      answer: () => (filtered[5] ? `Starting ${filtered[5].title}.` : 'No mock test available at position 6.'),
+      action: () => {
+        if (filtered[5]) startExamWithAnnouncement(filtered[5]);
+      },
+    },
+    {
       triggers: ['start the mock test', 'start mock test', 'start exam', 'shuru karo', 'start test', 'begin exam'],
       answer: () => (filtered[0] ? `Starting ${filtered[0].title}.` : 'No mock test available.'),
       action: () => {
@@ -944,6 +1057,22 @@ export default function ExamSelection() {
       },
     },
     {
+      triggers: ['start defence', 'open defence', 'start defence exam', 'start nda exam', 'start cds exam', 'defence shuru karo'],
+      answer: () => 'Starting Defence NDA and CDS Examination.',
+      action: () => {
+        const exam = examsList.find(x => x.category === 'Defence') || examsList[4];
+        startExamWithAnnouncement(exam);
+      },
+    },
+    {
+      triggers: ['start state psc', 'open state psc', 'start psc exam', 'start state psc exam', 'state psc shuru karo'],
+      answer: () => 'Starting State PSC Examination.',
+      action: () => {
+        const exam = examsList.find(x => x.category === 'State PSC') || examsList[5];
+        startExamWithAnnouncement(exam);
+      },
+    },
+    {
       triggers: ['show ssc', 'filter ssc', 'ssc category', 'ssc exams', 'ssc details'],
       answer: () => 'Filtering by SSC category.',
       action: () => handleCategorySelect('SSC'),
@@ -962,6 +1091,16 @@ export default function ExamSelection() {
       triggers: ['show railway', 'filter railway', 'railway category', 'railway exams', 'railway details'],
       answer: () => 'Filtering by Railway category.',
       action: () => handleCategorySelect('Railway'),
+    },
+    {
+      triggers: ['show defence', 'filter defence', 'defence category', 'defence exams', 'defence details'],
+      answer: () => 'Filtering by Defence category.',
+      action: () => handleCategorySelect('Defence'),
+    },
+    {
+      triggers: ['show state psc', 'filter state psc', 'state psc category', 'state psc exams', 'psc exams', 'state psc details'],
+      answer: () => 'Filtering by State PSC category.',
+      action: () => handleCategorySelect('State PSC'),
     },
     {
       triggers: ['show all exams', 'all exams', 'all categories', 'reset filter', 'reset filters', 'clear filters'],
@@ -998,7 +1137,7 @@ export default function ExamSelection() {
     },
     {
       triggers: ['help', 'shortcuts', 'keyboard help', 'madad'],
-      answer: () => 'Press number keys 1 to 4 to launch exams directly. Press R to read exams. Press C to calibrate. Press slash to search.',
+      answer: () => 'Press number keys 1 to 6 to launch exams directly. Press R to read exams. Press C to calibrate. Press slash to search.',
     },
   ]);
 
@@ -1477,7 +1616,7 @@ export default function ExamSelection() {
         onComplete={() => {
           setShowCalibrationWizard(false);
           const targetExam = selectedExamForCalibration || filtered[0] || examsList[0] || EXAMS[0];
-          navigate(`/exam/${targetExam.id}`);
+          navigate(`/exam/${targetExam.id}?autostart=true`);
         }}
         examTitle={selectedExamForCalibration?.title || 'Mock Examination'}
       />

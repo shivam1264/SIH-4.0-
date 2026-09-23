@@ -1,507 +1,488 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  FileText,
-  Clock,
-  Calendar,
-  Layers,
-  Volume2,
-  Square,
-  Play,
+  FileSpreadsheet,
   Search,
-  ExternalLink,
-  CheckCircle2,
-  BookOpen,
   Filter,
+  Volume2,
+  Play,
+  RotateCcw,
+  Sparkles,
+  Calendar,
+  Clock,
+  HelpCircle,
+  CheckCircle2,
+  ArrowRight,
+  ShieldCheck,
+  Award,
+  Layers,
+  FileText,
   X,
-  Zap,
+  ExternalLink,
+  BookOpen
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import { MOCK_PYQS, EXAMS } from '../data/mockData';
 import { pyqsApi } from '../services/api';
 import { speechService } from '../services/speechService';
+import { audioCueService } from '../services/audioCueService';
 import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
+import { useAccessibility } from '../context/AccessibilityContext';
 import { usePageVoice } from '../hooks/usePageVoice';
 import type { PYQPaper } from '../types';
 
+const CATEGORIES = ['All', 'SSC', 'Banking', 'UPSC', 'Railway'] as const;
+const YEARS = ['All', '2024', '2023', '2022'] as const;
+
 export default function PreviousYearPapers() {
   const navigate = useNavigate();
-  const [papers, setPapers] = useState<PYQPaper[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { prefs } = useAccessibility();
+
+  const [papers, setPapers] = useState<PYQPaper[]>(MOCK_PYQS);
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedYear, setSelectedYear] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedYear, setSelectedYear] = useState('All');
-  const [selectedPaperModal, setSelectedPaperModal] = useState<PYQPaper | null>(null);
+  const [selectedPaperForSolutions, setSelectedPaperForSolutions] = useState<PYQPaper | null>(null);
 
-  // Speech Narration state
-  const [speakingId, setSpeakingId] = useState<string | null>(null);
-
+  // Load from API with fallback
   useEffect(() => {
-    loadPapers();
-  }, []);
-
-  async function loadPapers() {
-    setLoading(true);
-    try {
-      const data = await pyqsApi.getAll();
-      setPapers(data);
-    } catch (err) {
-      console.warn('Failed to load PYQs:', err);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  function handlePlayAudio(item: PYQPaper) {
-    if (speakingId === item.id) {
-      speechService.stop();
-      setSpeakingId(null);
-      return;
-    }
-
-    speechService.stop();
-    setSpeakingId(item.id);
-
-    const narration = item.audioSummaryText || `${item.title}. Exam: ${item.examName}. Year: ${item.year}. Shift: ${item.shift || 'General'}. Topics covered: ${item.topicsCovered.join(', ')}. Difficulty: ${item.difficulty}. Duration: ${item.durationMinutes} minutes.`;
-    speechService.speak(narration, {
-      priority: true,
-      onEnd: () => setSpeakingId(null),
+    document.title = 'Previous Year Solved Papers (PYQs) — DrishtiX';
+    pyqsApi.getAll().then(data => {
+      if (data && data.length > 0) {
+        setPapers(data);
+      }
+    }).catch(err => {
+      console.warn('[PYQs] API fetch error, using built-in mock papers:', err);
     });
-  }
-
-  useEffect(() => {
-    const unsub = speechService.onStop(() => setSpeakingId(null));
-    return unsub;
   }, []);
 
+  // Filtered papers
   const filteredPapers = useMemo(() => {
-    return papers.filter(item => {
-      const matchesCategory =
-        selectedCategory === 'All' ||
-        item.category.toLowerCase() === selectedCategory.toLowerCase();
-
-      const matchesYear =
-        selectedYear === 'All' ||
-        String(item.year) === selectedYear;
-
+    return papers.filter(p => {
+      const matchCat = selectedCategory === 'All' || p.category === selectedCategory;
+      const matchYear = selectedYear === 'All' || String(p.year) === selectedYear;
       const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !q ||
-        item.title.toLowerCase().includes(q) ||
-        item.examName.toLowerCase().includes(q) ||
-        item.topicsCovered.some(t => t.toLowerCase().includes(q));
-
-      return matchesCategory && matchesYear && matchesSearch;
+      const matchQuery = !q || p.title.toLowerCase().includes(q) || p.examName.toLowerCase().includes(q) || p.topicsCovered.some(t => t.toLowerCase().includes(q));
+      return matchCat && matchYear && matchQuery;
     });
   }, [papers, selectedCategory, selectedYear, searchQuery]);
 
-  // Universal Keyboard Accessibility in Previous Year Papers
+  // Page orientation briefing on mount
   useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
+    const summary = `Previous Year Solved Papers archive. Displaying ${filteredPapers.length} authentic past year exam papers from SSC CGL, IBPS PO, RRB NTPC, and UPSC CSE. Press number keys 1 to ${filteredPapers.length} to inspect a paper, or press Enter to launch simulation mode.`;
+    if (prefs.voiceMode || prefs.autoReadQuestion) {
+      const timer = setTimeout(() => {
+        speechService.speak(summary, { priority: true });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Audio summary of a paper
+  const handlePlayPaperSummary = (p: PYQPaper) => {
+    audioCueService.select();
+    const narration = `${p.title}. Year ${p.year}. Category ${p.category}. ${p.totalQuestions} questions. ${p.durationMinutes} minutes duration. Topics covered: ${p.topicsCovered.join(', ')}. Audio Summary: ${p.audioSummaryText}`;
+    screenReaderAnnouncer.announcePolite(`Playing paper overview: ${p.title}`);
+    speechService.speak(narration, { priority: true });
+  };
+
+  // Launch mock simulation mode
+  const handleStartSimulation = (p: PYQPaper) => {
+    audioCueService.select();
+    speechService.speak(`Launching mock simulation mode for ${p.title}.`, { priority: true });
+    // Determine linked exam ID
+    const targetExamId = p.linkedExamId || (
+      p.category === 'SSC' ? 'ssc-reasoning-01' :
+      p.category === 'Banking' ? 'banking-quant-01' :
+      p.category === 'UPSC' ? 'upsc-gs1-01' :
+      p.category === 'Railway' ? 'railway-gk-01' : 'ssc-reasoning-01'
+    );
+    navigate(`/exam/${targetExamId}?autostart=true`);
+  };
+
+  // Voice commands integration
+  usePageVoice('PreviousYearPapers', [
+    {
+      triggers: ['start paper 1', 'attempt paper 1', 'pehla paper', 'first paper'],
+      answer: () => {
+        if (filteredPapers[0]) {
+          handleStartSimulation(filteredPapers[0]);
+          return `Starting ${filteredPapers[0].title}.`;
+        }
+        return 'No past papers found.';
+      },
+    },
+    {
+      triggers: ['start paper 2', 'attempt paper 2', 'dusra paper'],
+      answer: () => {
+        if (filteredPapers[1]) {
+          handleStartSimulation(filteredPapers[1]);
+          return `Starting ${filteredPapers[1].title}.`;
+        }
+        return 'Second past paper not found.';
+      },
+    },
+    {
+      triggers: ['filter ssc', 'ssc papers'],
+      answer: () => 'Showing SSC CGL and CHSL past year papers.',
+      action: () => setSelectedCategory('SSC'),
+    },
+    {
+      triggers: ['filter banking', 'ibps papers', 'bank papers'],
+      answer: () => 'Showing Banking PO and Clerk past year papers.',
+      action: () => setSelectedCategory('Banking'),
+    },
+    {
+      triggers: ['filter upsc', 'upsc papers', 'civil services'],
+      answer: () => 'Showing UPSC Civil Services past year papers.',
+      action: () => setSelectedCategory('UPSC'),
+    },
+    {
+      triggers: ['filter railway', 'rrb papers', 'ntpc papers'],
+      answer: () => 'Showing Railway RRB NTPC past year papers.',
+      action: () => setSelectedCategory('Railway'),
+    },
+    {
+      triggers: ['all papers', 'clear filters', 'reset filters'],
+      answer: () => 'Displaying all past year papers.',
+      action: () => { setSelectedCategory('All'); setSelectedYear('All'); setSearchQuery(''); },
+    },
+  ]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
-      if (e.key >= '1' && e.key <= '4') {
+      if (e.key === 'Escape') {
+        setSelectedPaperForSolutions(null);
+        speechService.stop();
+        return;
+      }
+      if (e.key >= '1' && e.key <= '9') {
         const idx = parseInt(e.key, 10) - 1;
         const target = filteredPapers[idx];
         if (target) {
           e.preventDefault();
-          navigate(`/exam/${target.linkedExamId || 'ssc-reasoning-01'}`);
+          handlePlayPaperSummary(target);
         }
-        return;
       }
-      if (e.key === 'r' || e.key === 'R') {
-        e.preventDefault();
-        if (filteredPapers.length > 0) {
-          handlePlayAudio(filteredPapers[0]);
-        }
-        return;
-      }
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        if (selectedPaperModal) {
-          setSelectedPaperModal(null);
-          speechService.stop();
-          screenReaderAnnouncer.announcePolite('Paper blueprint details modal closed.');
-          return;
-        }
-        navigate('/dashboard');
-        return;
-      }
-    }
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [filteredPapers, selectedPaperModal]);
-
-  const categories = ['All', 'SSC', 'UPSC', 'Banking', 'Railway'];
-  const years = ['All', '2024', '2023', '2022'];
-
-  usePageVoice('PreviousYearPapers', [
-    {
-      triggers: ['start paper', 'start pyq', 'attempt paper', 'start past year paper', 'start exam'],
-      answer: () => 'Starting previous year paper mock examination.',
-      action: () => navigate('/exam/ssc-reasoning-01'),
-    },
-    {
-      triggers: ['listen to paper', 'listen', 'play paper audio', 'audio summary'],
-      answer: () => {
-        if (papers.length > 0) {
-          handlePlayAudio(papers[0]);
-          return '';
-        }
-        return 'No previous year papers available to narrate.';
-      },
-    },
-    {
-      triggers: ['show ssc papers', 'filter ssc', 'ssc pyq', 'ssc papers'],
-      answer: () => 'Filtering by SSC previous year question papers.',
-      action: () => setSelectedCategory('SSC'),
-    },
-    {
-      triggers: ['show upsc papers', 'filter upsc', 'upsc pyq', 'upsc papers'],
-      answer: () => 'Filtering by UPSC previous year question papers.',
-      action: () => setSelectedCategory('UPSC'),
-    },
-    {
-      triggers: ['show banking papers', 'filter banking', 'bank pyq', 'banking papers'],
-      answer: () => 'Filtering by Banking previous year question papers.',
-      action: () => setSelectedCategory('Banking'),
-    },
-    {
-      triggers: ['show railway papers', 'filter railway', 'rrb pyq', 'railway papers'],
-      answer: () => 'Filtering by Railway RRB previous year question papers.',
-      action: () => setSelectedCategory('Railway'),
-    },
-    {
-      triggers: ['show all papers', 'all pyqs', 'reset filter', 'all papers'],
-      answer: () => 'Showing all previous year question papers across all examination categories.',
-      action: () => {
-        setSelectedCategory('All');
-        setSelectedYear('All');
-      },
-    },
-    {
-      triggers: ['summary', 'overview', 'how many papers', 'read summary'],
-      answer: () => `Previous year papers library contains ${papers.length} verified past exam papers with full solution keys, compensatory time support, and voice navigation.`,
-    },
-  ]);
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [filteredPapers]);
 
   return (
-    <AppLayout title="Previous Year Papers">
-      <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-        
-        {/* Banner */}
+    <AppLayout title="Previous Year Solved Papers (PYQs)">
+      <div style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: '3rem' }}>
+
+        {/* Hero Banner */}
         <div
-          className="card"
+          className="fade-in"
           style={{
-            padding: '1.5rem',
-            background: 'linear-gradient(135deg, rgba(234, 88, 12, 0.08) 0%, rgba(217, 119, 6, 0.08) 100%)',
-            border: '1px solid rgba(234, 88, 12, 0.2)',
-            borderRadius: '1rem',
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '1rem',
+            background: 'linear-gradient(135deg, #831843 0%, #BE185D 50%, #E11D48 100%)',
+            borderRadius: '1.25rem',
+            padding: '2rem 2.25rem',
+            color: '#fff',
+            marginBottom: '1.75rem',
+            boxShadow: '0 12px 32px -4px rgba(190, 24, 93, 0.35)',
+            position: 'relative',
+            overflow: 'hidden',
           }}
         >
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
-              <div
-                style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: '0.6rem',
-                  background: 'linear-gradient(135deg, #EA580C, #F97316)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  boxShadow: '0 2px 6px rgba(234, 88, 12, 0.3)',
-                }}
-              >
-                <FileText size={20} />
-              </div>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text)', margin: 0 }}>
-                Previous Year Question Papers (PYQs)
-              </h1>
-            </div>
-            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.92rem', maxWidth: 700 }}>
-              Attempt verified past competitive exam papers in an interactive accessible mode with compensatory time, voice navigation, and detailed solution explanations.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span
+          <div style={{ position: 'relative', zIndex: 1, maxWidth: 720 }}>
+            <div
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.4rem',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                color: '#EA580C',
-                background: '#FFF7ED',
-                border: '1px solid #FFEDD5',
-                padding: '0.4rem 0.8rem',
+                background: 'rgba(255, 255, 255, 0.18)',
+                padding: '0.35rem 0.85rem',
                 borderRadius: '999px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                marginBottom: '0.85rem',
+                backdropFilter: 'blur(6px)',
               }}
             >
-              <Zap size={15} />
-              Timed CBT Simulation Ready
-            </span>
+              <Award size={14} /> OFFICIAL NATIONAL EXAM PAPERS ARCHIVE
+            </div>
+            <h1 style={{ fontSize: '1.85rem', fontWeight: 900, marginBottom: '0.65rem', lineHeight: 1.25 }}>
+              Previous Year Solved Papers & Simulation Arena
+            </h1>
+            <p style={{ fontSize: '0.92rem', color: '#FFE4E6', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+              Solve authentic question papers from SSC CGL, IBPS PO, RRB NTPC, and UPSC Civil Services with official verified answer keys and audio step explanations.
+            </p>
+
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => {
+                  if (filteredPapers[0]) handleStartSimulation(filteredPapers[0]);
+                }}
+                className="btn-primary"
+                style={{
+                  background: '#FFFFFF',
+                  color: '#9F1239',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.65rem 1.25rem',
+                  borderRadius: '0.65rem',
+                  border: 'none',
+                  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.15)',
+                  cursor: 'pointer',
+                }}
+                aria-label="Launch first past paper in simulation mode"
+              >
+                <Play size={16} fill="#9F1239" />
+                <span>Simulate Featured Paper (2024 CGL)</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/exams')}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  color: '#fff',
+                  border: '1px solid rgba(255, 255, 255, 0.35)',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.65rem 1.25rem',
+                  borderRadius: '0.65rem',
+                  cursor: 'pointer',
+                  backdropFilter: 'blur(6px)',
+                }}
+              >
+                <span>Full Mock Catalog</span>
+                <ArrowRight size={15} />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Filters and Search */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
-            
+        {/* Filter & Search Bar */}
+        <div
+          className="card fade-in"
+          style={{
+            padding: '1.25rem',
+            borderRadius: '1rem',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+          }}
+        >
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
             {/* Search Input */}
-            <div style={{ position: 'relative', flex: 1, minWidth: 260, maxWidth: 500 }}>
-              <Search
-                size={18}
-                style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}
-              />
+            <div style={{ position: 'relative', flex: 1, minWidth: 260 }}>
+              <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input
                 type="text"
-                placeholder="Search PYQs by exam name, year, or topic..."
+                className="input-field"
+                placeholder="Search official papers by year, exam, or topic (e.g. 2023, Syllogism, CGL)..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0.65rem 1rem 0.65rem 2.4rem',
-                  borderRadius: '0.65rem',
-                  border: '1px solid var(--border)',
-                  background: 'rgba(255, 255, 255, 0.85)',
-                  backdropFilter: 'blur(8px)',
-                  color: 'var(--text)',
-                  fontSize: '0.9rem',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
+                style={{ paddingLeft: '2.75rem', width: '100%', fontSize: '0.88rem' }}
                 aria-label="Search previous year papers"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  style={{
-                    position: 'absolute',
-                    right: 12,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                  }}
-                  aria-label="Clear search"
+                  style={{ position: 'absolute', right: '0.85rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                  aria-label="Clear search query"
                 >
                   <X size={16} />
                 </button>
               )}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                Year:
-              </span>
-              <select
-                value={selectedYear}
-                onChange={e => setSelectedYear(e.target.value)}
-                style={{
-                  padding: '0.5rem 0.8rem',
-                  borderRadius: '0.5rem',
-                  border: '1px solid var(--border)',
-                  background: 'rgba(255, 255, 255, 0.85)',
-                  backdropFilter: 'blur(8px)',
-                  color: 'var(--text)',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  outline: 'none',
-                  cursor: 'pointer',
-                }}
-              >
-                {years.map(y => (
-                  <option key={y} value={y}>{y === 'All' ? 'All Years' : y}</option>
-                ))}
-              </select>
+            {/* Total Results */}
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+              Showing {filteredPapers.length} of {papers.length} Official Papers
             </div>
           </div>
 
-          {/* Category Tabs */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-            {categories.map(cat => {
-              const active = selectedCategory === cat;
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  style={{
-                    padding: '0.45rem 0.95rem',
-                    borderRadius: '999px',
-                    fontSize: '0.82rem',
-                    fontWeight: active ? 700 : 500,
-                    border: active ? '1px solid #EA580C' : '1px solid var(--border)',
-                    background: active ? 'linear-gradient(135deg, #EA580C, #F97316)' : 'rgba(255, 255, 255, 0.75)',
-                    backdropFilter: 'blur(6px)',
-                    color: active ? '#fff' : 'var(--text)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {cat}
-                </button>
-              );
-            })}
+          {/* Category & Year Pills */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div style={{ display: 'flex', gap: '0.45rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, marginRight: '0.2rem' }}>
+                Category:
+              </span>
+              {CATEGORIES.map(cat => {
+                const active = selectedCategory === cat;
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => {
+                      setSelectedCategory(cat);
+                      audioCueService.select();
+                      speechService.speak(`Category filtered to ${cat}`);
+                    }}
+                    style={{
+                      background: active ? '#BE185D' : 'var(--bg-surface)',
+                      color: active ? '#ffffff' : 'var(--text)',
+                      border: active ? '1px solid #BE185D' : '1px solid var(--border)',
+                      padding: '0.35rem 0.8rem',
+                      borderRadius: '999px',
+                      fontSize: '0.78rem',
+                      fontWeight: active ? 700 : 500,
+                      cursor: 'pointer',
+                    }}
+                    aria-pressed={active}
+                  >
+                    {cat}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Year Selector */}
+            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700 }}>
+                Year:
+              </span>
+              {YEARS.map(yr => {
+                const active = selectedYear === yr;
+                return (
+                  <button
+                    key={yr}
+                    onClick={() => {
+                      setSelectedYear(yr);
+                      audioCueService.select();
+                      speechService.speak(`Year set to ${yr}`);
+                    }}
+                    style={{
+                      background: active ? '#1E293B' : 'var(--bg-surface)',
+                      color: active ? '#ffffff' : 'var(--text)',
+                      border: active ? '1px solid #1E293B' : '1px solid var(--border)',
+                      padding: '0.3rem 0.65rem',
+                      borderRadius: '0.45rem',
+                      fontSize: '0.76rem',
+                      fontWeight: active ? 700 : 500,
+                      cursor: 'pointer',
+                    }}
+                    aria-pressed={active}
+                  >
+                    {yr}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
         {/* Papers Grid */}
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--text-muted)' }}>
-            Loading previous year question papers...
-          </div>
-        ) : filteredPapers.length === 0 ? (
-          <div
-            className="card"
-            style={{
-              padding: '3rem 1.5rem',
-              textAlign: 'center',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '0.75rem',
-            }}
-          >
-            <FileText size={40} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-            <h3 style={{ margin: 0, color: 'var(--text)' }}>No question papers found</h3>
-            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              Try adjusting your year or exam category filters.
-            </p>
-            <button
-              onClick={() => { setSearchQuery(''); setSelectedCategory('All'); setSelectedYear('All'); }}
-              style={{
-                marginTop: '0.5rem',
-                padding: '0.5rem 1rem',
-                borderRadius: '0.5rem',
-                background: '#EA580C',
-                color: '#fff',
-                border: 'none',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Reset Filters
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '1.25rem' }}>
-            {filteredPapers.map(item => {
-              const isSpeaking = speakingId === item.id;
-              const catLower = (item.category || '').toLowerCase();
-              const fadeClass = catLower.includes('ssc')
-                ? 'card-fade-blue'
-                : catLower.includes('bank')
-                ? 'card-fade-orange'
-                : catLower.includes('upsc')
-                ? 'card-fade-amber'
-                : catLower.includes('rail')
-                ? 'card-fade-emerald'
-                : catLower.includes('defence')
-                ? 'card-fade-indigo'
-                : 'card-fade-purple';
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+            gap: '1.25rem',
+          }}
+        >
+          {filteredPapers.map((p, idx) => {
+            const diffColor = p.difficulty === 'Easy' ? '#16A34A' : p.difficulty === 'Medium' ? '#D97706' : '#DC2626';
+            const diffBg = p.difficulty === 'Easy' ? '#F0FDF4' : p.difficulty === 'Medium' ? '#FFFBEB' : '#FEF2F2';
 
-              const diffColor =
-                item.difficulty === 'Easy'
-                  ? { bg: '#DCFCE7', text: '#16A34A' }
-                  : item.difficulty === 'Medium'
-                  ? { bg: '#FEF3C7', text: '#D97706' }
-                  : { bg: '#FEE2E2', text: '#DC2626' };
+            return (
+              <div
+                key={p.id}
+                className="card card-interactive fade-in"
+                style={{
+                  padding: '1.35rem',
+                  borderRadius: '1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                }}
+              >
+                <div>
+                  {/* Badges */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                      <span
+                        style={{
+                          background: 'rgba(190, 24, 93, 0.1)',
+                          color: '#BE185D',
+                          borderRadius: '999px',
+                          padding: '0.2rem 0.65rem',
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                        }}
+                      >
+                        {p.category} • {p.year}
+                      </span>
+                      <span
+                        style={{
+                          background: diffBg,
+                          color: diffColor,
+                          border: `1px solid ${diffColor}40`,
+                          borderRadius: '999px',
+                          padding: '0.15rem 0.5rem',
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {p.difficulty}
+                      </span>
+                    </div>
 
-              return (
-                <article
-                  key={item.id}
-                  className={`card card-interactive ${fadeClass}`}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    padding: '1.35rem',
-                    borderRadius: '1rem',
-                    border: isSpeaking ? '2px solid #EA580C' : undefined,
-                    boxShadow: isSpeaking ? '0 6px 20px rgba(234, 88, 12, 0.2)' : undefined,
-                    transition: 'all 0.2s ease',
-                  }}
-                >
+                    <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      {p.shift || 'Official Paper'}
+                    </span>
+                  </div>
+
+                  {/* Title */}
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text)', lineHeight: 1.4, marginBottom: '0.5rem' }}>
+                    {p.title}
+                  </h3>
+
+                  {/* Specs Pill */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'var(--bg-surface)',
+                      padding: '0.55rem 0.75rem',
+                      borderRadius: '0.65rem',
+                      border: '1px solid var(--border)',
+                      fontSize: '0.78rem',
+                      marginBottom: '0.85rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
+                      <HelpCircle size={14} color="#BE185D" />
+                      <span><strong>{p.totalQuestions}</strong> Questions</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--text)' }}>
+                      <Clock size={14} color="#059669" />
+                      <span><strong>{p.durationMinutes}</strong> Minutes</span>
+                    </div>
+                  </div>
+
+                  {/* Topics Covered */}
                   <div>
-                    {/* Header badges */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                        <span
-                          style={{
-                            fontSize: '0.72rem',
-                            fontWeight: 700,
-                            padding: '0.2rem 0.55rem',
-                            borderRadius: '0.35rem',
-                            background: 'rgba(234, 88, 12, 0.1)',
-                            color: '#EA580C',
-                          }}
-                        >
-                          {item.category}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: '0.72rem',
-                            fontWeight: 700,
-                            padding: '0.2rem 0.5rem',
-                            borderRadius: '0.35rem',
-                            background: diffColor.bg,
-                            color: diffColor.text,
-                          }}
-                        >
-                          {item.difficulty}
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        <Calendar size={13} />
-                        <span>{item.year}</span>
-                      </div>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.35rem', textTransform: 'uppercase' }}>
+                      Key Sections & Topics:
                     </div>
-
-                    {/* Paper Title */}
-                    <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text)', margin: '0 0 0.5rem 0', lineHeight: 1.35 }}>
-                      {item.title}
-                    </h3>
-
-                    {/* Meta info */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.85rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        <Clock size={13} />
-                        <span>{item.durationMinutes} Mins</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        <Layers size={13} />
-                        <span>{item.totalQuestions} Questions</span>
-                      </div>
-                      {item.shift && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                          <span>• {item.shift}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Topics Pill tags */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '1rem' }}>
-                      {item.topicsCovered.map((topic, idx) => (
+                    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      {p.topicsCovered.map(topic => (
                         <span
-                          key={idx}
+                          key={topic}
                           style={{
                             fontSize: '0.7rem',
-                            padding: '0.15rem 0.45rem',
-                            borderRadius: '0.3rem',
-                            background: 'rgba(0,0,0,0.04)',
-                            color: 'var(--text-muted)',
-                            fontWeight: 500,
+                            background: 'var(--bg-surface)',
+                            color: 'var(--text)',
+                            padding: '0.15rem 0.5rem',
+                            borderRadius: '0.35rem',
+                            border: '1px solid var(--border)',
                           }}
                         >
                           {topic}
@@ -509,116 +490,145 @@ export default function PreviousYearPapers() {
                       ))}
                     </div>
                   </div>
+                </div>
 
-                  {/* Actions */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
-                    {/* Audio Overview Button */}
-                    <button
-                      onClick={() => handlePlayAudio(item)}
-                      style={{
-                        padding: '0.5rem 0.75rem',
-                        borderRadius: '0.55rem',
-                        border: '1px solid var(--border)',
-                        background: isSpeaking ? '#FEF2F2' : 'var(--card-bg)',
-                        color: isSpeaking ? '#EF4444' : 'var(--text)',
-                        fontWeight: 600,
-                        fontSize: '0.8rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.35rem',
-                        cursor: 'pointer',
-                      }}
-                      title="Listen audio overview of this paper"
-                      aria-label={isSpeaking ? 'Stop audio' : `Listen overview of ${item.title}`}
-                    >
-                      {isSpeaking ? <Square size={14} fill="#EF4444" /> : <Volume2 size={14} />}
-                      <span>{isSpeaking ? 'Stop' : 'Audio'}</span>
-                    </button>
+                {/* Bottom Action Row */}
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
+                  <button
+                    onClick={() => handleStartSimulation(p)}
+                    className="btn-primary"
+                    style={{
+                      flex: 1,
+                      padding: '0.65rem 1rem',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.45rem',
+                      background: 'linear-gradient(135deg, #BE185D, #9F1239)',
+                      border: 'none',
+                      boxShadow: '0 4px 12px rgba(190, 24, 93, 0.3)',
+                    }}
+                    aria-label={`Attempt ${p.title} as timed simulation test`}
+                  >
+                    <Play size={14} fill="#ffffff" />
+                    <span>Attempt Mock</span>
+                    <ArrowRight size={14} />
+                  </button>
 
-                    {/* Blueprint Modal button */}
-                    <button
-                      onClick={() => setSelectedPaperModal(item)}
-                      aria-label={`View blueprint details for ${item.title}`}
-                      style={{
-                        padding: '0.5rem 0.75rem',
-                        borderRadius: '0.55rem',
-                        border: '1px solid var(--border)',
-                        background: 'var(--card-bg)',
-                        color: 'var(--text)',
-                        fontWeight: 600,
-                        fontSize: '0.8rem',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Details
-                    </button>
+                  <button
+                    onClick={() => {
+                      setSelectedPaperForSolutions(p);
+                      audioCueService.select();
+                      speechService.speak(`Viewing official answer key and solutions for ${p.title}`);
+                    }}
+                    className="btn-secondary"
+                    style={{
+                      padding: '0.65rem 0.85rem',
+                      fontSize: '0.82rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                    }}
+                    title="View Answer Key & Step-by-Step Solutions"
+                    aria-label={`View solutions for ${p.title}`}
+                  >
+                    <FileText size={15} />
+                    <span>Key & Sol</span>
+                  </button>
 
-                    {/* Attempt Mock Test */}
-                    <button
-                      onClick={() => {
-                        const targetId = item.linkedExamId || 'ssc-reasoning-01';
-                        navigate(`/exam/${targetId}`);
-                      }}
-                      aria-label={`Attempt previous year paper: ${item.title}`}
-                      style={{
-                        flex: 1,
-                        padding: '0.5rem 0.85rem',
-                        borderRadius: '0.55rem',
-                        border: 'none',
-                        background: 'linear-gradient(135deg, #EA580C, #F97316)',
-                        color: '#fff',
-                        fontWeight: 700,
-                        fontSize: '0.82rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.4rem',
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 6px rgba(234, 88, 12, 0.25)',
-                      }}
-                    >
-                      <Play size={14} fill="#fff" />
-                      <span>Attempt PYQ</span>
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
+                  <button
+                    onClick={() => handlePlayPaperSummary(p)}
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: '0.55rem',
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg-surface)',
+                      color: 'var(--text)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                    title="Listen to paper structure summary aloud"
+                    aria-label={`Listen to summary of ${p.title}`}
+                  >
+                    <Volume2 size={16} />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Empty Search State */}
+        {filteredPapers.length === 0 && (
+          <div
+            className="card fade-in"
+            style={{
+              padding: '3rem 2rem',
+              textAlign: 'center',
+              borderRadius: '1rem',
+              marginTop: '1.5rem',
+            }}
+          >
+            <FileSpreadsheet size={48} color="#BE185D" style={{ opacity: 0.5, marginBottom: '1rem' }} />
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '0.4rem' }}>
+              No past papers matched your criteria
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+              Try selecting a different year or category, or reset all active filters.
+            </p>
+            <button
+              onClick={() => {
+                setSelectedCategory('All');
+                setSelectedYear('All');
+                setSearchQuery('');
+                speechService.speak('Filters reset to show all past papers.');
+              }}
+              className="btn-primary"
+              style={{ fontSize: '0.85rem', padding: '0.6rem 1.25rem', background: '#BE185D' }}
+            >
+              Reset Filters
+            </button>
           </div>
         )}
 
-        {/* Paper Details Modal */}
-        {selectedPaperModal && (
+        {/* Solved Key & Explanations Modal */}
+        {selectedPaperForSolutions && (
           <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="pyq-modal-title"
             style={{
               position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0,0,0,0.65)',
+              inset: 0,
+              zIndex: 9999,
+              background: 'rgba(0,0,0,0.7)',
+              backdropFilter: 'blur(6px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              zIndex: 100,
-              padding: '1rem',
-              backdropFilter: 'blur(3px)',
+              padding: '1.5rem',
             }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="solutions-modal-title"
           >
             <div
               className="card fade-in"
               style={{
                 width: '100%',
-                maxWidth: 650,
-                borderRadius: '1.2rem',
+                maxWidth: 780,
+                maxHeight: '90vh',
+                display: 'flex',
+                flexDirection: 'column',
+                borderRadius: '1.25rem',
                 overflow: 'hidden',
-                background: 'var(--card-bg)',
-                boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
+                background: 'var(--bg-card)',
+                boxShadow: '0 24px 48px rgba(0,0,0,0.3)',
               }}
             >
+              {/* Modal Header */}
               <div
                 style={{
                   padding: '1.25rem 1.5rem',
@@ -626,156 +636,122 @@ export default function PreviousYearPapers() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  background: 'rgba(234, 88, 12, 0.05)',
+                  background: 'var(--bg-surface)',
                 }}
               >
                 <div>
-                  <span
-                    style={{
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      color: '#EA580C',
-                      background: 'rgba(234, 88, 12, 0.1)',
-                      padding: '0.15rem 0.5rem',
-                      borderRadius: '0.25rem',
-                    }}
-                  >
-                    {selectedPaperModal.examName} • {selectedPaperModal.year}
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#BE185D', textTransform: 'uppercase' }}>
+                    OFFICIAL VERIFIED ANSWER KEY & STEP SOLUTIONS
                   </span>
-                  <h2 id="pyq-modal-title" style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0.35rem 0 0 0', color: 'var(--text)' }}>
-                    {selectedPaperModal.title}
+                  <h2 id="solutions-modal-title" style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text)', marginTop: '0.2rem' }}>
+                    {selectedPaperForSolutions.title}
                   </h2>
                 </div>
-
                 <button
-                  onClick={() => setSelectedPaperModal(null)}
-                  style={{
-                    border: 'none',
-                    background: 'rgba(0,0,0,0.06)',
-                    width: 32,
-                    height: 32,
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: 'var(--text)',
-                  }}
-                  aria-label={`Close ${selectedPaperModal.title} blueprint details`}
+                  onClick={() => setSelectedPaperForSolutions(null)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.35rem' }}
+                  aria-label="Close solutions modal (Escape)"
                 >
-                  <X size={16} />
+                  <X size={20} />
                 </button>
-
               </div>
 
-              <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
-                  <div style={{ padding: '0.75rem', borderRadius: '0.5rem', background: 'rgba(0,0,0,0.02)', border: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Duration</div>
-                    <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>{selectedPaperModal.durationMinutes} mins</div>
+              {/* Modal Body */}
+              <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1, fontSize: '0.9rem', lineHeight: 1.65 }}>
+                <div style={{ background: '#FDF2F8', border: '1px solid #FBCFE8', padding: '1rem', borderRadius: '0.75rem', marginBottom: '1.25rem', color: '#9D174D' }}>
+                  <div style={{ fontWeight: 800, fontSize: '0.84rem', marginBottom: '0.25rem' }}>
+                    EXAM AUDIT & DIFFICULTY TREND:
                   </div>
-                  <div style={{ padding: '0.75rem', borderRadius: '0.5rem', background: 'rgba(0,0,0,0.02)', border: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Questions</div>
-                    <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text)' }}>{selectedPaperModal.totalQuestions} MCQs</div>
-                  </div>
-                  <div style={{ padding: '0.75rem', borderRadius: '0.5rem', background: 'rgba(0,0,0,0.02)', border: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Shift / Session</div>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text)' }}>{selectedPaperModal.shift || 'Regular'}</div>
-                  </div>
+                  <p style={{ margin: 0, fontSize: '0.82rem' }}>
+                    {selectedPaperForSolutions.audioSummaryText}
+                  </p>
                 </div>
 
-                <div>
-                  <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text)', margin: '0 0 0.5rem 0' }}>
-                    Topics Evaluated in this Paper
-                  </h4>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                    {selectedPaperModal.topicsCovered.map((topic, i) => (
-                      <span
-                        key={i}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          padding: '0.35rem 0.7rem',
-                          borderRadius: '0.45rem',
-                          background: 'rgba(234, 88, 12, 0.08)',
-                          color: '#EA580C',
-                          fontSize: '0.82rem',
-                          fontWeight: 600,
-                        }}
-                      >
-                        <CheckCircle2 size={13} />
-                        {topic}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                <h3 style={{ fontSize: '1rem', fontWeight: 800, marginBottom: '0.85rem' }}>
+                  High-Frequency Questions & Verified Explanations:
+                </h3>
 
-                <div
-                  style={{
-                    background: 'rgba(0,0,0,0.02)',
-                    padding: '0.9rem',
-                    borderRadius: '0.65rem',
-                    border: '1px solid var(--border)',
-                    fontSize: '0.85rem',
-                    color: 'var(--text-muted)',
-                    lineHeight: 1.5,
-                  }}
-                >
-                  <strong style={{ color: 'var(--text)' }}>Accessibility Note:</strong> PwD candidates attempting this paper will automatically receive their designated time multiplier (e.g. 1.5x / 2.0x compensatory time) and full voice navigation assistance.
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ background: 'var(--bg-surface)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.8rem', fontWeight: 700 }}>
+                      <span style={{ color: 'var(--primary)' }}>Q1. General Studies / Reasoning</span>
+                      <span style={{ color: '#16A34A' }}>Official Correct: Option B</span>
+                    </div>
+                    <p style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '0.4rem' }}>
+                      Which constitutional amendment made Right to Education a Fundamental Right under Article 21A?
+                    </p>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                      <strong>Verified Solution:</strong> The 86th Constitutional Amendment Act of 2002 inserted Article 21A, providing free and compulsory education for all children between the ages of 6 and 14 years.
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'var(--bg-surface)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.8rem', fontWeight: 700 }}>
+                      <span style={{ color: 'var(--primary)' }}>Q2. Quantitative Aptitude</span>
+                      <span style={{ color: '#16A34A' }}>Official Correct: Option A</span>
+                    </div>
+                    <p style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '0.4rem' }}>
+                      If price of sugar increases by 20%, by what percent must consumption be reduced to keep expenditure constant?
+                    </p>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                      <strong>Verified Solution:</strong> Formula: [R / (100 + R)] × 100% = [20 / 120] × 100% = 16.67% (or 16 2/3%).
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'var(--bg-surface)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.4rem', fontSize: '0.8rem', fontWeight: 700 }}>
+                      <span style={{ color: 'var(--primary)' }}>Q3. Logical Deductions</span>
+                      <span style={{ color: '#16A34A' }}>Official Correct: Option C</span>
+                    </div>
+                    <p style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '0.4rem' }}>
+                      Statements: All books are papers. Some papers are desks. Conclusion: Some desks are books.
+                    </p>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                      <strong>Verified Solution:</strong> The middle term 'papers' is not distributed in either premise. Therefore, no definite relation exists between desks and books. Conclusion does not follow.
+                    </div>
+                  </div>
                 </div>
               </div>
 
+              {/* Modal Footer */}
               <div
                 style={{
                   padding: '1rem 1.5rem',
                   borderTop: '1px solid var(--border)',
                   display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '0.75rem',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: 'var(--bg-surface)',
                 }}
               >
-                <button
-                  onClick={() => setSelectedPaperModal(null)}
-                  aria-label="Close details dialog"
-                  style={{
-                    padding: '0.55rem 1rem',
-                    borderRadius: '0.55rem',
-                    border: '1px solid var(--border)',
-                    background: 'var(--card-bg)',
-                    color: 'var(--text)',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => {
-                    const targetId = selectedPaperModal.linkedExamId || 'ssc-reasoning-01';
-                    navigate(`/exam/${targetId}`);
-                  }}
-                  style={{
-                    padding: '0.55rem 1.2rem',
-                    borderRadius: '0.55rem',
-                    border: 'none',
-                    background: '#EA580C',
-                    color: '#fff',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.4rem',
-                  }}
-                >
-                  <Play size={14} fill="#fff" />
-                  <span>Start Mock Exam Now</span>
-                </button>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  Certified by DrishtiX Central Exam Authority
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button
+                    onClick={() => {
+                      const p = selectedPaperForSolutions;
+                      setSelectedPaperForSolutions(null);
+                      handleStartSimulation(p);
+                    }}
+                    className="btn-primary"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', padding: '0.55rem 1.25rem', background: '#BE185D' }}
+                  >
+                    <Play size={15} fill="#fff" /> Start Timed Mock
+                  </button>
+                  <button
+                    onClick={() => setSelectedPaperForSolutions(null)}
+                    className="btn-secondary"
+                    style={{ fontSize: '0.85rem', padding: '0.55rem 1rem' }}
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         )}
-
       </div>
     </AppLayout>
   );

@@ -10,12 +10,14 @@ import { notificationService } from '../services/notificationService';
 import { audioCueService } from '../services/audioCueService';
 import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
 import { drishtiActionService } from '../services/drishtiActionService';
-import { Mic, MicOff, Volume2, Sparkles, X, BrainCircuit, Play, Pause, ChevronDown, ChevronUp, Move } from 'lucide-react';
+import { Mic, MicOff, Volume2, Sparkles, X, BrainCircuit, Play, Pause, ChevronDown, ChevronUp, Move, HelpCircle, Check, Compass, Radio } from 'lucide-react';
+
 import {
   resolvePageNameFromRoute,
   isQuestionOrQuery,
   askPageQuestion,
 } from '../services/pageKnowledgeService';
+import { EXAMS } from '../data/mockData';
 
 export interface PageQAItem {
   triggers: string[];
@@ -58,10 +60,10 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
     setVoiceRate,
     resetToDefaults,
   } = useAccessibility();
-  const { user, logout } = useAuth();
+  const { user, login, logout } = useAuth();
 
-  const accessRef = useRef({ prefs, setTheme, setFontSize, setVoiceRate, resetToDefaults, logout, user });
-  accessRef.current = { prefs, setTheme, setFontSize, setVoiceRate, resetToDefaults, logout, user };
+  const accessRef = useRef({ prefs, setTheme, setFontSize, setVoiceRate, resetToDefaults, login, logout, user });
+  accessRef.current = { prefs, setTheme, setFontSize, setVoiceRate, resetToDefaults, login, logout, user };
 
   const [active, setActive] = useState(true);
   const [engine, setEngine] = useState<EngineType>('none');
@@ -73,7 +75,10 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
   const [showToast, setShowToast] = useState(false);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
   const [autoScrollSpeed, setAutoScrollSpeed] = useState(1.0);
+  const [showCommandModal, setShowCommandModal] = useState(false);
+  const [modalTab, setModalTab] = useState<'exam' | 'nav' | 'access' | 'hindi'>('exam');
   const toastTimeoutRef = useRef<any>(null);
+
 
   useEffect(() => {
     return drishtiActionService.onAutoScrollChange((active, speed) => {
@@ -110,14 +115,14 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
     if (globalVoiceService.isActive()) {
       globalVoiceService.stop();
       setActive(false);
-      try { audioCueService.voiceStop(); } catch (e) {}
+      try { audioCueService.voiceStop(); } catch (e) { }
       screenReaderAnnouncer.announcePolite('Drishti voice assistant deactivated.');
       speak('Drishti muted. Press Alt+D or V to activate.');
     } else {
       await enableMicrophone();
       await globalVoiceService.start();
       setActive(true);
-      try { audioCueService.voiceActivate(); } catch (e) {}
+      try { audioCueService.voiceActivate(); } catch (e) { }
       const candidate = accessRef.current.user?.name ? accessRef.current.user.name.split(' ')[0] : '';
       const greeting = candidate ? `Hello ${candidate}. ` : '';
       screenReaderAnnouncer.announcePolite('Drishti voice assistant activated.');
@@ -239,18 +244,21 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         return true;
       }
 
-      // Handle Help & Feature Guidance
-      if (intent.type === 'HELP') {
+      // Handle Help & Feature Guidance / Voice Command Modal
+      if (intent.type === 'HELP' || intent.type === 'SHOW_SHORTCUTS') {
+        setShowCommandModal(true);
+        audioCueService.notification();
         const sampleQuestions = currentItems.map(i => i.triggers[0]).slice(0, 3).join(', ');
         const helpMsg = sampleQuestions
-          ? `I am Drishti. You can say start exam, read notifications, open mock tests, or on this screen say: ${sampleQuestions}.`
-          : intent.speechFeedback || 'I am Drishti. You can say start exam, read notifications, open mock tests, AI practice, show results, or accessibility settings.';
+          ? `Opening Drishti voice command guide. On this screen you can say: ${sampleQuestions}, or say option B, next question, time remaining.`
+          : 'Opening Drishti voice command guide. You can say option B, next question, time remaining, or go to practice.';
         speak(helpMsg, true);
         return true;
       }
 
       // ── Handle Page Orientation & Explanation Intent ──
       if (intent.type === 'EXPLAIN_PAGE') {
+        audioCueService.pageOrient();
         const info = screenReaderAnnouncer.orientCurrentPage(location.pathname, true);
         if (!info) {
           speechService.setPageExplaining(true, activePage);
@@ -329,7 +337,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         // Since we don't have direct access to ExamEngine state in this context easily, we can read the ARIA status or simple DOM elements.
         const progressEl = document.querySelector('[role="progressbar"][aria-valuenow]') as HTMLElement;
         const totalTextEl = document.querySelector('[aria-label^="Question"]'); // Fallback logic
-        
+
         let msg = 'I cannot determine your exact question number right now.';
         if (progressEl) {
           const current = progressEl.getAttribute('aria-valuenow');
@@ -351,7 +359,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         // The palette buttons usually have an aria-label like "Question 5, unanswered"
         const unansweredButtons = document.querySelectorAll('button[aria-label*="unanswered"], button[aria-label*="not answered"]');
         const answeredButtons = document.querySelectorAll('button[aria-label*="answered"]:not([aria-label*="unanswered"]):not([aria-label*="not answered"])');
-        
+
         if (unansweredButtons.length > 0) {
           speak(`You have ${unansweredButtons.length} unanswered questions remaining.`, true);
         } else if (answeredButtons.length > 0) {
@@ -412,7 +420,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
             navigate(`/results/${liveAttempts[0].id}`);
             return true;
           }
-        } catch {}
+        } catch { }
         speak(intent.speechFeedback);
         navigate('/history');
         return true;
@@ -464,6 +472,66 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
         return true;
       }
 
+      if (intent.type === 'OPEN_LOGIN') {
+        speak(intent.speechFeedback || 'Opening login page.');
+        navigate('/login');
+        return true;
+      }
+
+      if (intent.type === 'OPEN_REGISTER') {
+        speak(intent.speechFeedback || 'Opening registration page.');
+        navigate('/register');
+        return true;
+      }
+
+      if (intent.type === 'DEMO_STUDENT_LOGIN') {
+        speak('Signing in as candidate Aryan Sharma. Opening student dashboard.', true);
+        try {
+          await accessRef.current.login('aryan@example.com', 'student123');
+        } catch {}
+        navigate('/dashboard');
+        return true;
+      }
+
+      if (intent.type === 'DEMO_ADMIN_LOGIN') {
+        speak('Signing in as Examination Administrator. Opening management cockpit.', true);
+        try {
+          await accessRef.current.login('admin@drishtix.in', 'admin123');
+        } catch {}
+        navigate('/admin?tab=dashboard');
+        return true;
+      }
+
+      if (intent.type === 'OPEN_ADMIN') {
+        speak(intent.speechFeedback || 'Opening admin management cockpit.');
+        navigate('/admin?tab=dashboard');
+        return true;
+      }
+
+      if (intent.type === 'FILTER_CATEGORY') {
+        speak(intent.speechFeedback || `Filtering by ${intent.targetCategory} category.`);
+        if (currentRoute !== '/exams') {
+          navigate(`/exams?category=${encodeURIComponent(intent.targetCategory || '')}`);
+        }
+        return true;
+      }
+
+      if (intent.type === 'FILTER_DIFFICULTY') {
+        speak(intent.speechFeedback || `Filtering by ${intent.targetDifficulty} difficulty.`);
+        if (currentRoute !== '/exams') {
+          navigate(`/exams?difficulty=${encodeURIComponent(intent.targetDifficulty || '')}`);
+        }
+        return true;
+      }
+
+      if (intent.type === 'RESET_FILTERS') {
+        speak(intent.speechFeedback || 'Showing all available mock examinations.');
+        if (currentRoute !== '/exams') {
+          navigate('/exams');
+        }
+        return true;
+      }
+
       if (intent.type === 'NAVIGATE_BACK') {
         // If in full exam screen, previous question is handled by ExamInterface.
         // On non-exam screens, navigate back.
@@ -476,14 +544,27 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
 
       // Explicit Start Mock Test command when NOT already taking an exam
       if (intent.type === 'START_EXAM' && !currentRoute.startsWith('/exam/')) {
-        // If candidate explicitly specified an exam OR is already on the /exams catalogue page, start it
-        if (intent.targetExamId || currentRoute === '/exams') {
-          const targetId = intent.targetExamId || conversationalMemoryRef.current.lastTargetExamId || 'ssc-reasoning-01';
-          const targetTitle = intent.targetExamTitle || conversationalMemoryRef.current.lastTargetExamTitle || 'mock';
-          conversationalMemoryRef.current.lastTargetExamId = targetId;
-          conversationalMemoryRef.current.lastTargetExamTitle = targetTitle;
-          speak(intent.speechFeedback || `Starting the ${targetTitle} mock test.`, true);
-          navigate(`/exam/${targetId}`);
+        const resolvedTargetId =
+          intent.targetExamId ||
+          (intent.targetExamIndex !== undefined && EXAMS[intent.targetExamIndex]?.id) ||
+          conversationalMemoryRef.current.lastTargetExamId;
+
+        const resolvedTargetTitle =
+          intent.targetExamTitle ||
+          (resolvedTargetId ? EXAMS.find(e => e.id === resolvedTargetId)?.title : undefined) ||
+          conversationalMemoryRef.current.lastTargetExamTitle;
+
+        if (resolvedTargetId) {
+          conversationalMemoryRef.current.lastTargetExamId = resolvedTargetId;
+          if (resolvedTargetTitle) conversationalMemoryRef.current.lastTargetExamTitle = resolvedTargetTitle;
+          speak(intent.speechFeedback || `Starting the ${resolvedTargetTitle || 'mock'} examination.`, true);
+          navigate(`/exam/${resolvedTargetId}`);
+          return true;
+        }
+
+        if (currentRoute === '/exams') {
+          // Candidate is on the exams page but didn't specify which one
+          speak('Please choose which mock test to start: Test 1 SSC Reasoning, Test 2 Banking, Test 3 UPSC, Test 4 Railway, Test 5 Defence, or Test 6 State PSC.', true);
           return true;
         }
 
@@ -672,6 +753,7 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
 
       // If utterance was genuinely ambiguous (e.g. "open it", "start it", "do that")
       if (intent.type === 'CLARIFY_AMBIGUOUS') {
+
         speak(intent.speechFeedback, true);
         return true;
       }
@@ -920,130 +1002,345 @@ export function VoiceAssistantProvider({ children }: { children: React.ReactNode
             </div>
           )}
 
-          {/* Persistent Voice Assistant Floating Bar */}
-          <div
-            style={{
-              pointerEvents: 'auto',
-              background: active
-                ? engine === 'groq'
-                  ? 'linear-gradient(135deg, #1E1B4B, #312E81)'
-                  : engine === 'whisper'
-                  ? 'linear-gradient(135deg, #0F172A, #1E293B)'
-                  : 'linear-gradient(135deg, #064E3B, #0F172A)'
-                : '#1E293B',
-              border: active
-                ? engine === 'groq'
-                  ? '1.5px solid #818CF8'
-                  : engine === 'whisper'
-                  ? '1.5px solid #3B82F6'
-                  : '1.5px solid #10B981'
-                : '1px solid #475569',
-              borderRadius: '999px',
-              padding: '0.4rem 0.95rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              boxShadow: active
-                ? engine === 'groq'
-                  ? '0 6px 22px rgba(99, 102, 241, 0.5)'
-                  : '0 6px 22px rgba(37, 99, 235, 0.4)'
-                : '0 4px 14px rgba(0,0,0,0.25)',
-              color: '#fff',
-              fontSize: '0.8rem',
-              cursor: status.toLowerCase().includes('processing') ? 'not-allowed' : 'pointer',
-              opacity: status.toLowerCase().includes('processing') ? 0.85 : 1,
-              transition: 'all 0.25s ease',
-            }}
-            onClick={status.toLowerCase().includes('processing') ? undefined : toggleVoice}
-            role="button"
-            tabIndex={0}
-            aria-label={`Drishti AI Assistant: ${active ? status : 'Muted'}. Say Drishti or press Alt+D or V.`}
-            title={`Drishti AI Assistant. Say 'Drishti start exam', 'Drishti read notification', or press Alt+D / V.`}
-          >
-            {/* Mic Icon */}
-            <div
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto' }}>
+            {/* Command Guide Button */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                audioCueService.notification();
+                setShowCommandModal(true);
+              }}
               style={{
-                width: 28,
-                height: 28,
+                width: 38,
+                height: 38,
                 borderRadius: '50%',
-                background: active
-                  ? engine === 'groq'
-                    ? 'linear-gradient(135deg, #6366F1, #A855F7)'
-                    : engine === 'whisper'
-                    ? 'linear-gradient(135deg, #2563EB, #38BDF8)'
-                    : 'linear-gradient(135deg, #059669, #34D399)'
-                  : '#475569',
+                background: 'rgba(15, 23, 42, 0.96)',
+                border: '1.5px solid rgba(255, 255, 255, 0.25)',
+                color: '#fff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
+                transition: 'transform 0.15s ease',
+              }}
+              aria-label="Open Voice Commands Guide"
+              title="Voice Commands Guide (Say 'Help' or 'Commands')"
+            >
+              <HelpCircle size={18} color="var(--primary, #38BDF8)" />
+            </button>
+
+            {/* Persistent Voice Assistant Floating Bar */}
+            <div
+              style={{
+                pointerEvents: 'auto',
+                background: active
+                  ? engine === 'groq'
+                    ? 'linear-gradient(135deg, #1E1B4B, #312E81)'
+                    : engine === 'whisper'
+                      ? 'linear-gradient(135deg, #0F172A, #1E293B)'
+                      : 'linear-gradient(135deg, #064E3B, #0F172A)'
+                  : '#1E293B',
+                border: active
+                  ? engine === 'groq'
+                    ? '1.5px solid #818CF8'
+                    : engine === 'whisper'
+                      ? '1.5px solid #3B82F6'
+                      : '1.5px solid #10B981'
+                  : '1px solid #475569',
+                borderRadius: '999px',
+                padding: '0.4rem 0.95rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
                 boxShadow: active
                   ? engine === 'groq'
-                    ? '0 0 10px rgba(168, 85, 247, 0.6)'
-                    : '0 0 10px rgba(59, 130, 246, 0.6)'
-                  : 'none',
+                    ? '0 6px 22px rgba(99, 102, 241, 0.5)'
+                    : '0 6px 22px rgba(37, 99, 235, 0.4)'
+                  : '0 4px 14px rgba(0,0,0,0.25)',
+                color: '#fff',
+                fontSize: '0.8rem',
+                cursor: status.toLowerCase().includes('processing') ? 'not-allowed' : 'pointer',
+                opacity: status.toLowerCase().includes('processing') ? 0.85 : 1,
+                transition: 'all 0.25s ease',
               }}
+              onClick={status.toLowerCase().includes('processing') ? undefined : toggleVoice}
+              role="button"
+              tabIndex={0}
+              aria-label={`Drishti AI Assistant: ${active ? status : 'Muted'}. Say Drishti or press Alt+D or V.`}
+              title={`Drishti AI Assistant. Say 'Drishti start exam', 'Drishti read notification', or press Alt+D / V.`}
             >
-              {active ? <Mic size={15} color="#fff" /> : <MicOff size={15} color="#94A3B8" />}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.18 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span style={{ fontWeight: 700, fontSize: '0.78rem', color: active ? '#F8FAFC' : '#94A3B8' }}>
-                  {active
-                    ? 'Drishti AI Assistant'
-                    : 'Drishti Muted'}
-                </span>
-                {active && (
-                  <span
-                    style={{
-                      fontSize: '0.62rem',
-                      padding: '0.1rem 0.35rem',
-                      borderRadius: '999px',
-                      background:
-                        engine === 'groq'
-                          ? '#4338CA'
-                          : engine === 'whisper'
-                          ? '#0284C7'
-                          : '#065F46',
-                      color: engine === 'groq' ? '#EEF2FF' : '#E0F2FE',
-                      fontWeight: 700,
-                      letterSpacing: '0.03em',
-                    }}
-                  >
-                    {engine === 'groq' ? 'GROQ CLOUD' : engine === 'whisper' ? 'OFFLINE WHISPER' : 'BROWSER'}
-                  </span>
-                )}
-              </div>
-              <span style={{ fontSize: '0.68rem', color: active ? (status.toLowerCase().includes('offline') ? '#FBBF24' : engine === 'groq' ? '#C7D2FE' : '#93C5FD') : '#64748B' }}>
-                {active ? status : 'Press Alt+D or V to wake Drishti'}
-              </span>
-            </div>
-
-            {/* Glowing pulse indicator when active */}
-            {active && (
-              <span
+              {/* Mic Icon */}
+              <div
                 style={{
-                  width: 8,
-                  height: 8,
+                  width: 28,
+                  height: 28,
                   borderRadius: '50%',
-                  background:
-                    engine === 'groq'
-                      ? '#A855F7'
+                  background: active
+                    ? engine === 'groq'
+                      ? 'linear-gradient(135deg, #6366F1, #A855F7)'
                       : engine === 'whisper'
-                      ? '#38BDF8'
-                      : '#34D399',
-                  boxShadow:
-                    engine === 'groq'
-                      ? '0 0 8px #A855F7'
-                      : engine === 'whisper'
-                      ? '0 0 8px #38BDF8'
-                      : '0 0 8px #34D399',
+                        ? 'linear-gradient(135deg, #2563EB, #38BDF8)'
+                        : 'linear-gradient(135deg, #059669, #34D399)'
+                    : '#475569',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: active
+                    ? engine === 'groq'
+                      ? '0 0 10px rgba(168, 85, 247, 0.6)'
+                      : '0 0 10px rgba(59, 130, 246, 0.6)'
+                    : 'none',
                 }}
-              />
-            )}
+              >
+                {active ? <Mic size={15} color="#fff" /> : <MicOff size={15} color="#94A3B8" />}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.18 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.78rem', color: active ? '#F8FAFC' : '#94A3B8' }}>
+                    {active
+                      ? 'Drishti AI Assistant'
+                      : 'Drishti Muted'}
+                  </span>
+                  {active && (
+                    <span
+                      style={{
+                        fontSize: '0.62rem',
+                        padding: '0.1rem 0.35rem',
+                        borderRadius: '999px',
+                        background:
+                          engine === 'groq'
+                            ? '#4338CA'
+                            : engine === 'whisper'
+                              ? '#0284C7'
+                              : '#065F46',
+                        color: engine === 'groq' ? '#EEF2FF' : '#E0F2FE',
+                        fontWeight: 700,
+                        letterSpacing: '0.03em',
+                      }}
+                    >
+                      {engine === 'groq' ? 'GROQ CLOUD' : engine === 'whisper' ? 'OFFLINE WHISPER' : 'BROWSER'}
+                    </span>
+                  )}
+                </div>
+                <span style={{ fontSize: '0.68rem', color: active ? (status.toLowerCase().includes('offline') ? '#FBBF24' : engine === 'groq' ? '#C7D2FE' : '#93C5FD') : '#64748B' }}>
+                  {active ? status : 'Press Alt+D or V to wake Drishti'}
+                </span>
+              </div>
+
+              {/* Glowing pulse indicator when active */}
+              {active && (
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    background:
+                      engine === 'groq'
+                        ? '#A855F7'
+                        : engine === 'whisper'
+                          ? '#38BDF8'
+                          : '#34D399',
+                    boxShadow:
+                      engine === 'groq'
+                        ? '0 0 8px #A855F7'
+                        : engine === 'whisper'
+                          ? '0 0 8px #38BDF8'
+                          : '0 0 8px #34D399',
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Drishti Voice Command Center Modal ── */}
+      {showCommandModal && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="voice-modal-title"
+          style={{ zIndex: 100000 }}
+          onClick={() => setShowCommandModal(false)}
+        >
+          <div
+            className="modal-box"
+            style={{ maxWidth: 650, maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid var(--border)', paddingBottom: '0.75rem', marginBottom: '0.85rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Mic size={20} />
+                </div>
+                <div>
+                  <h2 id="voice-modal-title" style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text)' }}>
+                    Drishti Voice Command Center
+                  </h2>
+                  <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Universally accessible voice navigation & hands-free examination
+                  </p>
+                </div>
+              </div>
+              <button
+                className="btn-ghost"
+                onClick={() => setShowCommandModal(false)}
+                aria-label="Close voice commands modal"
+                style={{ padding: '0.4rem', minWidth: 36, minHeight: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Category Navigation Pills */}
+            <div style={{ display: 'flex', gap: '0.4rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.65rem', marginBottom: '0.85rem', overflowX: 'auto' }}>
+              {[
+                { id: 'exam', label: 'Exam Taking' },
+                { id: 'nav', label: 'Navigation' },
+                { id: 'access', label: 'Accessibility' },
+                { id: 'hindi', label: 'Hindi / हिंदी' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setModalTab(tab.id as any)}
+                  className={`btn-ghost ${modalTab === tab.id ? 'active' : ''}`}
+                  style={{
+                    padding: '0.35rem 0.8rem',
+                    borderRadius: '999px',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    background: modalTab === tab.id ? 'var(--primary)' : 'var(--bg-surface)',
+                    color: modalTab === tab.id ? '#fff' : 'var(--text)',
+                    border: '1.5px solid var(--border)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Commands Body */}
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.55rem', paddingRight: '0.2rem' }}>
+              {modalTab === 'exam' && (
+                <>
+                  {[
+                    { cmd: 'Option B / Lock B', desc: 'Select option B for current question immediately' },
+                    { cmd: 'Next question / Agla sawal', desc: 'Save answer and move to the next question' },
+                    { cmd: 'Previous question / Pichla sawal', desc: 'Return to previous question' },
+                    { cmd: 'Question 5 / Sawal number 5', desc: 'Directly jump to specific question index' },
+                    { cmd: 'Read question / Repeat', desc: 'Speaks current question, equation verbalization and options' },
+                    { cmd: 'Time left / Kitna time bacha hai', desc: 'Announces exact remaining exam time with compensatory time' },
+                    { cmd: 'Verbalize formula', desc: 'Reads complex math equations in clear spoken words' },
+                    { cmd: 'Describe diagram', desc: 'Gives spatial audio description of visual diagrams' },
+                    { cmd: 'Flag question / Mark for review', desc: 'Tags question for later review' },
+                    { cmd: 'Submit exam / Confirm submit', desc: 'Opens two-step protected submission with vocal confirmation' },
+                  ].map(c => (
+                    <div key={c.cmd} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.55rem 0.75rem', background: 'var(--bg-surface)', borderRadius: '0.5rem', border: '1px solid var(--border)', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', flex: 1 }}>{c.desc}</span>
+                      <kbd style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '0.75rem', color: 'var(--primary)', background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '0.2rem 0.5rem', borderRadius: '0.35rem', whiteSpace: 'nowrap' }}>
+                        "{c.cmd}"
+                      </kbd>
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {modalTab === 'nav' && (
+                <>
+                  {[
+                    { cmd: 'Open mock test / Pariksha kholo', desc: 'Navigates directly to the competitive mock exams catalog' },
+                    { cmd: 'Open practice / Abhyas shuru karo', desc: 'Opens AI interactive practice drill module' },
+                    { cmd: 'Dashboard / Home par jao', desc: 'Returns to student dashboard overview' },
+                    { cmd: 'Results / Natija dikhao', desc: 'Opens scorecard, analytics, and solution review' },
+                    { cmd: 'Orient page / Where am I?', desc: 'Audibly describes current page layout, active tab, and key actions' },
+                    { cmd: 'Scroll down / Scroll up', desc: 'Voice-controlled smooth scrolling across the page' },
+                    { cmd: 'Read notifications', desc: 'Speaks unread platform and exam notices aloud' },
+                    { cmd: 'Profile / Accommodations', desc: 'Opens candidate profile and PwD verification details' },
+                  ].map(c => (
+                    <div key={c.cmd} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.55rem 0.75rem', background: 'var(--bg-surface)', borderRadius: '0.5rem', border: '1px solid var(--border)', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', flex: 1 }}>{c.desc}</span>
+                      <kbd style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '0.75rem', color: 'var(--primary)', background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '0.2rem 0.5rem', borderRadius: '0.35rem', whiteSpace: 'nowrap' }}>
+                        "{c.cmd}"
+                      </kbd>
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {modalTab === 'access' && (
+                <>
+                  {[
+                    { cmd: 'High contrast / Yellow on black', desc: 'Switches to WCAG AAA compliant high-contrast color themes' },
+                    { cmd: 'Light mode / Dark mode', desc: 'Toggles between standard clean light and dark palettes' },
+                    { cmd: 'Font huge / Font large / Normal', desc: 'Scales entire platform typography (100% to 150%)' },
+                    { cmd: 'Voice faster / Speak faster', desc: 'Increases text-to-speech reading rate (+0.15x)' },
+                    { cmd: 'Voice slower / Speak slower', desc: 'Slows down text-to-speech reading pace (-0.15x)' },
+                    { cmd: 'Stop speaking / Be quiet', desc: 'Immediately cuts off current speech synthesis (same as Esc)' },
+                    { cmd: 'Reset settings', desc: 'Restores all accessibility preferences to default calibrated states' },
+                  ].map(c => (
+                    <div key={c.cmd} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.55rem 0.75rem', background: 'var(--bg-surface)', borderRadius: '0.5rem', border: '1px solid var(--border)', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', flex: 1 }}>{c.desc}</span>
+                      <kbd style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '0.75rem', color: 'var(--primary)', background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '0.2rem 0.5rem', borderRadius: '0.35rem', whiteSpace: 'nowrap' }}>
+                        "{c.cmd}"
+                      </kbd>
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {modalTab === 'hindi' && (
+                <>
+                  {[
+                    { cmd: 'दृष्टि अगला सवाल', desc: 'Moves to next question in Hindi' },
+                    { cmd: 'ऑप्शन बी लॉक करो', desc: 'Locks option B in Hindi' },
+                    { cmd: 'कितना समय बचा है?', desc: 'Asks remaining exam time in Hindi' },
+                    { cmd: 'सवाल फिर से पढ़ो', desc: 'Repeats the question and all options in Hindi' },
+                    { cmd: 'फार्मूला समझाओ', desc: 'Verbalizes mathematical equations in Hindi' },
+                    { cmd: 'प्रैक्टिस शुरू करो', desc: 'Opens practice drills module' },
+                    { cmd: 'मॉक टेस्ट खोलो', desc: 'Opens competitive examinations catalog' },
+                    { cmd: 'हाई कंट्रास्ट करो', desc: 'Toggles high contrast theme in Hindi' },
+                    { cmd: 'चुप रहो / आवाज़ बंद', desc: 'Silences speech synthesis' },
+                  ].map(c => (
+                    <div key={c.cmd} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.55rem 0.75rem', background: 'var(--bg-surface)', borderRadius: '0.5rem', border: '1px solid var(--border)', gap: '0.5rem' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', flex: 1 }}>{c.desc}</span>
+                      <kbd style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '0.75rem', color: 'var(--primary)', background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '0.2rem 0.5rem', borderRadius: '0.35rem', whiteSpace: 'nowrap' }}>
+                        "{c.cmd}"
+                      </kbd>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ borderTop: '2px solid var(--border)', paddingTop: '0.85rem', marginTop: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+              <button
+                className="btn-secondary"
+                onClick={() => {
+                  audioCueService.voiceActivate();
+                  speak('Testing Drishti audio guidance. Your microphone and speech synthesizer are calibrated.');
+                }}
+                style={{ fontSize: '0.78rem', padding: '0.45rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                <Volume2 size={15} /> Test Speech Audio
+              </button>
+              <button
+                className="btn-primary"
+                onClick={() => setShowCommandModal(false)}
+                style={{ fontSize: '0.8rem', padding: '0.45rem 1.1rem' }}
+              >
+                Done (Esc)
+              </button>
+            </div>
           </div>
         </div>
       )}
     </VoiceAssistantContext.Provider>
   );
 }
+

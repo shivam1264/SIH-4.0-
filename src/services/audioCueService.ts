@@ -27,18 +27,31 @@ class AudioCueService {
     } catch {}
   }
 
-  navigation()    { this.tone(880, 0.08); }
-  select()        { this.tone(1046, 0.12); }
-  success()       { this.tone(1318, 0.15); setTimeout(() => this.tone(1760, 0.2), 100); }
-  correct()       { this.success(); }
-  error()         { this.tone(220, 0.3, 'square', 0.2); }
-  wrong()         { this.error(); }
-  timerWarning()  { this.tone(660, 0.2); setTimeout(() => this.tone(660, 0.2), 300); }
-  notification()  { this.tone(987, 0.1); setTimeout(() => this.tone(1318, 0.15), 100); }
-  examStart()     { [523, 659, 784].forEach((f, i) => setTimeout(() => this.tone(f, 0.2), i * 150)); }
-  examSubmit()    { [784, 659, 523].forEach((f, i) => setTimeout(() => this.tone(f, 0.2), i * 150)); }
-  voiceActivate() { this.tone(1200, 0.1, 'triangle'); }
-  voiceStop()     { this.tone(800, 0.1, 'triangle'); }
+  resume() {
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
+  }
+
+  navigation()      { this.resume(); this.tone(880, 0.08); }
+  select()          { this.resume(); this.tone(1046, 0.12); }
+  success()         { this.resume(); this.tone(1318, 0.15); setTimeout(() => this.tone(1760, 0.2), 100); }
+  correct()         { this.success(); }
+  error()           { this.resume(); this.tone(220, 0.3, 'square', 0.2); }
+  wrong()           { this.error(); }
+  timerWarning()    { this.resume(); this.tone(660, 0.2); setTimeout(() => this.tone(660, 0.2), 300); }
+  notification()    { this.resume(); this.tone(987, 0.1); setTimeout(() => this.tone(1318, 0.15), 100); }
+  examStart()       { this.resume(); [523, 659, 784].forEach((f, i) => setTimeout(() => this.tone(f, 0.2), i * 150)); }
+  examSubmit()      { this.resume(); [784, 659, 523].forEach((f, i) => setTimeout(() => this.tone(f, 0.2), i * 150)); }
+  voiceActivate()   { this.resume(); this.tone(1200, 0.1, 'triangle'); }
+  voiceStop()       { this.resume(); this.tone(800, 0.1, 'triangle'); }
+  flagToggle()      { this.resume(); this.tone(784, 0.12, 'sine'); setTimeout(() => this.tone(987, 0.12, 'sine'), 90); }
+  pageOrient()      { this.resume(); [440, 554, 659].forEach((f, i) => setTimeout(() => this.tone(f, 0.14), i * 100)); }
+  formulaVerbalize(){ this.resume(); [523, 659, 880, 1046].forEach((f, i) => setTimeout(() => this.tone(f, 0.1), i * 80)); }
+  start()           { this.examStart(); }
+  toggle()          { this.select(); }
+  filter()          { this.navigation(); }
 }
 
 export const audioCueService = new AudioCueService();
+

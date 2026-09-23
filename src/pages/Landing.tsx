@@ -29,6 +29,7 @@ import {
   Send,
   Bot,
   Cpu,
+  User,
   Users,
   GraduationCap,
   Heart,
@@ -42,7 +43,10 @@ import {
 } from 'lucide-react';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { useVoiceAssistant } from '../context/VoiceAssistantContext';
+import { useAuth } from '../context/AuthContext';
 import { speechService } from '../services/speechService';
+import { audioCueService } from '../services/audioCueService';
+import { usePageVoice } from '../hooks/usePageVoice';
 
 // Audio Earcon synthesis using Web Audio API for zero-latency auditory feedback
 function playEarcon(type: 'success' | 'nav' | 'flag') {
@@ -87,8 +91,91 @@ function playEarcon(type: 'success' | 'nav' | 'flag') {
 export default function Landing() {
   const navigate = useNavigate();
   const { prefs, setTheme } = useAccessibility();
+  const { user, login } = useAuth();
   const [activeTheme, setActiveTheme] = useState(prefs.theme);
   const { active: voiceActive, toggleVoice, status: voiceStatus, engine, lastTranscript } = useVoiceAssistant();
+
+  const handleDirectDemoLogin = async (role: 'student' | 'admin') => {
+    audioCueService.select();
+    if (role === 'student') {
+      speechService.speak('Signing in as candidate Aryan Sharma. Opening student dashboard.', { priority: true });
+      const res = await login('aryan@example.com', 'student123');
+      if (res.ok) {
+        audioCueService.success();
+        navigate('/dashboard');
+      }
+    } else {
+      speechService.speak('Signing in as Examination Administrator. Opening management cockpit.', { priority: true });
+      const res = await login('admin@drishtix.in', 'admin123');
+      if (res.ok) {
+        audioCueService.success();
+        navigate('/admin?tab=dashboard');
+      }
+    }
+  };
+
+  const handleGetStarted = async () => {
+    audioCueService.select();
+    if (user) {
+      speechService.speak('Opening student dashboard.', { priority: true });
+      navigate('/dashboard');
+      return;
+    }
+    await handleDirectDemoLogin('student');
+  };
+
+  const handleSignIn = () => {
+    audioCueService.select();
+    if (user) {
+      speechService.speak('Opening student dashboard.', { priority: true });
+      navigate('/dashboard');
+    } else {
+      speechService.speak('Opening sign in page.', { priority: true });
+      navigate('/login');
+    }
+  };
+
+  usePageVoice('Landing', [
+    {
+      triggers: ['get started', 'get start', 'start now', 'begin', 'open dashboard', 'dashboard', 'go to dashboard'],
+      answer: () => 'Opening student dashboard.',
+      action: () => handleGetStarted(),
+    },
+    {
+      triggers: ['login as student', 'student login', 'demo student', 'student demo', 'sign in student', 'candidate login'],
+      answer: () => 'Signing in as candidate Aryan Sharma. Opening student dashboard.',
+      action: () => handleDirectDemoLogin('student'),
+    },
+    {
+      triggers: ['login as admin', 'admin login', 'demo admin', 'admin demo', 'sign in admin', 'administrator login'],
+      answer: () => 'Signing in as Examination Administrator. Opening management cockpit.',
+      action: () => handleDirectDemoLogin('admin'),
+    },
+    {
+      triggers: ['login', 'sign in', 'open login', 'login page'],
+      answer: () => (user ? 'Opening student dashboard.' : 'Opening sign in page.'),
+      action: () => handleSignIn(),
+    },
+    {
+      triggers: ['register', 'create account', 'sign up', 'new account', 'open register'],
+      answer: () => 'Opening registration page.',
+      action: () => navigate('/register'),
+    },
+    {
+      triggers: ['mock tests', 'explore mock tests', 'open mock tests', 'exams'],
+      answer: () => 'Opening mock test library.',
+      action: () => navigate('/exams'),
+    },
+    {
+      triggers: ['practice', 'practice drills', 'open practice', 'abhyas'],
+      answer: () => 'Opening practice drills.',
+      action: () => navigate('/practice'),
+    },
+    {
+      triggers: ['about drishtix', 'what is drishtix', 'about platform', 'platform overview'],
+      answer: () => 'DrishtiX is an accessible examination and practice platform enabling visually impaired candidates to independently prepare for and participate in competitive examinations.',
+    },
+  ]);
 
   // Ultra-Smooth Scroll Progress & Floating Cockpit State
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -415,14 +502,34 @@ export default function Landing() {
     setSelectedOption('A');
   };
 
-  // Step 2: Global Hotkey Listener: V (Voice), R (Read Aloud), N (Next Question), 1-4 (Options)
+  // Step 2: Global Hotkey Listener: V (Voice), R (Read Aloud), N (Next Question), 1-4 (Options), Alt+P (Practice), Alt+E (Exams), Alt+S (Student Demo), Alt+A (Admin Demo), O (Orient)
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
         return;
       }
 
-      if (e.key === 'v' || e.key === 'V') {
+      if (e.altKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault();
+        audioCueService.start();
+        speechService.speak('Opening Adaptive AI Practice Drills.', { priority: true });
+        navigate('/practice');
+      } else if (e.altKey && (e.key === 'e' || e.key === 'E')) {
+        e.preventDefault();
+        audioCueService.navigation();
+        speechService.speak('Opening Mock Examination Hall.', { priority: true });
+        navigate('/exams');
+      } else if (e.altKey && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        handleDirectDemoLogin('student');
+      } else if (e.altKey && (e.key === 'a' || e.key === 'A')) {
+        e.preventDefault();
+        handleDirectDemoLogin('admin');
+      } else if (e.key === 'o' || e.key === 'O' || e.key === 'b' || e.key === 'B') {
+        e.preventDefault();
+        audioCueService.pageOrient();
+        speechService.speak('Welcome to DrishtiX. An accessible online examination and practice platform enabling visually impaired candidates to independently prepare for and participate in competitive examinations. Press Alt P for practice, Alt E for mock exams, Alt S for student demo, Alt A for admin demo, or press V for the voice assistant.', { priority: true });
+      } else if (e.key === 'v' || e.key === 'V') {
         e.preventDefault();
         toggleVoice();
       } else if (e.key === 'r' || e.key === 'R') {
@@ -443,7 +550,7 @@ export default function Landing() {
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [toggleVoice, currentQ, handleReadDemoQuestion, handleNextDemoQ, handleSelectOption]);
+  }, [toggleVoice, currentQ, handleReadDemoQuestion, handleNextDemoQ, handleSelectOption, navigate, handleDirectDemoLogin]);
 
   // 6 Core Learning Modules with Soft Muted Pastel Palettes
   const PAGE_ECOSYSTEM = [
@@ -868,7 +975,7 @@ export default function Landing() {
 
                 {/* Sign In text link */}
                 <button
-                  onClick={() => navigate('/login')}
+                  onClick={handleSignIn}
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -888,7 +995,7 @@ export default function Landing() {
                 {/* Get Started -> Orange Gradient Pill Button */}
                 <button
                   className="btn-orange-gradient"
-                  onClick={() => navigate('/register')}
+                  onClick={handleGetStarted}
                   style={{
                     padding: '0.65rem 1.65rem',
                     fontSize: '0.96rem',
@@ -1014,14 +1121,14 @@ export default function Landing() {
 
                 <div style={{ display: 'flex', gap: '0.6rem' }}>
                   <button
-                    onClick={() => { setMobileMenuOpen(false); navigate('/login'); }}
+                    onClick={() => { setMobileMenuOpen(false); handleSignIn(); }}
                     className="btn-white-pill"
                     style={{ flex: 1, padding: '0.75rem', borderRadius: '0.75rem', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', textAlign: 'center' }}
                   >
                     Sign In
                   </button>
                   <button
-                    onClick={() => { setMobileMenuOpen(false); navigate('/register'); }}
+                    onClick={() => { setMobileMenuOpen(false); handleGetStarted(); }}
                     className="btn-orange-gradient"
                     style={{ flex: 1, padding: '0.75rem', borderRadius: '0.75rem', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', textAlign: 'center' }}
                   >
@@ -1051,41 +1158,44 @@ export default function Landing() {
             <div style={{ position: 'relative', zIndex: 2, width: '100%' }}>
               {/* Left Content Column */}
               <div style={{ maxWidth: 720, textAlign: 'left' }}>
-                {/* Kicker Tagline: ACCESSIBLE EXAMS • EQUAL OPPORTUNITIES */}
+                {/* Kicker Tagline: UNIVERSALLY ACCESSIBLE DIGITAL INTERFACES • RPwD ACT 2016 COMPLIANT */}
                 <div
                   style={{
                     fontSize: '0.78rem',
                     fontWeight: 800,
-                    letterSpacing: '0.16em',
+                    letterSpacing: '0.12em',
                     color: '#64748B',
                     textTransform: 'uppercase',
                     marginBottom: '0.75rem',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem',
+                    flexWrap: 'wrap',
                   }}
                 >
-                  <span>Accessible Exams</span>
+                  <span style={{ color: '#2563EB', background: 'rgba(37, 99, 235, 0.1)', padding: '0.2rem 0.55rem', borderRadius: 999, fontWeight: 800 }}>
+                    RPwD Act 2016 Compliant
+                  </span>
                   <span style={{ color: '#FF5722', fontSize: '1rem', lineHeight: 0 }}>•</span>
-                  <span>Equal Opportunities</span>
+                  <span>Universally Accessible Digital Interfaces</span>
                 </div>
 
-                {/* Main Headline: Exams Without Barriers / Empowerment for Every Aspirant */}
+                {/* Main Headline: Accessible Online Examination & Practice Platform */}
                 <h1
                   id="hero-heading"
                   className="hero-headline-responsive"
                   style={{
                     fontFamily: 'var(--font-display)',
-                    fontSize: 'clamp(2.35rem, 5.2vw, 4.95rem)',
+                    fontSize: 'clamp(2.2rem, 4.4vw, 4.2rem)',
                     fontWeight: 900,
-                    lineHeight: 1.05,
-                    letterSpacing: '-0.035em',
+                    lineHeight: 1.08,
+                    letterSpacing: '-0.03em',
                     color: '#0A1128',
-                    marginBottom: '0.6rem',
+                    marginBottom: '0.65rem',
                   }}
                 >
-                  <span style={{ color: '#0A1128', display: 'block' }}>Exams Without</span>
-                  <span style={{ color: '#0A1128', display: 'block' }}>Barriers</span>
+                  <span style={{ color: '#0A1128', display: 'block' }}>Accessible Online</span>
+                  <span style={{ color: '#0A1128', display: 'block' }}>Examination & Practice</span>
                   <span
                     style={{
                       display: 'block',
@@ -1093,16 +1203,7 @@ export default function Landing() {
                       fontWeight: 900,
                     }}
                   >
-                    Empowerment for
-                  </span>
-                  <span
-                    style={{
-                      display: 'block',
-                      color: '#FF5722',
-                      fontWeight: 900,
-                    }}
-                  >
-                    Every Aspirant
+                    For Visually Impaired Aspirants
                   </span>
                 </h1>
 
@@ -1111,82 +1212,161 @@ export default function Landing() {
                   style={{
                     fontSize: 'clamp(0.92rem, 1.05vw, 1rem)',
                     color: '#475569',
-                    lineHeight: 1.45,
-                    marginBottom: '0.75rem',
-                    maxWidth: 480,
+                    lineHeight: 1.5,
+                    marginBottom: '0.85rem',
+                    maxWidth: 520,
                     fontWeight: 500,
                   }}
                 >
-                  India's premier AI-powered accessible examination platform for SSC, Banking, UPSC and Railways. Engineered with voice commands, audio earcons, and keyboard independence.
+                  Enabling candidates to independently prepare for and participate in competitive examinations (SSC, Banking, UPSC, Railways) through eyes-free voice navigation, mathematical equation verbalization, audio diagram descriptions, and automated compensatory time.
                 </p>
 
-                {/* CTA Action Buttons: Start Free -> and Watch Demo */}
+                {/* Primary Action Buttons */}
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.9rem',
+                    gap: '0.75rem',
+                    marginBottom: '0.75rem',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  {/* Start Voice Practice */}
+                  <button
+                    className="btn-orange-gradient"
+                    onClick={() => {
+                      audioCueService.start();
+                      speechService.speak('Starting Voice Practice Drills.', { priority: true });
+                      navigate('/practice');
+                    }}
+                    title="Start Voice Practice Drills (Alt+P or Space)"
+                    style={{
+                      padding: '0.75rem 1.6rem',
+                      fontSize: '0.95rem',
+                      fontWeight: 700,
+                      borderRadius: '999px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.55rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Mic size={16} />
+                    <span>Start Voice Practice</span>
+                    <kbd style={{ fontSize: '0.65rem', background: 'rgba(0,0,0,0.2)', padding: '0.1rem 0.35rem', borderRadius: 4, marginLeft: 2 }}>Alt+P</kbd>
+                  </button>
+
+                  {/* Explore Mock Hall */}
+                  <button
+                    className="btn-white-pill"
+                    onClick={() => {
+                      audioCueService.navigation();
+                      speechService.speak('Entering Mock Examination Hall.', { priority: true });
+                      navigate('/exams');
+                    }}
+                    title="Explore Mock Examination Hall (Alt+E)"
+                    style={{
+                      padding: '0.75rem 1.5rem',
+                      fontSize: '0.95rem',
+                      fontWeight: 700,
+                      borderRadius: '999px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.55rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Award size={16} color="#FF5722" />
+                    <span>Mock Exam Hall</span>
+                    <kbd style={{ fontSize: '0.65rem', background: '#F1F5F9', border: '1px solid #CBD5E1', padding: '0.1rem 0.35rem', borderRadius: 4, marginLeft: 2 }}>Alt+E</kbd>
+                  </button>
+                </div>
+
+                {/* 1-Click Instant Demo Logins Bar */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
                     marginBottom: '0.85rem',
                     flexWrap: 'wrap',
                   }}
                 >
-                  {/* Start Free -> Button */}
+                  <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    1-Click Demo:
+                  </span>
+
                   <button
-                    className="btn-orange-gradient"
-                    onClick={() => navigate('/register')}
+                    onClick={() => handleDirectDemoLogin('student')}
                     style={{
-                      padding: '0.8rem 1.75rem',
-                      fontSize: '0.95rem',
-                      fontWeight: 700,
+                      background: 'rgba(255, 255, 255, 0.92)',
+                      border: '1.5px solid rgba(37, 99, 235, 0.35)',
                       borderRadius: '999px',
+                      padding: '0.35rem 0.8rem',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      color: '#1D4ED8',
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '0.55rem',
+                      gap: '0.4rem',
                       cursor: 'pointer',
+                      boxShadow: '0 2px 6px rgba(37, 99, 235, 0.08)',
+                      transition: 'all 0.15s ease',
                     }}
+                    title="Instant login as Candidate Aryan Sharma (Alt+S)"
                   >
-                    <Send size={15} style={{ transform: 'rotate(45deg)' }} />
-                    <span>Start Free</span>
-                    <ArrowRight size={15} />
+                    <User size={13} color="#2563EB" />
+                    <span>Candidate Aryan</span>
+                    <kbd style={{ fontSize: '0.65rem', background: 'rgba(37,99,235,0.08)', padding: '0.05rem 0.3rem', borderRadius: 3 }}>Alt+S</kbd>
                   </button>
 
-                  {/* Watch Demo Button */}
                   <button
-                    className="btn-white-pill"
-                    onClick={() => {
-                      playEarcon('nav');
-                      const element = document.getElementById('demo-exam-terminal');
-                      if (element) {
-                        element.scrollIntoView({ behavior: 'smooth' });
-                      }
-                    }}
+                    onClick={() => handleDirectDemoLogin('admin')}
                     style={{
-                      padding: '0.8rem 1.6rem',
-                      fontSize: '0.95rem',
-                      fontWeight: 700,
+                      background: 'rgba(255, 255, 255, 0.92)',
+                      border: '1.5px solid rgba(5, 150, 105, 0.35)',
                       borderRadius: '999px',
+                      padding: '0.35rem 0.8rem',
+                      fontSize: '0.8rem',
+                      fontWeight: 700,
+                      color: '#065F46',
                       display: 'inline-flex',
                       alignItems: 'center',
-                      gap: '0.55rem',
+                      gap: '0.4rem',
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 6px rgba(5, 150, 105, 0.08)',
+                      transition: 'all 0.15s ease',
+                    }}
+                    title="Instant login as Examination Administrator (Alt+A)"
+                  >
+                    <ShieldCheck size={13} color="#059669" />
+                    <span>Admin Cockpit</span>
+                    <kbd style={{ fontSize: '0.65rem', background: 'rgba(5,150,105,0.08)', padding: '0.05rem 0.3rem', borderRadius: 3 }}>Alt+A</kbd>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      audioCueService.pageOrient();
+                      speechService.speak('DrishtiX accessible exam platform. Press Alt P for practice, Alt E for exams, Alt S for student demo, Alt A for admin demo, or press V for the voice assistant.', { priority: true });
+                    }}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.85)',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '999px',
+                      padding: '0.35rem 0.65rem',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      color: '#475569',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
                       cursor: 'pointer',
                     }}
+                    title="Spoken page orientation (Key O or B)"
                   >
-                    <div
-                      style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: '50%',
-                        background: '#0F172A',
-                        color: '#FFFFFF',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        paddingLeft: '2px',
-                      }}
-                    >
-                      <Play size={11} fill="#FFFFFF" />
-                    </div>
-                    <span>Watch Demo</span>
+                    <Volume2 size={13} />
+                    <span>Orient Me</span>
+                    <kbd style={{ fontSize: '0.65rem', background: '#F1F5F9', padding: '0.05rem 0.25rem', borderRadius: 3 }}>O</kbd>
                   </button>
                 </div>
 
@@ -1425,328 +1605,328 @@ export default function Landing() {
                 {/* 1. Floating Card: "Listen & Answer" (Seamless Ambient Background Blend) */}
                 <div
                   className="animate-float-gentle"
-                style={{
-                  position: 'absolute',
-                  top: '6%',
-                  left: '49%',
-                  borderRadius: '1.35rem',
-                  padding: '0.85rem 1.3rem',
-                  width: 240,
-                  textAlign: 'center',
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.65) 0%, rgba(255, 250, 245, 0.42) 100%)',
-                  backdropFilter: 'blur(24px) saturate(180%)',
-                  WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                  border: '1px solid rgba(255, 255, 255, 0.75)',
-                  boxShadow: '0 16px 36px -8px rgba(10, 17, 40, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 0 1px rgba(0, 0, 0, 0.04)',
-                  zIndex: 3,
-                }}
-              >
-                <div
                   style={{
-                    fontSize: '0.84rem',
-                    fontWeight: 800,
-                    color: '#0F172A',
-                    marginBottom: '0.45rem',
-                    letterSpacing: '-0.01em',
-                  }}
-                >
-                  Listen & Answer
-                </div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.65rem',
-                    marginBottom: '0.45rem',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: '50%',
-                      background: 'rgba(124, 58, 237, 0.12)',
-                      color: '#7C3AED',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Mic size={13} strokeWidth={2.3} />
-                  </div>
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '3px',
-                      height: 24,
-                      padding: '0 2px',
-                    }}
-                    aria-label="Audio waveform indicator"
-                  >
-                    {[
-                      { cl: 'eq-bar-1', bg: '#38BDF8' },
-                      { cl: 'eq-bar-2', bg: '#60A5FA' },
-                      { cl: 'eq-bar-3', bg: '#818CF8' },
-                      { cl: 'eq-bar-4', bg: '#A855F7' },
-                      { cl: 'eq-bar-5', bg: '#60A5FA' },
-                      { cl: 'eq-bar-6', bg: '#38BDF8' },
-                      { cl: 'eq-bar-7', bg: '#818CF8' },
-                    ].map((bar, i) => (
-                      <div
-                        key={i}
-                        className={bar.cl}
-                        style={{
-                          width: 3,
-                          background: bar.bg,
-                          borderRadius: 999,
-                        }}
-                      />
-                    ))}
-                  </div>
-
-                  <div
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
-                      color: '#FFFFFF',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      paddingLeft: '2px',
-                      boxShadow: '0 3px 8px rgba(37, 99, 235, 0.25)',
-                    }}
-                  >
-                    <Play size={10} fill="#FFFFFF" />
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    fontSize: '0.67rem',
-                    fontWeight: 600,
-                    color: '#64748B',
-                    background: 'rgba(255, 255, 255, 0.55)',
-                    padding: '0.15rem 0.6rem',
-                    borderRadius: '999px',
-                    border: '1px solid rgba(255, 255, 255, 0.6)',
-                  }}
-                >
-                  <span
-                    className="animate-beacon-dot"
-                    style={{
-                      width: 5,
-                      height: 5,
-                      borderRadius: '50%',
-                      background: '#10B981',
-                      boxShadow: '0 0 5px rgba(16, 185, 129, 0.7)',
-                    }}
-                  />
-                  Question 1 of 50
-                </div>
-              </div>
-
-
-
-              {/* 3. Handwriting Script: "Accessibility Creates Opportunity" with Arrow */}
-              <div
-                className="animate-float-script"
-                style={{
-                  position: 'absolute',
-                  top: '5%',
-                  left: '68%',
-                  zIndex: 3,
-                  pointerEvents: 'none',
-                }}
-              >
-                <div
-                  className="font-caveat"
-                  style={{
-                    fontSize: '2.15rem',
-                    fontWeight: 700,
-                    color: '#0F172A',
-                    lineHeight: 1.05,
+                    position: 'absolute',
+                    top: '6%',
+                    left: '49%',
+                    borderRadius: '1.35rem',
+                    padding: '0.85rem 1.3rem',
+                    width: 240,
                     textAlign: 'center',
+                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.65) 0%, rgba(255, 250, 245, 0.42) 100%)',
+                    backdropFilter: 'blur(24px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                    border: '1px solid rgba(255, 255, 255, 0.75)',
+                    boxShadow: '0 16px 36px -8px rgba(10, 17, 40, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 0 1px rgba(0, 0, 0, 0.04)',
+                    zIndex: 3,
                   }}
                 >
-                  Accessibility
-                  <br />
-                  Creates Opportunity
-                </div>
-                <svg
-                  width="65"
-                  height="42"
-                  viewBox="0 0 65 42"
-                  fill="none"
-                  style={{ margin: '0 auto', display: 'block', transform: 'rotate(5deg)' }}
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M8 5 C 24 22, 42 28, 56 36"
-                    stroke="#FF5722"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    fill="none"
-                  />
-                  <path
-                    d="M46 36 L 56 36 L 52 26"
-                    stroke="#FF5722"
-                    strokeWidth="2.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    fill="none"
-                  />
-                </svg>
-              </div>
-
-              {/* 4. Floating Glass Card: "Choose Your Mode" (Seamless Ambient Background Blend) */}
-              <div
-                className="animate-float-slow"
-                style={{
-                  position: 'absolute',
-                  top: '7%',
-                  right: '2.5%',
-                  borderRadius: '1.25rem',
-                  padding: '0.95rem 1.1rem',
-                  width: 195,
-                  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.65) 0%, rgba(255, 250, 245, 0.42) 100%)',
-                  backdropFilter: 'blur(24px) saturate(180%)',
-                  WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                  border: '1px solid rgba(255, 255, 255, 0.75)',
-                  boxShadow: '0 16px 36px -8px rgba(10, 17, 40, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 0 1px rgba(0, 0, 0, 0.05)',
-                  zIndex: 3,
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '0.65rem',
-                  }}
-                >
-                  <span
+                  <div
                     style={{
-                      fontSize: '0.8rem',
+                      fontSize: '0.84rem',
                       fontWeight: 800,
-                      color: '#0A1128',
+                      color: '#0F172A',
+                      marginBottom: '0.45rem',
                       letterSpacing: '-0.01em',
                     }}
                   >
-                    Choose Your Mode
-                  </span>
-                  <span
-                    className="animate-beacon-dot"
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      background: '#10B981',
-                      boxShadow: '0 0 8px rgba(16, 185, 129, 0.8)',
-                    }}
-                    title="Active"
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
-                  {/* Mode 1: Voice Mode (Selected Active Glass Pill) */}
+                    Listen & Answer
+                  </div>
                   <div
                     style={{
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '0.55rem',
-                      padding: '0.42rem 0.65rem',
-                      borderRadius: '0.75rem',
-                      border: '1px solid rgba(245, 158, 11, 0.4)',
-                      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(254, 243, 199, 0.5) 100%)',
-                      color: '#0A1128',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      boxShadow: '0 3px 10px rgba(245, 158, 11, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
-                      cursor: 'pointer',
+                      justifyContent: 'center',
+                      gap: '0.65rem',
+                      marginBottom: '0.45rem',
                     }}
                   >
                     <div
                       style={{
-                        width: 20,
-                        height: 20,
+                        width: 26,
+                        height: 26,
                         borderRadius: '50%',
-                        background: 'rgba(245, 158, 11, 0.18)',
+                        background: 'rgba(124, 58, 237, 0.12)',
+                        color: '#7C3AED',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        color: '#D97706',
-                        flexShrink: 0,
                       }}
                     >
-                      <Mic size={11} strokeWidth={2.4} />
+                      <Mic size={13} strokeWidth={2.3} />
                     </div>
-                    <span>Voice Mode</span>
-                    <span
+
+                    <div
                       style={{
-                        marginLeft: 'auto',
-                        fontSize: '0.6rem',
-                        fontWeight: 700,
-                        color: '#D97706',
-                        background: 'rgba(245, 158, 11, 0.15)',
-                        padding: '0.1rem 0.35rem',
-                        borderRadius: 999,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                        height: 24,
+                        padding: '0 2px',
+                      }}
+                      aria-label="Audio waveform indicator"
+                    >
+                      {[
+                        { cl: 'eq-bar-1', bg: '#38BDF8' },
+                        { cl: 'eq-bar-2', bg: '#60A5FA' },
+                        { cl: 'eq-bar-3', bg: '#818CF8' },
+                        { cl: 'eq-bar-4', bg: '#A855F7' },
+                        { cl: 'eq-bar-5', bg: '#60A5FA' },
+                        { cl: 'eq-bar-6', bg: '#38BDF8' },
+                        { cl: 'eq-bar-7', bg: '#818CF8' },
+                      ].map((bar, i) => (
+                        <div
+                          key={i}
+                          className={bar.cl}
+                          style={{
+                            width: 3,
+                            background: bar.bg,
+                            borderRadius: 999,
+                          }}
+                        />
+                      ))}
+                    </div>
+
+                    <div
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
+                        color: '#FFFFFF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        paddingLeft: '2px',
+                        boxShadow: '0 3px 8px rgba(37, 99, 235, 0.25)',
                       }}
                     >
-                      ON
-                    </span>
+                      <Play size={10} fill="#FFFFFF" />
+                    </div>
                   </div>
 
-                  {/* Modes 2 to 5 (Soft Translucent Blended Items) */}
-                  {[
-                    { icon: Headphones, label: 'Screen Reader', iconColor: '#0284C7' },
-                    { icon: Keyboard, label: 'Keyboard', iconColor: '#64748B' },
-                    { icon: Eye, label: 'Visual Mode', iconColor: '#64748B' },
-                    { icon: Sliders, label: 'Custom Setup', iconColor: '#64748B' },
-                  ].map((mode, i) => (
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      fontSize: '0.67rem',
+                      fontWeight: 600,
+                      color: '#64748B',
+                      background: 'rgba(255, 255, 255, 0.55)',
+                      padding: '0.15rem 0.6rem',
+                      borderRadius: '999px',
+                      border: '1px solid rgba(255, 255, 255, 0.6)',
+                    }}
+                  >
+                    <span
+                      className="animate-beacon-dot"
+                      style={{
+                        width: 5,
+                        height: 5,
+                        borderRadius: '50%',
+                        background: '#10B981',
+                        boxShadow: '0 0 5px rgba(16, 185, 129, 0.7)',
+                      }}
+                    />
+                    Question 1 of 50
+                  </div>
+                </div>
+
+
+
+                {/* 3. Handwriting Script: "Accessibility Creates Opportunity" with Arrow */}
+                <div
+                  className="animate-float-script"
+                  style={{
+                    position: 'absolute',
+                    top: '5%',
+                    left: '68%',
+                    zIndex: 3,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <div
+                    className="font-caveat"
+                    style={{
+                      fontSize: '2.15rem',
+                      fontWeight: 700,
+                      color: '#0F172A',
+                      lineHeight: 1.05,
+                      textAlign: 'center',
+                    }}
+                  >
+                    Accessibility
+                    <br />
+                    Creates Opportunity
+                  </div>
+                  <svg
+                    width="65"
+                    height="42"
+                    viewBox="0 0 65 42"
+                    fill="none"
+                    style={{ margin: '0 auto', display: 'block', transform: 'rotate(5deg)' }}
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M8 5 C 24 22, 42 28, 56 36"
+                      stroke="#FF5722"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      fill="none"
+                    />
+                    <path
+                      d="M46 36 L 56 36 L 52 26"
+                      stroke="#FF5722"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                  </svg>
+                </div>
+
+                {/* 4. Floating Glass Card: "Choose Your Mode" (Seamless Ambient Background Blend) */}
+                <div
+                  className="animate-float-slow"
+                  style={{
+                    position: 'absolute',
+                    top: '7%',
+                    right: '2.5%',
+                    borderRadius: '1.25rem',
+                    padding: '0.95rem 1.1rem',
+                    width: 195,
+                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.65) 0%, rgba(255, 250, 245, 0.42) 100%)',
+                    backdropFilter: 'blur(24px) saturate(180%)',
+                    WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                    border: '1px solid rgba(255, 255, 255, 0.75)',
+                    boxShadow: '0 16px 36px -8px rgba(10, 17, 40, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.95), 0 0 1px rgba(0, 0, 0, 0.05)',
+                    zIndex: 3,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: '0.65rem',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: '0.8rem',
+                        fontWeight: 800,
+                        color: '#0A1128',
+                        letterSpacing: '-0.01em',
+                      }}
+                    >
+                      Choose Your Mode
+                    </span>
+                    <span
+                      className="animate-beacon-dot"
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        background: '#10B981',
+                        boxShadow: '0 0 8px rgba(16, 185, 129, 0.8)',
+                      }}
+                      title="Active"
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                    {/* Mode 1: Voice Mode (Selected Active Glass Pill) */}
                     <div
-                      key={i}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.55rem',
-                        padding: '0.38rem 0.65rem',
-                        borderRadius: '0.65rem',
-                        color: '#475569',
+                        padding: '0.42rem 0.65rem',
+                        borderRadius: '0.75rem',
+                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.85) 0%, rgba(254, 243, 199, 0.5) 100%)',
+                        color: '#0A1128',
                         fontSize: '0.78rem',
-                        fontWeight: 600,
+                        fontWeight: 700,
+                        boxShadow: '0 3px 10px rgba(245, 158, 11, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9)',
                         cursor: 'pointer',
-                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                        background: 'transparent',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.6)';
-                        e.currentTarget.style.color = '#0A1128';
-                        e.currentTarget.style.transform = 'translateX(2px)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent';
-                        e.currentTarget.style.color = '#475569';
-                        e.currentTarget.style.transform = 'translateX(0)';
                       }}
                     >
-                      <mode.icon size={13} style={{ color: mode.iconColor }} />
-                      <span>{mode.label}</span>
+                      <div
+                        style={{
+                          width: 20,
+                          height: 20,
+                          borderRadius: '50%',
+                          background: 'rgba(245, 158, 11, 0.18)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#D97706',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Mic size={11} strokeWidth={2.4} />
+                      </div>
+                      <span>Voice Mode</span>
+                      <span
+                        style={{
+                          marginLeft: 'auto',
+                          fontSize: '0.6rem',
+                          fontWeight: 700,
+                          color: '#D97706',
+                          background: 'rgba(245, 158, 11, 0.15)',
+                          padding: '0.1rem 0.35rem',
+                          borderRadius: 999,
+                        }}
+                      >
+                        ON
+                      </span>
                     </div>
-                  ))}
+
+                    {/* Modes 2 to 5 (Soft Translucent Blended Items) */}
+                    {[
+                      { icon: Headphones, label: 'Screen Reader', iconColor: '#0284C7' },
+                      { icon: Keyboard, label: 'Keyboard', iconColor: '#64748B' },
+                      { icon: Eye, label: 'Visual Mode', iconColor: '#64748B' },
+                      { icon: Sliders, label: 'Custom Setup', iconColor: '#64748B' },
+                    ].map((mode, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.55rem',
+                          padding: '0.38rem 0.65rem',
+                          borderRadius: '0.65rem',
+                          color: '#475569',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                          background: 'transparent',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.6)';
+                          e.currentTarget.style.color = '#0A1128';
+                          e.currentTarget.style.transform = 'translateX(2px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                          e.currentTarget.style.color = '#475569';
+                          e.currentTarget.style.transform = 'translateX(0)';
+                        }}
+                      >
+                        <mode.icon size={13} style={{ color: mode.iconColor }} />
+                        <span>{mode.label}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </div> {/* end hero-floating-elements */}
+              </div> {/* end hero-floating-elements */}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
         {/* ── 2. PLATFORM FEATURES & ECOSYSTEM ── */}
         <section
@@ -1968,7 +2148,7 @@ export default function Landing() {
           aria-labelledby="exams-heading"
         >
           <span id="demo-exam-terminal" style={{ position: 'absolute', top: '-90px' }} />
-          
+
           {/* Section Heading */}
           <div className="scroll-reveal" style={{ maxWidth: 1060, margin: '0 auto', textAlign: 'center', marginBottom: '2rem' }}>
             <h2

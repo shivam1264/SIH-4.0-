@@ -117,27 +117,31 @@ logger.info(f"✅ Whisper '{MODEL_SIZE}' model successfully loaded and ready for
 
 # ── Bilingual Domain Prompt (Concise to prevent decoder hallucination) ──
 INITIAL_PROMPT = (
-    "Hindi and English bilingual speech recognition for competitive examination portal. "
-    "प्रश्न, सवाल, विकल्प, उत्तर, ऑप्शन, परीक्षा, नेक्स्ट, पिछला, सबमिट, रिजल्ट, नोटिफिकेशन, "
-    "Question, Option, Next, Previous, Submit, Review, Read, Clear, Flag, Notifications."
+    "SIGHT-EXAM AI voice examination and practice assistant. Candidate speech commands in English, Hindi, and Hinglish. "
+    "Option A, Option B, Option C, Option D, "
+    "ऑप्शन ए, ऑप्शन बी, ऑप्शन सी, ऑप्शन डी, पहला ऑप्शन, दूसरा ऑप्शन, तीसरा ऑप्शन, चौथा ऑप्शन, "
+    "Next question, Previous question, agla sawal, pichla sawal, अगला सवाल, पिछला सवाल, "
+    "Submit exam, confirm submit, cancel submit, सबमिट करो, जमा करो, हाँ, नहीं, Yes, No, Cancel, "
+    "Read question, repeat question, time remaining, kitna samay bacha hai, clear answer, flag question, "
+    "Dashboard, Practice, Mock Tests, Results, Settings, formula, diagram, Drishti."
 )
 
 SAMPLE_RATE = 16000
-MIN_SAMPLES = int(SAMPLE_RATE * 0.28)  # 0.28s minimum to capture short commands like 'B', 'C', 'no', 'yes'
+MIN_SAMPLES = int(SAMPLE_RATE * 0.18)  # 0.18s minimum to capture quick short commands like 'B', 'C', 'no', 'yes'
 
 
 def normalize_audio(audio: np.ndarray) -> np.ndarray:
     """
-    Safely adjust gain so speech is normalized to ~0.85 peak without amplifying ambient noise.
+    Safely adjust gain so speech is normalized to ~0.88 peak without amplifying ambient noise floor.
     """
     if len(audio) == 0:
         return audio
     peak = float(np.max(np.abs(audio)))
     rms = float(np.sqrt(np.mean(audio ** 2)))
-    if peak < 0.035 or rms < 0.008:
-        # Ambient noise floor / near silence: do NOT amplify!
+    if peak < 0.015 or rms < 0.0035:
+        # Near zero ambient noise floor: do NOT amplify!
         return audio
-    gain = min(0.85 / peak, 2.0)
+    gain = min(0.88 / max(peak, 0.001), 3.5)
     return audio * gain
 
 
@@ -464,14 +468,18 @@ def transcribe_pcm(pcm_bytes: bytes) -> Dict[str, Any]:
         # Pre-ASR RMS energy gate: drop ambient noise floor / breathing immediately
         rms = float(np.sqrt(np.mean(audio ** 2)))
         peak = float(np.max(np.abs(audio)))
-        if rms < 0.0075 or peak < 0.032:
+        if rms < 0.0035 or peak < 0.015:
             return {"transcript": "", "command": None}
 
         # Gain normalization with weak-signal protection
         audio = normalize_audio(audio)
 
         # ── Whisper Transcription with VAD & Bilingual Prompt ─────
-        # Strict Two-Language Policy: English and Hindi ONLY.
+        # Adaptive thresholds: short utterances (< 1.5s) get relaxed logprob to catch quick single-word commands
+        is_short_utterance = len(audio) < int(SAMPLE_RATE * 1.5)
+        max_no_speech = 0.70 if is_short_utterance else 0.55
+        min_avg_logprob = -1.45 if is_short_utterance else -1.15
+
         try:
             segments, info = model.transcribe(
                 audio,
@@ -486,7 +494,7 @@ def transcribe_pcm(pcm_bytes: bytes) -> Dict[str, Any]:
                 no_speech_threshold=0.55,
                 vad_filter=True,
                 vad_parameters=dict(
-                    min_silence_duration_ms=350,
+                    min_silence_duration_ms=250,
                     speech_pad_ms=200,
                 )
             )
@@ -494,36 +502,34 @@ def transcribe_pcm(pcm_bytes: bytes) -> Dict[str, Any]:
             valid_segments = []
             for seg in segments:
                 # Reject noise / low confidence hallucinations
-                if getattr(seg, 'no_speech_prob', 0) > 0.45:
+                if getattr(seg, 'no_speech_prob', 0) > max_no_speech:
                     continue
-                if getattr(seg, 'avg_logprob', 0) < -1.05:
+                if getattr(seg, 'avg_logprob', 0) < min_avg_logprob:
                     continue
                 if seg.text and seg.text.strip():
                     valid_segments.append(seg.text.strip())
 
-            # If detected language is foreign (not Hindi or English), constrain strictly to 'en'
-            if info.language not in ['en', 'hi']:
-                logger.info(f"[Whisper] Detected unsupported foreign language '{info.language}'. Re-transcribing strictly in English...")
+            # Related Indian regional languages (Hindi, Urdu, Marathi, etc.) are treated as valid bilingual speech
+            bilingual_valid_languages = {'en', 'hi', 'ur', 'mr', 'ne', 'pa', 'gu', 'bn'}
+            if info.language not in bilingual_valid_languages:
+                logger.info(f"[Whisper] Detected unsupported foreign language '{info.language}'. Re-transcribing in bilingual mode...")
                 segments, info = model.transcribe(
                     audio,
                     language='en',
                     task="transcribe",
                     initial_prompt=INITIAL_PROMPT,
                     beam_size=BEAM_SIZE,
-                    best_of=BEAM_SIZE,
                     temperature=0.0,
-                    repetition_penalty=1.15,
                     condition_on_previous_text=False,
-                    no_speech_threshold=0.55,
                     vad_filter=True,
                     vad_parameters=dict(
-                        min_silence_duration_ms=350,
+                        min_silence_duration_ms=250,
                         speech_pad_ms=200,
                     )
                 )
                 valid_segments = []
                 for seg in segments:
-                    if getattr(seg, 'no_speech_prob', 0) > 0.45 or getattr(seg, 'avg_logprob', 0) < -1.05:
+                    if getattr(seg, 'no_speech_prob', 0) > max_no_speech or getattr(seg, 'avg_logprob', 0) < min_avg_logprob:
                         continue
                     if seg.text and seg.text.strip():
                         valid_segments.append(seg.text.strip())

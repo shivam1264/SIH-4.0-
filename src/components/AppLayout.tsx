@@ -14,13 +14,17 @@ import {
   Shield,
   Bell,
   CheckCircle2,
+  Sparkles,
+  Compass,
+  Radio,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
-import NotificationCenter from './NotificationCenter';
 import { useAccessibility } from '../context/AccessibilityContext';
+import { useVoiceAssistant } from '../context/VoiceAssistantContext';
 import { speechService } from '../services/speechService';
 import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
+import { audioCueService } from '../services/audioCueService';
 import { useAuth } from '../context/AuthContext';
 
 interface Props {
@@ -31,7 +35,8 @@ interface Props {
 export default function AppLayout({ children, title = 'Dashboard' }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
-  const { prefs, setTheme, setFontSize, toggleVoice } = useAccessibility();
+  const { prefs, setTheme, setFontSize } = useAccessibility();
+  const { active: voiceActive, status: voiceStatus, engine, toggleVoice, lastTranscript } = useVoiceAssistant();
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -52,7 +57,7 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
     screenReaderAnnouncer.handleRouteChange(location.pathname, prefs.voiceMode);
   }, [location.pathname, prefs.voiceMode]);
 
-  // Global accessibility hotkeys (B / O for orientation)
+  // Global accessibility hotkeys (B / O for orientation, Alt+1 to Alt+6 for navigation)
   useEffect(() => {
     const handleGlobalKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
@@ -60,43 +65,82 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
 
       if (e.key === 'b' || e.key === 'B' || e.key === 'o' || e.key === 'O') {
         e.preventDefault();
+        audioCueService.pageOrient();
         screenReaderAnnouncer.orientCurrentPage(location.pathname, true);
       }
       if (e.key === '?' || (e.altKey && (e.key === 'k' || e.key === 'K'))) {
         e.preventDefault();
         setShowShortcutsModal(prev => !prev);
       }
+      if (e.altKey && e.key === '1') { e.preventDefault(); audioCueService.navigation(); navigate('/dashboard'); }
+      if (e.altKey && e.key === '2') { e.preventDefault(); audioCueService.navigation(); navigate('/exams'); }
+      if (e.altKey && e.key === '3') { e.preventDefault(); audioCueService.navigation(); navigate('/practice'); }
+      if (e.altKey && e.key === '4') { e.preventDefault(); audioCueService.navigation(); navigate('/study-materials'); }
+      if (e.altKey && e.key === '5') { e.preventDefault(); audioCueService.navigation(); navigate('/pyqs'); }
+      if (e.altKey && e.key === '6') { e.preventDefault(); audioCueService.navigation(); navigate('/performance'); }
+      if (e.altKey && e.key === '7') { e.preventDefault(); audioCueService.navigation(); navigate('/history'); }
+      if (e.altKey && e.key === '8') { e.preventDefault(); audioCueService.navigation(); navigate('/results'); }
+      if (e.altKey && e.key === '9') { e.preventDefault(); audioCueService.navigation(); navigate('/settings'); }
+      if (e.altKey && e.key === '0') { e.preventDefault(); audioCueService.navigation(); navigate('/profile'); }
     };
     window.addEventListener('keydown', handleGlobalKey);
     return () => window.removeEventListener('keydown', handleGlobalKey);
-  }, [location.pathname]);
+  }, [location.pathname, navigate]);
 
   function cycleTheme() {
-    if (prefs.theme === 'default') setTheme('dark');
-    else if (prefs.theme === 'dark') setTheme('high-contrast');
-    else setTheme('default');
+    audioCueService.select();
+    if (prefs.theme === 'default') {
+      setTheme('dark');
+      speechService.speak('Dark mode activated.');
+    } else if (prefs.theme === 'dark') {
+      setTheme('high-contrast');
+      speechService.speak('High contrast theme activated.');
+    } else if (prefs.theme === 'high-contrast') {
+      setTheme('yellow-black');
+      speechService.speak('Yellow on black theme activated.');
+    } else {
+      setTheme('default');
+      speechService.speak('Light theme activated.');
+    }
   }
 
   function cycleFontSize() {
-    if (prefs.fontSize === 'default') setFontSize('large');
-    else if (prefs.fontSize === 'large') setFontSize('xlarge');
-    else setFontSize('default');
+    audioCueService.select();
+    if (prefs.fontSize === 'default') {
+      setFontSize('large');
+      speechService.speak('Text size large 115 percent.');
+    } else if (prefs.fontSize === 'large') {
+      setFontSize('xlarge');
+      speechService.speak('Text size extra large 135 percent.');
+    } else if (prefs.fontSize === 'xlarge') {
+      setFontSize('xxlarge');
+      speechService.speak('Text size maximum 150 percent.');
+    } else {
+      setFontSize('default');
+      speechService.speak('Text size normal 100 percent.');
+    }
   }
+
+  const handleOrientClick = () => {
+    audioCueService.pageOrient();
+    screenReaderAnnouncer.orientCurrentPage(location.pathname, true);
+  };
 
   const shortcuts = [
     { key: 'Alt + D / V', desc: 'Wake / Toggle Drishti AI Voice Assistant' },
-    { key: 'Alt + N', desc: 'Read notifications aloud with Drishti' },
-    { key: 'Esc', desc: 'Immediately silence speech / close dialogs' },
     { key: 'B / O', desc: 'Hear spoken page orientation and available options' },
-    { key: '? / Alt + K', desc: 'Open full platform keyboard shortcuts guide' },
-    { key: '1-4 / A-D', desc: 'Select option A, B, C, or D in exam' },
-    { key: 'N / Alt + N', desc: 'Navigate to Next question' },
-    { key: 'P / Alt + P', desc: 'Navigate to Previous question' },
+    { key: 'Esc', desc: 'Immediately silence speech / close dialogs' },
+    { key: '? / Alt + K', desc: 'Open full platform keyboard & voice shortcuts guide' },
+    { key: 'Alt + 1 to 6', desc: 'Direct vocal jump to Dashboard, Exams, Practice, Results, Settings, Profile' },
+    { key: '1-4 / A-D', desc: 'Select option A, B, C, or D in exam & practice drills' },
+    { key: 'N / P', desc: 'Next or Previous question' },
     { key: 'R', desc: 'Read question and options aloud' },
-    { key: 'S / Alt + S', desc: 'Submit examination with confirmation' },
-    { key: 'T', desc: 'Hear remaining exam time' },
-    { key: 'M / D / E', desc: 'Verbalize math / describe diagram / AI explanation' },
+    { key: 'F', desc: 'Flag / unflag question for review' },
+    { key: 'T', desc: 'Hear remaining exam time with PwD compensatory allocation' },
+    { key: 'M / D', desc: 'Verbalize math formulas / Describe diagram audio' },
+    { key: 'S / Alt + S', desc: 'Submit examination with two-step voice protection' },
   ];
+
 
   return (
     <div className="app-layout">
@@ -171,18 +215,18 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
 
       {/* Main Container */}
       <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', maxHeight: '100vh', overflow: 'hidden', minWidth: 0, flex: 1 }}>
-        {/* Fixed Executive Header Bar */}
+        {/* Fixed Executive Header & Voice Accessibility Cockpit */}
         <header
           role="banner"
           style={{
-            height: 56,
-            maxHeight: 56,
-            padding: '0 1.25rem',
+            height: 60,
+            maxHeight: 60,
+            padding: '0 1rem',
             background: 'var(--bg-header)',
             backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
-            borderBottom: '1px solid var(--border)',
-            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
+            borderBottom: '2px solid var(--border)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -192,21 +236,22 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
             flexShrink: 0,
             boxSizing: 'border-box',
             overflow: 'visible',
+            gap: '0.75rem',
           }}
         >
           {/* Left: Mobile Menu & Clean Minimal Breadcrumb */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0, flexShrink: 1 }}>
             <button
               className="btn-ghost md:hidden"
               onClick={() => setSidebarOpen(true)}
               aria-label="Open navigation sidebar"
-              style={{ padding: '0.35rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              style={{ padding: '0.45rem', minWidth: 40, minHeight: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              <Menu size={20} />
+              <Menu size={22} />
             </button>
 
             <nav
-              aria-label="Breadcrumb"
+              aria-label="Breadcrumb navigation"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -220,42 +265,36 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
               <button
                 type="button"
                 onClick={() => navigate(isAdminRoute ? '/admin?tab=dashboard' : '/dashboard')}
-                aria-label="Go to Dashboard"
-                title="Go to Dashboard"
+                aria-label="Go to Dashboard (Alt + 1)"
+                title="Go to Dashboard (Alt + 1)"
                 style={{
                   background: 'none',
                   border: 'none',
-                  padding: '2px',
+                  padding: '4px',
+                  minWidth: 36,
+                  minHeight: 36,
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
                   color: 'var(--breadcrumb-home, #8D3C1B)',
                   borderRadius: '0.375rem',
-                  transition: 'opacity 0.15s ease, transform 0.15s ease',
+                  transition: 'transform 0.15s ease',
                   flexShrink: 0,
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.opacity = '0.8';
-                  e.currentTarget.style.transform = 'scale(1.06)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.opacity = '1';
-                  e.currentTarget.style.transform = 'scale(1)';
-                }}
               >
-                <Home size={20} strokeWidth={2.2} />
+                <Home size={22} strokeWidth={2.4} />
               </button>
 
               <ChevronRight
                 size={16}
-                strokeWidth={2.2}
-                style={{ color: '#A8A29E', flexShrink: 0 }}
+                strokeWidth={2.4}
+                style={{ color: 'var(--text-muted)', flexShrink: 0 }}
                 aria-hidden="true"
               />
 
               {title !== 'Dashboard' ? (
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.55rem', minWidth: 0, overflow: 'hidden' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, overflow: 'hidden' }}>
                   <button
                     type="button"
                     onClick={() => navigate(isAdminRoute ? '/admin?tab=dashboard' : '/dashboard')}
@@ -264,9 +303,9 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
                       border: 'none',
                       padding: 0,
                       cursor: 'pointer',
-                      color: 'var(--text-muted, #64748B)',
+                      color: 'var(--text-muted)',
                       fontSize: '0.92rem',
-                      fontWeight: 500,
+                      fontWeight: 600,
                     }}
                     className="hidden sm:inline"
                     title="Dashboard"
@@ -275,100 +314,143 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
                   </button>
                   <ChevronRight
                     size={16}
-                    strokeWidth={2.2}
+                    strokeWidth={2.4}
                     className="hidden sm:inline"
-                    style={{ color: '#A8A29E', flexShrink: 0 }}
+                    style={{ color: 'var(--text-muted)', flexShrink: 0 }}
                     aria-hidden="true"
                   />
-                  <span
+                  <h1
                     style={{
-                      fontWeight: 700,
+                      margin: 0,
+                      fontWeight: 800,
                       fontSize: '1.05rem',
-                      color: 'var(--text, #0F172A)',
+                      color: 'var(--text)',
                       letterSpacing: '-0.01em',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                     }}
                   >
                     {title}
-                  </span>
+                  </h1>
                 </div>
               ) : (
-                <span
+                <h1
                   style={{
-                    fontWeight: 700,
+                    margin: 0,
+                    fontWeight: 800,
                     fontSize: '1.05rem',
-                    color: 'var(--text, #0F172A)',
+                    color: 'var(--text)',
                     letterSpacing: '-0.01em',
                   }}
                 >
                   Dashboard
-                </span>
+                </h1>
               )}
             </nav>
           </div>
 
-          {/* Right: Clean & Compact Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+          {/* Center/Right: Accessible Voice & Assistive Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
 
-
-            {/* Quick Voice Mode Button */}
+            {/* Persistent Drishti AI Voice Assistant Status Badge */}
             <button
+              onClick={toggleVoice}
               className="btn-ghost"
-              onClick={() => {
-                toggleVoice();
-                speechService.speak(prefs.voiceMode ? 'Voice guidance muted.' : 'Voice guidance active. Press V anytime.');
-              }}
               style={{
-                fontSize: '0.78rem',
-                padding: '0.32rem 0.65rem',
-                border: prefs.voiceMode ? '1px solid #86EFAC' : '1px solid var(--border)',
-                background: prefs.voiceMode ? 'rgba(34, 197, 94, 0.08)' : 'var(--bg-surface)',
-                color: prefs.voiceMode ? '#16A34A' : 'var(--text)',
-                borderRadius: '0.45rem',
+                padding: '0.35rem 0.75rem',
+                minHeight: 40,
+                borderRadius: '999px',
+                border: voiceActive ? '1.5px solid #22C55E' : '1.5px solid var(--border)',
+                background: voiceActive ? 'rgba(34, 197, 94, 0.12)' : 'var(--bg-surface)',
+                color: voiceActive ? (prefs.theme === 'yellow-black' ? '#FFFF00' : '#15803D') : 'var(--text)',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.4rem',
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
+                gap: '0.55rem',
+                fontWeight: 700,
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+                boxShadow: voiceActive ? '0 0 12px rgba(34, 197, 94, 0.25)' : 'none',
+                transition: 'all 0.2s ease',
               }}
-              aria-label={prefs.voiceMode ? 'Voice Guidance Active' : 'Voice Guidance Muted'}
-              title="Voice Guidance (Shortcut: V)"
+              aria-label={`Drishti AI Voice Assistant: ${voiceActive ? 'Active and listening' : 'Muted'}. Press Alt + D or V to toggle.`}
+              title="Drishti AI Voice Assistant (Press Alt+D or V anytime)"
             >
-              {prefs.voiceMode ? (
+              {voiceActive ? (
                 <>
-                  <Mic size={14} color="#16A34A" />
-                  <span className="hidden sm:inline">Voice On</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '2px', height: 16 }}>
+                    <span style={{ width: 3, height: '100%', background: '#22C55E', borderRadius: 2, animation: 'soundwave 0.8s ease-in-out infinite alternate' }} />
+                    <span style={{ width: 3, height: '60%', background: '#22C55E', borderRadius: 2, animation: 'soundwave 0.6s ease-in-out infinite alternate 0.2s' }} />
+                    <span style={{ width: 3, height: '85%', background: '#22C55E', borderRadius: 2, animation: 'soundwave 0.7s ease-in-out infinite alternate 0.4s' }} />
+                  </div>
+                  <Mic size={15} color="#22C55E" />
+                  <span className="hidden sm:inline font-bold">Drishti Active</span>
                 </>
               ) : (
                 <>
-                  <MicOff size={14} style={{ opacity: 0.6 }} />
-                  <span className="hidden sm:inline">Voice Off</span>
+                  <MicOff size={15} style={{ opacity: 0.6 }} />
+                  <span className="hidden sm:inline" style={{ color: 'var(--text-muted)' }}>Drishti Muted</span>
                 </>
               )}
+              <kbd style={{ fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px', background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-muted)', fontWeight: 800 }}>
+                V
+              </kbd>
             </button>
 
-            {/* Quick Text Size Switcher */}
+            {/* Quick "Orient Me" Spoken Page Briefing Button */}
+            <button
+              onClick={handleOrientClick}
+              className="btn-ghost"
+              style={{
+                padding: '0.35rem 0.65rem',
+                minHeight: 40,
+                borderRadius: '0.5rem',
+                border: '1.5px solid var(--border)',
+                background: 'var(--bg-surface)',
+                color: 'var(--text)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                fontWeight: 700,
+                fontSize: '0.78rem',
+                cursor: 'pointer',
+              }}
+              aria-label="Hear spoken page orientation and available actions (Hotkey: O or B)"
+              title="Spoken Page Orientation (Press O or B)"
+            >
+              <Compass size={16} color="var(--primary)" />
+              <span className="hidden md:inline">Orient Me</span>
+              <kbd style={{ fontSize: '0.65rem', padding: '1px 4px', borderRadius: '3px', background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--primary)', fontWeight: 800 }}>
+                O
+              </kbd>
+            </button>
+
+            {/* Quick Text Size Scaler */}
             <button
               className="btn-ghost"
               onClick={cycleFontSize}
               style={{
-                padding: '0.32rem 0.55rem',
-                fontSize: '0.78rem',
+                padding: '0.35rem 0.55rem',
+                minHeight: 40,
+                minWidth: 42,
+                fontSize: '0.8rem',
                 background: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                borderRadius: '0.45rem',
-                fontWeight: 600,
+                border: '1.5px solid var(--border)',
+                borderRadius: '0.5rem',
+                fontWeight: 700,
                 color: 'var(--text)',
                 display: 'inline-flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '0.25rem',
                 whiteSpace: 'nowrap',
               }}
-              aria-label={`Font size: ${prefs.fontSize}`}
-              title="Toggle Font Size"
+              aria-label={`Current font scaling: ${prefs.fontSize === 'default' ? '100%' : prefs.fontSize === 'large' ? '115%' : prefs.fontSize === 'xlarge' ? '135%' : '150%'}. Click to enlarge font.`}
+              title="Toggle Font Size (100% → 115% → 135% → 150%)"
             >
-              <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>A</span>
-              <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 700 }}>
-                {prefs.fontSize === 'default' ? '100%' : prefs.fontSize === 'large' ? '115%' : '135%'}
+              <span style={{ fontSize: '0.85rem', fontWeight: 800 }}>A</span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: 800 }}>
+                {prefs.fontSize === 'default' ? '100%' : prefs.fontSize === 'large' ? '115%' : prefs.fontSize === 'xlarge' ? '135%' : '150%'}
               </span>
             </button>
 
@@ -378,69 +460,85 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
               onClick={cycleTheme}
               style={{
                 padding: '0.4rem',
+                minHeight: 40,
+                minWidth: 40,
                 background: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                borderRadius: '0.45rem',
+                border: '1.5px solid var(--border)',
+                borderRadius: '0.5rem',
                 color: 'var(--text)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
-              aria-label={`Theme: ${prefs.theme}`}
-              title="Toggle Theme"
+              aria-label={`Current theme: ${prefs.theme}. Click to cycle light, dark, high-contrast, yellow on black.`}
+              title="Cycle Color Theme (Light → Dark → High Contrast → Yellow on Black)"
             >
-              {prefs.theme === 'default' && <Sun size={15} style={{ color: '#D97706' }} />}
-              {prefs.theme === 'dark' && <Moon size={15} style={{ color: '#60A5FA' }} />}
-              {(prefs.theme === 'high-contrast' || prefs.theme === 'yellow-black') && <Contrast size={15} style={{ color: 'var(--primary)' }} />}
+              {prefs.theme === 'default' && <Sun size={17} style={{ color: '#D97706' }} />}
+              {prefs.theme === 'dark' && <Moon size={17} style={{ color: '#60A5FA' }} />}
+              {(prefs.theme === 'high-contrast' || prefs.theme === 'yellow-black') && <Contrast size={17} style={{ color: 'var(--primary)' }} />}
             </button>
 
-            {/* Keyboard Shortcuts Dialog Button */}
+            {/* Platform Keyboard & Voice Shortcuts Guide */}
             <button
               className="btn-ghost"
-              onClick={() => setShowShortcutsModal(true)}
+              onClick={() => {
+                audioCueService.select();
+                setShowShortcutsModal(true);
+              }}
               style={{
                 padding: '0.4rem',
+                minHeight: 40,
+                minWidth: 40,
                 background: 'var(--bg-surface)',
-                border: '1px solid var(--border)',
-                borderRadius: '0.45rem',
+                border: '1.5px solid var(--border)',
+                borderRadius: '0.5rem',
                 color: 'var(--text)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
-              aria-label="Keyboard Shortcuts"
-              title="Keyboard Shortcuts"
+              aria-label="Platform Keyboard & Voice Shortcuts (Press ? or Alt+K)"
+              title="Keyboard & Voice Shortcuts (? / Alt+K)"
             >
-              <Keyboard size={15} />
+              <Keyboard size={17} />
             </button>
-
-            {/* Notification Center (Real-world synchronized notifications) */}
-            <NotificationCenter />
 
             {/* User Profile Avatar */}
             <div
-              onClick={() => (isAdminRoute ? navigate('/admin?tab=profile') : navigate('/profile'))}
+              onClick={() => {
+                audioCueService.navigation();
+                isAdminRoute ? navigate('/admin?tab=profile') : navigate('/profile');
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.4rem',
-                padding: '0.2rem 0.5rem 0.2rem 0.25rem',
+                gap: '0.45rem',
+                padding: '0.2rem 0.55rem 0.2rem 0.25rem',
+                minHeight: 40,
                 borderRadius: '9999px',
-                border: '1px solid var(--border)',
+                border: '1.5px solid var(--border)',
                 cursor: 'pointer',
                 marginLeft: '0.2rem',
                 background: 'var(--bg-surface)',
               }}
-              title="Profile"
+              title="Profile & Disability Accommodations (Alt + 6)"
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  isAdminRoute ? navigate('/admin?tab=profile') : navigate('/profile');
+                }
+              }}
             >
               <div
                 style={{
-                  width: 24,
-                  height: 24,
+                  width: 26,
+                  height: 26,
                   borderRadius: '50%',
                   background: isAdminRoute ? 'linear-gradient(135deg, #4F46E5, #7C3AED)' : 'var(--primary)',
                   color: '#fff',
-                  fontSize: '0.65rem',
+                  fontSize: '0.7rem',
                   fontWeight: 800,
                   display: 'flex',
                   alignItems: 'center',
@@ -449,12 +547,21 @@ export default function AppLayout({ children, title = 'Dashboard' }: Props) {
               >
                 {isAdminRoute ? 'AD' : user?.name ? user.name.slice(0, 2).toUpperCase() : 'ST'}
               </div>
-              <span className="hidden md:inline" style={{ fontSize: '0.76rem', fontWeight: 600, color: 'var(--text)' }}>
+              <span className="hidden md:inline" style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text)' }}>
                 {isAdminRoute ? 'Admin' : user?.name || 'Student'}
               </span>
             </div>
           </div>
         </header>
+
+        <style>{`
+          @keyframes soundwave {
+            0% { height: 25%; }
+            50% { height: 100%; }
+            100% { height: 40%; }
+          }
+        `}</style>
+
 
         {/* Main Content Area - Scrollable underneath fixed header */}
         <main

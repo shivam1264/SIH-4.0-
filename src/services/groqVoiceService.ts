@@ -24,13 +24,11 @@ const SILENCE_FRAMES_TRIGGER = 3; // ~384ms pause triggers utterance submission
 const MIN_UTTERANCE_MS = 320; // 320ms minimum for voice commands
 const MAX_UTTERANCE_MS = 5000; // Safety cap: 5 seconds continuous audio
 
-// Domain vocabulary prompt to prime Whisper for exam and Hindi/Hinglish instructions
+// Domain vocabulary prompt to prime Whisper for exam and Hindi/Hinglish instructions.
+// CRITICAL: Must be concise domain keywords only — NEVER full sentence command chains
+// like "start mock test submit exam confirm" because Whisper regurgitates prompt tokens on silence.
 const EXAM_VOICE_PROMPT = (
-  'Next question, previous question, read question, repeat question, flag question. ' +
-  'Select option A, option B, option C, option D, change my answer to B, clear answer. ' +
-  'Agla sawal, pichla sawal, sawal padho, agla prashna, vikalp A, vikalp B, vikalp C, vikalp D. ' +
-  'Dashboard, mock tests, practice drills, results, performance, settings. ' +
-  'Start mock test, submit exam, confirm, yes, cancel, no, उत्तर बदलो, सबमिट करो।'
+  'Drishti, DrishtiX, SSC, CHSL, CGL, UPSC, RRB, Banking, options A B C D, vikalp, sawal, prashna, Hindi, English'
 );
 
 function pcmToWav(pcmData: Int16Array, sampleRate = 16000): Blob {
@@ -422,6 +420,20 @@ class GroqVoiceService {
 
     for (const pattern of noisePatterns) {
       if (pattern.test(clean)) return '';
+    }
+
+    // Filter out Whisper prompt regurgitations and concatenated phantom command chains
+    if (
+      /\b(?:start|shtart)\s+mock\s+test\s+(?:submit|exam|confirm)/i.test(clean) ||
+      /\bmock\s+test\s+submit\s+exam/i.test(clean) ||
+      /\bsubmit\s+exam\s+confirm/i.test(clean) ||
+      /\b(?:confirm\s+yes\s+cancel\s+no|yes\s+cancel\s+no)\b/i.test(clean) ||
+      /\b(?:next\s+question\s+previous\s+question|read\s+question\s+repeat\s+question)\b/i.test(clean) ||
+      /\b(?:option\s+a\s+option\s+b\s+option\s+c)\b/i.test(clean) ||
+      /\b(?:vikalp\s+a\s+vikalp\s+b\s+vikalp\s+c)\b/i.test(clean)
+    ) {
+      console.warn('[GroqVoice] ⚠️ Rejected Whisper prompt hallucination / concatenated chain:', clean);
+      return '';
     }
 
     // Repetitive loop check (e.g. "next next next")

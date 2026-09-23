@@ -95,6 +95,23 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
       ],
     },
     {
+      title: 'Platform Navigation',
+      icon: ArrowRight,
+      color: '#059669',
+      items: [
+        { keys: ['Alt + 1'], desc: 'Open Dashboard' },
+        { keys: ['Alt + 2'], desc: 'Open Mock Tests Catalog' },
+        { keys: ['Alt + 3'], desc: 'Open AI Practice Drills' },
+        { keys: ['Alt + 4'], desc: 'Open Study Materials & Audio Notes' },
+        { keys: ['Alt + 5'], desc: 'Open Past Year Solved Papers (PYQs)' },
+        { keys: ['Alt + 6'], desc: 'Open Performance Analytics' },
+        { keys: ['Alt + 7'], desc: 'Open Exam Attempt History' },
+        { keys: ['Alt + 8'], desc: 'Open Scorecard & Solutions' },
+        { keys: ['Alt + 9'], desc: 'Open Accessibility Settings' },
+        { keys: ['Alt + 0'], desc: 'Open Candidate Profile & Accommodations' },
+      ],
+    },
+    {
       title: 'General & Accessibility',
       icon: Zap,
       color: '#D97706',

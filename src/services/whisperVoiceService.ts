@@ -13,9 +13,9 @@ export type WhisperStatusCallback = (
 const WHISPER_WS_URL        = 'ws://localhost:8765/ws/voice';
 const SAMPLE_RATE           = 16000;
 const BUFFER_SIZE           = 2048;   // ~128ms per audio frame
-const BASE_SPEECH_RMS       = 0.016;  // Robust baseline speech threshold (rejects room fans & quiet breathing)
+const BASE_SPEECH_RMS       = 0.012;  // High-sensitivity vocal baseline (calibrated for noise rejection)
 const SILENCE_FRAMES_TRIGGER = 3;      // 3 silence frames (~384ms) triggers natural end-of-utterance
-const MIN_UTTERANCE_MS       = 320;    // Minimum 320ms to prevent transient click/bump false triggers
+const MIN_UTTERANCE_MS       = 180;    // Minimum 180ms to capture single-syllable commands ('B', 'No', 'A', 'Next')
 const MAX_UTTERANCE_MS       = 4500;   // Safety cap: dispatch if continuous speech exceeds 4.5s
 
 const KNOWN_HALLUCINATIONS = [
@@ -223,27 +223,27 @@ class WhisperVoiceService {
       // Input source
       const source = this.audioCtx.createMediaStreamSource(this.stream);
 
-      // 1. High-pass filter at 125Hz: Removes desk vibrations, fan hum, laptop chassis buzz
+      // 1. High-pass filter at 130Hz: Removes desk vibrations, fan hum, laptop chassis buzz
       this.filterNode = this.audioCtx.createBiquadFilter();
       this.filterNode.type = 'highpass';
-      this.filterNode.frequency.value = 125;
+      this.filterNode.frequency.value = 130;
 
-      // 2. Low-pass filter at 3800Hz: Cuts out mouse clicks, high-frequency hiss & sizzle
+      // 2. Low-pass filter at 3600Hz: Cuts out mouse clicks, high-frequency hiss & whistle
       this.lowpassNode = this.audioCtx.createBiquadFilter();
       this.lowpassNode.type = 'lowpass';
-      this.lowpassNode.frequency.value = 3800;
+      this.lowpassNode.frequency.value = 3600;
 
       // 3. Dynamics Compressor: Clean vocal leveling without pumping or distortion
       this.compressorNode = this.audioCtx.createDynamicsCompressor();
-      this.compressorNode.threshold.value = -26;
-      this.compressorNode.knee.value = 8;
-      this.compressorNode.ratio.value = 3;
-      this.compressorNode.attack.value = 0.005;
-      this.compressorNode.release.value = 0.2;
+      this.compressorNode.threshold.value = -24;
+      this.compressorNode.knee.value = 10;
+      this.compressorNode.ratio.value = 4;
+      this.compressorNode.attack.value = 0.003;
+      this.compressorNode.release.value = 0.15;
 
-      // 4. Clean Make-up Gain (gentle 1.15x boost to preserve natural dynamic range without noise amplification)
+      // 4. Clean Make-up Gain (1.30x boost ensures conversational speech is picked up clearly by Whisper)
       this.gainNode = this.audioCtx.createGain();
-      this.gainNode.gain.value = 1.15;
+      this.gainNode.gain.value = 1.30;
 
       // ScriptProcessor for raw PCM access
       this.processor = this.audioCtx.createScriptProcessor(BUFFER_SIZE, 1, 1);
@@ -252,10 +252,6 @@ class WhisperVoiceService {
         if (this.ws?.readyState !== WebSocket.OPEN) return;
 
         // ── Echo Cancellation & BARGE-IN ──
-        // If the microphone picks up voice while TTS is speaking, it might be echo or user barge-in.
-        // We rely on browser echo cancellation (enabled in getUserMedia) to filter out the TTS voice.
-        // If rms still crosses dynamicThreshold, we assume it's the user interrupting.
-
         const float32 = e.inputBuffer.getChannelData(0);
 
         // ── Calculate RMS Energy ──
@@ -274,16 +270,16 @@ class WhisperVoiceService {
 
         // Dynamic noise floor tracking: learn ambient room noise floor when idle
         if (!this.isSpeaking) {
-          this.noiseFloor = this.noiseFloor * 0.95 + rms * 0.05;
+          this.noiseFloor = this.noiseFloor * 0.96 + rms * 0.04;
         }
-        const dynamicThreshold = Math.max(BASE_SPEECH_RMS, this.noiseFloor * 2.2);
+        const dynamicThreshold = Math.max(BASE_SPEECH_RMS, this.noiseFloor * 1.9);
 
         if (rms >= dynamicThreshold) {
           this.consecutiveVoicedFrames++;
 
-          // Require at least 2 consecutive voiced frames (>250ms) to confirm genuine human speech
-          // (Rejects single-frame keyboard clicks, pen taps, coughs, and desk bumps)
-          if (this.consecutiveVoicedFrames >= 2) {
+          // Either 1 strong voice frame (>1.4x threshold) or 2 voiced frames confirms speech
+          // Fast triggering prevents cutting off quick single-word answers ("A", "B", "No")
+          if ((this.consecutiveVoicedFrames >= 1 && rms >= dynamicThreshold * 1.35) || this.consecutiveVoicedFrames >= 2) {
             // ── BARGE-IN: Stop AI speech if user starts talking ──
             if (speechService.isSpeaking) {
               console.log('[Whisper] 🛑 Barge-in: User interrupted, stopping AI speech.');

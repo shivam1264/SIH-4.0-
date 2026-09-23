@@ -41,8 +41,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
-import { DraggableQuickActions } from '../components/DraggableQuickActions';
-import ComplianceTestingDashboard from '../components/ComplianceTestingDashboard';
+import { usePageVoice } from '../hooks/usePageVoice';
 import ExcelQuestionImportModal from '../components/ExcelQuestionImportModal';
 import { downloadSampleExcelTemplate, type ParsedQuestionRow } from '../utils/excelQuestionParser';
 import {
@@ -208,6 +207,97 @@ export default function AdminDashboard() {
   useEffect(() => {
     document.title = `Admin ${activeTab.toUpperCase()} — DrishtiX`;
   }, [activeTab]);
+
+  usePageVoice('AdminDashboard', [
+    {
+      triggers: ['dashboard', 'overview', 'admin dashboard', 'admin home', 'mukhya prishth'],
+      answer: () => 'Switching to Admin Overview Dashboard.',
+      action: () => setActiveTab('dashboard'),
+    },
+    {
+      triggers: ['students', 'candidate list', 'users', 'candidate management', 'vidyarthi'],
+      answer: () => 'Opening Candidate Management tab.',
+      action: () => setActiveTab('students'),
+    },
+    {
+      triggers: ['exams', 'manage exams', 'mock tests', 'pariksha'],
+      answer: () => 'Opening Mock Test Catalog Management tab.',
+      action: () => setActiveTab('exams'),
+    },
+    {
+      triggers: ['questions', 'question bank', 'manage questions', 'prashna'],
+      answer: () => 'Opening Question Bank tab.',
+      action: () => setActiveTab('questions'),
+    },
+    {
+      triggers: ['ai generator', 'generate questions', 'ai questions', 'smart generator'],
+      answer: () => 'Opening AI Question Generator tab.',
+      action: () => setActiveTab('ai-generator'),
+    },
+    {
+      triggers: ['study materials', 'notes', 'resources', 'study content'],
+      answer: () => 'Opening Study Materials tab.',
+      action: () => setActiveTab('study-materials'),
+    },
+    {
+      triggers: ['pyqs', 'previous years', 'previous papers', 'past papers'],
+      answer: () => 'Opening Previous Year Question Papers tab.',
+      action: () => setActiveTab('pyqs'),
+    },
+    {
+      triggers: ['subjects', 'curriculum', 'syllabus', 'vishay'],
+      answer: () => 'Opening Curriculum & Subjects tab.',
+      action: () => setActiveTab('subjects'),
+    },
+    {
+      triggers: ['attempts', 'attempt logs', 'exam logs', 'candidate sessions'],
+      answer: () => 'Opening Candidate Attempt Logs tab.',
+      action: () => setActiveTab('attempts'),
+    },
+    {
+      triggers: ['analytics', 'performance analytics', 'metrics', 'insights'],
+      answer: () => 'Opening Platform Analytics & Metrics tab.',
+      action: () => setActiveTab('analytics'),
+    },
+    {
+      triggers: ['accessibility', 'speech settings', 'assistive tech', 'pronunciation rules'],
+      answer: () => 'Opening Accessibility & Assistive Speech Control tab.',
+      action: () => setActiveTab('accessibility'),
+    },
+    {
+      triggers: ['compliance', 'audit reports', 'wcag compliance', 'rpwd compliance'],
+      answer: () => 'Opening Regulatory Compliance & Accessibility Audits tab.',
+      action: () => setActiveTab('compliance'),
+    },
+    {
+      triggers: ['notifications', 'announcements', 'broadcast', 'suchna'],
+      answer: () => 'Opening Platform Announcements & Broadcasts tab.',
+      action: () => setActiveTab('notifications'),
+    },
+    {
+      triggers: ['reports', 'download reports', 'export audit'],
+      answer: () => 'Opening System Reports & Audit Trail tab.',
+      action: () => setActiveTab('reports'),
+    },
+    {
+      triggers: ['admin settings', 'system settings', 'configuration'],
+      answer: () => 'Opening Administrator Settings tab.',
+      action: () => setActiveTab('settings'),
+    },
+    {
+      triggers: ['my profile', 'admin profile', 'profile'],
+      answer: () => 'Opening Administrator Profile tab.',
+      action: () => setActiveTab('profile'),
+    },
+    {
+      triggers: ['logout', 'sign out', 'log out', 'admin logout'],
+      answer: () => 'Logging out of Administrator Portal.',
+      action: () => {
+        logout();
+        navigate('/login');
+      },
+    },
+  ]);
 
   // ─────────────────────────────────────────────
   //  State: Examinations
@@ -1384,7 +1474,7 @@ export default function AdminDashboard() {
                       </div>
                       <button
                         className="btn-ghost"
-                        onClick={() => testSpeech('SIGHT-EXAM AI speech synthesis engine is fully operational.')}
+                        onClick={() => testSpeech('Drishti AI speech synthesis engine is fully operational.')}
                         style={{ fontSize: '0.74rem', padding: '0.25rem 0.6rem', color: 'var(--primary)', fontWeight: 600 }}
                       >
                         Test Voice
@@ -3697,15 +3787,6 @@ export default function AdminDashboard() {
         )}
 
         {/* ══════════════════════════════════════════════════════════
-            MODULE 9.5: 🛡️ COMPLIANCE TESTING DASHBOARD
-           ══════════════════════════════════════════════════════════ */}
-        {activeTab === 'compliance' && (
-          <div className="fade-in">
-            <ComplianceTestingDashboard />
-          </div>
-        )}
-
-        {/* ══════════════════════════════════════════════════════════
             MODULE 10: 🔔 NOTIFICATIONS & VOICE BROADCAST
            ══════════════════════════════════════════════════════════ */}
         {activeTab === 'notifications' && (
@@ -3865,7 +3946,7 @@ export default function AdminDashboard() {
                   <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
                     <button
                       className="btn-primary"
-                      onClick={() => toast.info(`Downloading "${rep.title}" (${rep.format})… Certified by SIGHT-EXAM AI.`, 'Report Download')}
+                      onClick={() => toast.info(`Downloading "${rep.title}" (${rep.format})… Certified by Drishti AI.`, 'Report Download')}
                       style={{ fontSize: '0.78rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                     >
                       <Download size={14} /> Download {rep.format} Report
@@ -3916,7 +3997,7 @@ export default function AdminDashboard() {
                   <div style={{ display: 'flex', alignItems: 'flex-end' }}>
                     <button
                       className="btn-primary"
-                      onClick={() => testSpeech(`This is a test of ${selectedTTSVoice}. SIGHT-EXAM AI is ready for all examinations.`)}
+                      onClick={() => testSpeech(`This is a test of ${selectedTTSVoice}. Drishti AI is ready for all examinations.`)}
                       style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}
                     >
                       <Volume2 size={15} /> Play Speech Test
@@ -3991,7 +4072,7 @@ export default function AdminDashboard() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.82rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
                   <div><strong>Authority:</strong> Ministry of Education & SIH 4.0 Hackathon Nodal Center</div>
-                  <div><strong>Assigned Center:</strong> SIGHT-EXAM AI Central Server Hub</div>
+                  <div><strong>Assigned Center:</strong> Drishti AI Central Server Hub</div>
                   <div><strong>Security Clearance:</strong> Full Exam Creation & Audit Verification</div>
                   <div><strong>Session Duration:</strong> Active (Encrypted TLS 1.3)</div>
                 </div>
@@ -4642,15 +4723,6 @@ export default function AdminDashboard() {
           isOpen={showExcelImportModal}
           onClose={() => setShowExcelImportModal(false)}
           onImportSuccess={handleImportExcelQuestions}
-        />
-
-        {/* Floating Draggable Quick Actions Button (Accessible on all admin pages) */}
-        <DraggableQuickActions
-          onCreateExam={() => setShowAddExamModal(true)}
-          onOpenAiGenerator={() => setActiveTab('ai-generator')}
-          onGoToStudents={() => setActiveTab('students')}
-          onAddQuestion={() => setShowAddQuestionModal(true)}
-          onTestVoice={() => testSpeech('SIGHT-EXAM AI voice synthesis engine is active.')}
         />
       </div>
     </AppLayout>

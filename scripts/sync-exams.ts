@@ -12,20 +12,20 @@ console.log('Current store exam IDs:', store.exams.map((e: any) => e.id));
 console.log('Frontend EXAMS count:', EXAMS.length);
 console.log('Frontend EXAMS IDs:', EXAMS.map((e: any) => e.id));
 
-// Add missing exams into store
-let added = 0;
+// Upsert exams from frontend EXAMS into store.exams
+let updatedCount = 0;
 for (const fe of EXAMS) {
-  const existing = store.exams.find((se: any) => se.id === fe.id);
-  if (!existing) {
+  const existingIdx = store.exams.findIndex((se: any) => se.id === fe.id);
+  if (existingIdx >= 0) {
+    store.exams[existingIdx] = { ...store.exams[existingIdx], ...fe };
+    updatedCount++;
+    console.log(`Updated exam: ${fe.id} (${fe.questions.length} questions)`);
+  } else {
     store.exams.push(fe);
-    added++;
-    console.log(`Added exam: ${fe.id} - ${fe.title}`);
+    updatedCount++;
+    console.log(`Added new exam: ${fe.id} (${fe.questions.length} questions)`);
   }
 }
 
-if (added > 0) {
-  fs.writeFileSync(storePath, JSON.stringify(store, null, 2), 'utf8');
-  console.log(`Successfully synced ${added} exams to server/data/store.json`);
-} else {
-  console.log('All exams already exist in store.');
-}
+fs.writeFileSync(storePath, JSON.stringify(store, null, 2), 'utf8');
+console.log(`Successfully synced ${updatedCount} exams to server/data/store.json`);

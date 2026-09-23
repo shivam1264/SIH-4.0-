@@ -159,7 +159,65 @@ const TOPICS: Record<string, TopicData> = {
       },
     ],
   },
+  'General Science': {
+    subject: 'General Science',
+    topic: 'General Science',
+    difficulty: 'Medium',
+    questions: [
+      {
+        q: 'Which law of motion states that for every action, there is an equal and opposite reaction?',
+        options: ['Newton First Law', 'Newton Second Law', 'Newton Third Law', 'Law of Universal Gravitation'],
+        correct: 2,
+        explanation: 'Newton’s Third Law of Motion states that for every action, there is an equal and opposite reaction forces acting on different bodies.',
+      },
+      {
+        q: 'Which blood cells are responsible for carrying oxygen throughout the human body?',
+        options: ['Red Blood Cells (Erythrocytes)', 'White Blood Cells (Leukocytes)', 'Platelets (Thrombocytes)', 'Plasma'],
+        correct: 0,
+        explanation: 'Red Blood Cells contain hemoglobin, an iron-rich protein that binds oxygen in the lungs and delivers it to body tissues.',
+      },
+    ],
+  },
+  'Time & Distance': {
+    subject: 'Mathematics',
+    topic: 'Time & Distance',
+    difficulty: 'Medium',
+    questions: [
+      {
+        q: 'A train 150 meters long passes an electric pole in 15 seconds. What is the speed of the train in km/h?',
+        options: ['36 km/h', '45 km/h', '54 km/h', '60 km/h'],
+        correct: 0,
+        explanation: 'Speed = Distance / Time = 150m / 15s = 10 m/s. Converting to km/h: 10 × (18/5) = 36 km/h.',
+      },
+      {
+        q: 'If a car travels at 60 km/h, how much distance will it cover in 2.5 hours?',
+        options: ['120 km', '150 km', '160 km', '180 km'],
+        correct: 1,
+        explanation: 'Distance = Speed × Time = 60 km/h × 2.5 hours = 150 kilometers.',
+      },
+    ],
+  },
+  'English Grammar': {
+    subject: 'English Language',
+    topic: 'English Grammar',
+    difficulty: 'Easy',
+    questions: [
+      {
+        q: 'Choose the correct passive voice: "The chef cooked a delicious meal."',
+        options: ['A delicious meal is cooked by the chef.', 'A delicious meal was cooked by the chef.', 'A delicious meal had been cooked by the chef.', 'A delicious meal has cooked by the chef.'],
+        correct: 1,
+        explanation: 'In past simple, passive voice takes "was/were + past participle": "A delicious meal was cooked by the chef."',
+      },
+      {
+        q: 'Find the synonym of the word "CANDID":',
+        options: ['Deceptive', 'Frank', 'Arrogant', 'Secretive'],
+        correct: 1,
+        explanation: 'Candid means truthful and straightforward; frank is its exact synonym.',
+      },
+    ],
+  },
 };
+
 
 export default function Practice() {
   const { prefs } = useAccessibility();
@@ -314,6 +372,8 @@ export default function Practice() {
     speechService.speak(`Explanation: ${curQ.explanation}`, { priority: true });
     setTimeout(() => setIsSpeaking(false), 4000);
   }
+  const readExplanationAloudRef = useRef(readExplanationAloud);
+  readExplanationAloudRef.current = readExplanationAloud;
 
   function startTopic(t: string) {
     if (!t) {
@@ -518,7 +578,23 @@ export default function Practice() {
       action: () => startTopicRef.current('Mensuration'),
     },
     {
+      triggers: ['general science', 'science', 'vigyan', 'physics', 'chemistry', 'biology'],
+      answer: () => 'Starting General Science practice drill.',
+      action: () => startTopicRef.current('General Science'),
+    },
+    {
+      triggers: ['time and distance', 'speed', 'train', 'distance', 'chal aur duri'],
+      answer: () => 'Starting Time and Distance practice drill.',
+      action: () => startTopicRef.current('Time & Distance'),
+    },
+    {
+      triggers: ['english grammar', 'english', 'grammar', 'angrezi'],
+      answer: () => 'Starting English Grammar practice drill.',
+      action: () => startTopicRef.current('English Grammar'),
+    },
+    {
       triggers: ['read question', 'question kya hai', 'prashna padho', 'question repeat', 'dobara padho'],
+
       answer: () => 'Reading question aloud.',
       action: () => readQuestionAloud(qiRef.current),
     },
@@ -561,8 +637,22 @@ export default function Practice() {
       answer: () => (selectedTopic ? `Current topic ${selectedTopic} hai.` : 'No topic selected. Showing all topics.'),
     },
     {
-      triggers: ['explanation', 'samjhao', 'karan'],
+      triggers: ['explanation', 'samjhao', 'karan', 'show explanation', 'read explanation'],
       answer: () => (question ? question.explanation : 'No active question.'),
+    },
+    {
+      triggers: ['hint', 'give me a hint', 'ishara', 'clue', 'madad'],
+      answer: () => (question ? `Hint: ${question.explanation.split('.')[0]}.` : 'No active question.'),
+    },
+    {
+      triggers: ['try again', 'retry', 'phir se koshish', 'dobara'],
+      answer: () => 'Try again. Select your answer.',
+      action: () => {
+        setChosen(null);
+        chosenRef.current = null;
+        setRevealed(false);
+        revealedRef.current = false;
+      },
     },
   ]);
 
@@ -681,8 +771,30 @@ export default function Practice() {
         startTopicRef.current('Mensuration');
         return true;
       }
+      if (/\b(?:science|general science|vigyan|physics|chemistry|biology|newton|blood cells)\b/i.test(clean)) {
+        setVoiceStatus('Starting General Science Drill...');
+        audioCueService.select();
+        speechService.speak('Starting General Science practice drill');
+        startTopicRef.current('General Science');
+        return true;
+      }
+      if (/\b(?:time speed distance|speed|distance|train|trains|duri|chal)\b/i.test(clean)) {
+        setVoiceStatus('Starting Time & Distance Drill...');
+        audioCueService.select();
+        speechService.speak('Starting Time and Distance practice drill');
+        startTopicRef.current('Time & Distance');
+        return true;
+      }
+      if (/\b(?:english|grammar|comprehension|active passive|error spotting|candid|angrezi)\b/i.test(clean)) {
+        setVoiceStatus('Starting English Grammar Drill...');
+        audioCueService.select();
+        speechService.speak('Starting English Grammar practice drill');
+        startTopicRef.current('English Grammar');
+        return true;
+      }
 
       // Ordinal topic selections: Topic 1, Topic 2, etc.
+
       const topicKeys = Object.keys(TOPICS);
       if (/\b(?:first topic|pehla topic|topic 1|topic one|drill 1)\b/i.test(clean) && topicKeys[0]) {
         setVoiceStatus(`Starting ${topicKeys[0]} Drill...`);
@@ -760,15 +872,41 @@ export default function Practice() {
         return true;
       }
 
-      if (intent.type === 'INITIATE_SUBMIT') {
+      if (intent.type === 'VERIFY_ANSWER' || intent.type === 'INITIATE_SUBMIT') {
         setVoiceStatus('Checking answer...');
         revealRef.current();
         return true;
       }
 
-      if (intent.type === 'OPEN_PRACTICE' || intent.type === 'NAVIGATE_BACK') {
+      if (intent.type === 'PRACTICE_HINT') {
+        setVoiceStatus('Giving hint...');
+        const curQ = topicDataRef.current?.questions[qiRef.current];
+        const hintText = curQ?.explanation
+          ? `Hint: ${curQ.explanation.split('.')[0]}.`
+          : 'Consider the fundamental rules and formulas of this topic.';
+        speechService.speak(hintText, { priority: true });
+        return true;
+      }
+
+      if (intent.type === 'PRACTICE_RETRY') {
+        setVoiceStatus('Retrying question...');
+        setChosen(null);
+        chosenRef.current = null;
+        setRevealed(false);
+        revealedRef.current = false;
+        speechService.speak('Try again. Speak or pick your option now.', { priority: true });
+        return true;
+      }
+
+      if (intent.type === 'PRACTICE_TOPIC' || intent.type === 'OPEN_PRACTICE' || intent.type === 'NAVIGATE_BACK') {
         setVoiceStatus('Showing all practice topics...');
         startTopicRef.current('');
+        return true;
+      }
+
+      if (intent.type === 'EXPLAIN_QUESTION') {
+        setVoiceStatus('Explaining solution...');
+        readExplanationAloudRef.current();
         return true;
       }
 

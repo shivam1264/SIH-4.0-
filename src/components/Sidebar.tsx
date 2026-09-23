@@ -22,6 +22,8 @@ import {
   Clock,
 } from 'lucide-react';
 
+import { audioCueService } from '../services/audioCueService';
+
 interface NavItem {
   id?: string;
   label: string;
@@ -29,6 +31,7 @@ interface NavItem {
   path: string;
   icon: React.ComponentType<{ size?: number; className?: string; strokeWidth?: number; style?: React.CSSProperties }>;
   badge?: string;
+  shortcut?: string;
   adminOnly?: boolean;
 }
 
@@ -39,27 +42,28 @@ interface NavGroup {
 
 const STUDENT_NAV_GROUPS: NavGroup[] = [
   {
-    heading: 'LEARNING & EXAMS',
+    heading: 'COMPETITIVE PREPARATION',
     items: [
-      { label: 'Dashboard', path: '/dashboard', icon: Home },
-      { label: 'Mock Tests', path: '/exams', icon: FileText, badge: '4 Live' },
-      { label: 'AI Practice Drills', path: '/practice', icon: Target, badge: 'New' },
-      { label: 'Study Materials', path: '/study-materials', icon: BookOpen, badge: 'Notes' },
-      { label: 'Past Year Papers', path: '/pyqs', icon: FileSpreadsheet, badge: 'PYQ' },
+      { label: 'Dashboard', path: '/dashboard', icon: Home, shortcut: 'Alt+1' },
+      { label: 'Mock Tests', path: '/exams', icon: FileText, badge: 'Live', shortcut: 'Alt+2' },
+      { label: 'Practice Drills', path: '/practice', icon: Target, badge: 'AI', shortcut: 'Alt+3' },
+      { label: 'Study Materials', path: '/study-materials', icon: BookOpen, badge: 'Audio', shortcut: 'Alt+4' },
+      { label: 'Past Papers (PYQs)', path: '/pyqs', icon: FileSpreadsheet, shortcut: 'Alt+5' },
     ],
   },
   {
     heading: 'ANALYTICS & RESULTS',
     items: [
-      { label: 'Performance', path: '/performance', icon: BarChart3 },
-      { label: 'Exam History', path: '/history', icon: Clock, badge: 'Logs' },
+      { label: 'Performance Hub', path: '/performance', icon: BarChart3, shortcut: 'Alt+6' },
+      { label: 'Attempt History', path: '/history', icon: Clock, shortcut: 'Alt+7' },
+      { label: 'Scorecard Review', path: '/results', icon: Award, shortcut: 'Alt+8' },
     ],
   },
   {
-    heading: 'ACCOUNT & SYSTEM',
+    heading: 'ACCESSIBILITY & PROFILE',
     items: [
-      { label: 'Accessibility Settings', path: '/settings', icon: Accessibility },
-      { label: 'Profile', path: '/profile', icon: UserIcon },
+      { label: 'Accessibility Settings', path: '/settings', icon: Accessibility, shortcut: 'Alt+9' },
+      { label: 'Candidate Profile & PwD', path: '/profile', icon: UserIcon, shortcut: 'Alt+0' },
       { label: 'Admin Panel', path: '/admin?tab=dashboard', icon: ShieldCheck, adminOnly: true },
     ],
   },
@@ -72,21 +76,12 @@ const ADMIN_NAV_ITEMS: {
   badge?: string;
 }[] = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
-    { id: 'students', label: 'Students', icon: Users, badge: '5 PwD' },
-    { id: 'exams', label: 'Examinations', icon: FileText, badge: '4 Live' },
+    { id: 'students', label: 'Students & Accommodations', icon: Users, badge: 'PwD' },
+    { id: 'exams', label: 'Examinations', icon: FileText, badge: 'Live' },
     { id: 'questions', label: 'Question Bank', icon: BookOpen },
     { id: 'ai-generator', label: 'AI Question Generator', icon: Bot, badge: 'AI' },
-    { id: 'study-materials', label: 'Study Materials', icon: BookOpen, badge: 'Notes' },
-    { id: 'pyqs', label: 'Past Year Papers', icon: FileSpreadsheet, badge: 'PYQ' },
-    { id: 'subjects', label: 'Subjects & Topics', icon: GraduationCap },
-    { id: 'attempts', label: 'Attempts & Results', icon: Award },
-    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-    { id: 'accessibility', label: 'Accessibility', icon: Accessibility, badge: '99.4%' },
-    { id: 'compliance', label: 'Compliance Audit', icon: ShieldCheck, badge: 'WCAG' },
-    { id: 'notifications', label: 'Notifications', icon: Bell, badge: '3' },
-    { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
+    { id: 'attempts', label: 'Attempts & Speech Logs', icon: Award },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
-    { id: 'profile', label: 'Admin Profile', icon: ShieldCheck },
   ];
 
 interface Props { onClose?: () => void; }
@@ -101,9 +96,11 @@ export default function Sidebar({ onClose }: Props) {
   const currentTab = searchParams.get('tab') || 'dashboard';
 
   function go(path: string) {
+    audioCueService.navigation();
     navigate(path);
     onClose?.();
   }
+
 
   function handleLogout() {
     logout();
@@ -356,21 +353,39 @@ export default function Sidebar({ onClose }: Props) {
                             {item.label}
                           </span>
                         </div>
-                        {item.badge && (
-                          <span
-                            style={{
-                              fontSize: '0.65rem',
-                              fontWeight: 700,
-                              padding: '0.1rem 0.42rem',
-                              borderRadius: '999px',
-                              flexShrink: 0,
-                              lineHeight: 1.2,
-                              ...getBadgeStyle(item.badge),
-                            }}
-                          >
-                            {item.badge}
-                          </span>
-                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                          {item.badge && (
+                            <span
+                              style={{
+                                fontSize: '0.65rem',
+                                fontWeight: 700,
+                                padding: '0.1rem 0.42rem',
+                                borderRadius: '999px',
+                                flexShrink: 0,
+                                lineHeight: 1.2,
+                                ...getBadgeStyle(item.badge),
+                              }}
+                            >
+                              {item.badge}
+                            </span>
+                          )}
+                          {item.shortcut && (
+                            <kbd
+                              style={{
+                                fontSize: '0.62rem',
+                                padding: '1px 4px',
+                                borderRadius: '3px',
+                                background: isActive ? 'rgba(255,255,255,0.2)' : 'var(--bg-surface)',
+                                border: '1px solid var(--border)',
+                                color: isActive ? '#fff' : 'var(--text-muted)',
+                                fontWeight: 700,
+                                fontFamily: 'monospace',
+                              }}
+                            >
+                              {item.shortcut}
+                            </kbd>
+                          )}
+                        </div>
                       </button>
                     );
                   })}
@@ -381,8 +396,38 @@ export default function Sidebar({ onClose }: Props) {
         )}
       </div>
 
+      {/* Certified PwD Accommodations Card */}
+      {!isAdminRoute && (
+        <div
+          style={{
+            margin: '0 0.65rem 0.65rem',
+            padding: '0.6rem 0.75rem',
+            borderRadius: '0.65rem',
+            background: 'var(--bg-surface)',
+            border: '1.5px solid var(--border)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.25rem',
+          }}
+          role="region"
+          aria-label="PwD Examination Accommodations"
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <ShieldCheck size={15} color="var(--primary)" />
+            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text)', letterSpacing: '0.02em' }}>
+              PwD Accommodations
+            </span>
+          </div>
+          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', lineHeight: 1.35 }}>
+            Compensatory Extra Time: <strong style={{ color: 'var(--primary)' }}>+50% (1.5x)</strong><br />
+            Compliant: <strong>RPwD Act 2016</strong>
+          </div>
+        </div>
+      )}
+
       {/* Logout button */}
       <div style={{ padding: '0.65rem 0.75rem', borderTop: '1px solid var(--sidebar-border, #E2E8F0)', background: 'var(--sidebar-header-bg, transparent)', flexShrink: 0 }}>
+
         <button
           onClick={handleLogout}
           style={{

@@ -1,823 +1,668 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   BookOpen,
-  Volume2,
-  VolumeX,
-  Play,
-  Square,
   Search,
+  Volume2,
+  Play,
+  Pause,
+  RotateCcw,
   Download,
-  Clock,
-  CheckCircle2,
-  Bookmark,
-  FileText,
   Sparkles,
-  ArrowRight,
+  Clock,
+  Tag,
   Filter,
+  CheckCircle2,
+  ArrowRight,
+  Headphones,
   X,
+  FileText,
+  Share2,
+  SlidersHorizontal,
+  Bookmark,
+  ChevronDown
 } from 'lucide-react';
 import AppLayout from '../components/AppLayout';
+import { MOCK_STUDY_MATERIALS } from '../data/mockData';
 import { studyMaterialsApi } from '../services/api';
 import { speechService } from '../services/speechService';
+import { audioCueService } from '../services/audioCueService';
+import { screenReaderAnnouncer } from '../services/screenReaderAnnouncer';
 import { useAccessibility } from '../context/AccessibilityContext';
 import { usePageVoice } from '../hooks/usePageVoice';
-import type { StudyMaterial } from '../types';
+import type { StudyMaterial, Subject } from '../types';
 
-function getSubjectTheme(subject: string = '', category: string = '') {
-  const text = `${subject} ${category}`.toLowerCase();
-  if (text.includes('math') || text.includes('quant') || text.includes('percentage') || text.includes('interest')) {
-    return {
-      fadeClass: 'card-fade-orange',
-      badgeBg: 'rgba(249, 115, 22, 0.12)',
-      badgeColor: '#C2410C',
-      badgeBorder: 'rgba(249, 115, 22, 0.25)',
-      buttonBg: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)',
-      buttonColor: '#FFFFFF',
-      accentColor: '#EA580C',
-      highlightBg: 'rgba(249, 115, 22, 0.04)',
-      highlightBorder: 'rgba(249, 115, 22, 0.18)',
-    };
-  }
-  if (text.includes('polity') || text.includes('constitution') || text.includes('law')) {
-    return {
-      fadeClass: 'card-fade-blue',
-      badgeBg: 'rgba(37, 99, 235, 0.12)',
-      badgeColor: '#1D4ED8',
-      badgeBorder: 'rgba(37, 99, 235, 0.25)',
-      buttonBg: 'linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%)',
-      buttonColor: '#FFFFFF',
-      accentColor: '#2563EB',
-      highlightBg: 'rgba(37, 99, 235, 0.04)',
-      highlightBorder: 'rgba(37, 99, 235, 0.18)',
-    };
-  }
-  if (text.includes('bank') || text.includes('rbi') || text.includes('finance') || text.includes('economy')) {
-    return {
-      fadeClass: 'card-fade-emerald',
-      badgeBg: 'rgba(16, 185, 129, 0.12)',
-      badgeColor: '#047857',
-      badgeBorder: 'rgba(16, 185, 129, 0.25)',
-      buttonBg: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-      buttonColor: '#FFFFFF',
-      accentColor: '#059669',
-      highlightBg: 'rgba(16, 185, 129, 0.04)',
-      highlightBorder: 'rgba(16, 185, 129, 0.18)',
-    };
-  }
-  if (text.includes('reason') || text.includes('logic') || text.includes('puzzle')) {
-    return {
-      fadeClass: 'card-fade-purple',
-      badgeBg: 'rgba(139, 92, 246, 0.12)',
-      badgeColor: '#6D28D9',
-      badgeBorder: 'rgba(139, 92, 246, 0.25)',
-      buttonBg: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
-      buttonColor: '#FFFFFF',
-      accentColor: '#7C3AED',
-      highlightBg: 'rgba(139, 92, 246, 0.04)',
-      highlightBorder: 'rgba(139, 92, 246, 0.18)',
-    };
-  }
-  if (text.includes('history') || text.includes('freedom') || text.includes('ancient')) {
-    return {
-      fadeClass: 'card-fade-rose',
-      badgeBg: 'rgba(244, 63, 94, 0.12)',
-      badgeColor: '#BE123C',
-      badgeBorder: 'rgba(244, 63, 94, 0.25)',
-      buttonBg: 'linear-gradient(135deg, #F43F5E 0%, #E11D48 100%)',
-      buttonColor: '#FFFFFF',
-      accentColor: '#E11D48',
-      highlightBg: 'rgba(244, 63, 94, 0.04)',
-      highlightBorder: 'rgba(244, 63, 94, 0.18)',
-    };
-  }
-  return {
-    fadeClass: 'card-fade-blue',
-    badgeBg: 'rgba(59, 130, 246, 0.12)',
-    badgeColor: '#1D4ED8',
-    badgeBorder: 'rgba(59, 130, 246, 0.25)',
-    buttonBg: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
-    buttonColor: '#FFFFFF',
-    accentColor: '#2563EB',
-    highlightBg: 'rgba(59, 130, 246, 0.04)',
-    highlightBorder: 'rgba(59, 130, 246, 0.18)',
-  };
-}
+const SUBJECT_OPTIONS = ['All', 'General Awareness', 'Mathematics', 'Reasoning', 'General Science'] as const;
 
 export default function StudyMaterials() {
+  const navigate = useNavigate();
   const { prefs } = useAccessibility();
-  const [materials, setMaterials] = useState<StudyMaterial[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const [materials, setMaterials] = useState<StudyMaterial[]>(MOCK_STUDY_MATERIALS);
+  const [selectedSubject, setSelectedSubject] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState('All');
-  const [activeReadingItem, setActiveReadingItem] = useState<StudyMaterial | null>(null);
+  const [selectedMaterial, setSelectedMaterial] = useState<StudyMaterial | null>(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [activeReadingId, setActiveReadingId] = useState<string | null>(null);
+  const [speechRate, setSpeechRate] = useState<number>(1.0);
+  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('drishti_bookmarked_materials') || '[]');
+    } catch {
+      return [];
+    }
+  });
 
-  // Audio Player State
-  const [speakingId, setSpeakingId] = useState<string | null>(null);
-  const [speechRate, setSpeechRate] = useState(prefs.voiceRate || 1.0);
-
+  // Load from API with fallback
   useEffect(() => {
-    loadMaterials();
+    document.title = 'Study Materials & Audio Revision Notes — DrishtiX';
+    studyMaterialsApi.getAll().then(data => {
+      if (data && data.length > 0) {
+        setMaterials(data);
+      }
+    }).catch(err => {
+      console.warn('[StudyMaterials] API fetch error, using built-in mock materials:', err);
+    });
   }, []);
 
-  async function loadMaterials() {
-    setLoading(true);
-    try {
-      const data = await studyMaterialsApi.getAll();
-      setMaterials(data);
-    } catch (err) {
-      console.warn('Failed to fetch study materials:', err);
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Filtered materials
+  const filteredMaterials = useMemo(() => {
+    return materials.filter(m => {
+      const matchSubject = selectedSubject === 'All' || m.subject === selectedSubject || (selectedSubject === 'General Science' && m.subject === 'General Science');
+      const q = searchQuery.toLowerCase().trim();
+      const matchQuery = !q || m.title.toLowerCase().includes(q) || m.summary.toLowerCase().includes(q) || m.tags.some(t => t.toLowerCase().includes(q));
+      return matchSubject && matchQuery;
+    });
+  }, [materials, selectedSubject, searchQuery]);
 
-  // Handle TTS Audio playback
-  function handlePlayAudio(item: StudyMaterial) {
-    if (speakingId === item.id) {
+  // Page orientation audio briefing
+  useEffect(() => {
+    const summary = `Study Materials library opened. Showing ${filteredMaterials.length} high-yield audio revision notes across Quantitative Aptitude, Indian Polity, and General Science. Press 1 to 5 to filter subjects, or press Space to listen to the first study guide.`;
+    if (prefs.voiceMode || prefs.autoReadQuestion) {
+      const timer = setTimeout(() => {
+        speechService.speak(summary, { priority: true });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Toggle bookmark
+  const toggleBookmark = (id: string, title: string) => {
+    audioCueService.select();
+    setBookmarkedIds(prev => {
+      const exists = prev.includes(id);
+      const updated = exists ? prev.filter(x => x !== id) : [...prev, id];
+      localStorage.setItem('drishti_bookmarked_materials', JSON.stringify(updated));
+      const msg = exists ? `Removed "${title}" from saved notes.` : `Saved "${title}" to your offline revision book.`;
+      speechService.speak(msg);
+      screenReaderAnnouncer.announcePolite(msg);
+      return updated;
+    });
+  };
+
+  // Play audio narration for a note
+  const handlePlayAudio = (m: StudyMaterial) => {
+    if (activeReadingId === m.id && isPlayingAudio) {
       speechService.stop();
-      setSpeakingId(null);
+      setIsPlayingAudio(false);
+      setActiveReadingId(null);
+      speechService.speak('Audio paused.');
       return;
     }
 
     speechService.stop();
-    setSpeakingId(item.id);
+    setIsPlayingAudio(true);
+    setActiveReadingId(m.id);
+    audioCueService.select();
 
-    const narration = item.audioNarrationText || `${item.title}. ${item.summary}. Key Points: ${item.keyPoints.join('. ')}`;
-    speechService.configure(speechRate, 1.0);
+    const narration = `${m.title}. Estimated reading time: ${m.readTimeMinutes} minutes. Subject: ${m.subject}. Summary: ${m.summary}. Key Points: ${m.keyPoints.join('. ')}. Detailed Content: ${m.audioNarrationText || m.content}`;
+    
+    screenReaderAnnouncer.announcePolite(`Playing audio guide: ${m.title}`);
     speechService.speak(narration, {
       priority: true,
-      onEnd: () => setSpeakingId(null),
+      onEnd: () => {
+        setIsPlayingAudio(false);
+        setActiveReadingId(null);
+      }
     });
-  }
+  };
 
-  function handleStopAllAudio() {
+  // Stop active speech
+  const handleStopAudio = () => {
     speechService.stop();
-    setSpeakingId(null);
-  }
+    setIsPlayingAudio(false);
+    setActiveReadingId(null);
+    speechService.speak('Audio stopped.');
+  };
 
-  function openReader(item: StudyMaterial) {
-    setActiveReadingItem(item);
-    if (prefs.autoReadQuestion || prefs.voiceMode) {
-      setTimeout(() => handlePlayAudio(item), 300);
-    }
-  }
-
-  useEffect(() => {
-    const unsub = speechService.onStop(() => setSpeakingId(null));
-    return unsub;
-  }, []);
-
-  // Universal Keyboard Accessibility for Visually Impaired Candidates in Study Materials
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-
-      if (activeReadingItem) {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          speechService.stop();
-          setSpeakingId(null);
-          setActiveReadingItem(null);
-          return;
-        }
-        if (e.key === ' ' || e.key === 'p' || e.key === 'P') {
-          e.preventDefault();
-          handlePlayAudio(activeReadingItem);
-          return;
-        }
-        if (e.key === 'k' || e.key === 'K') {
-          e.preventDefault();
-          speechService.stop();
-          const points = `Key Highlights: ${activeReadingItem.keyPoints.join('. ')}`;
-          speechService.speak(points, { priority: true });
-          return;
-        }
-        if (e.key === 's' || e.key === 'S') {
-          e.preventDefault();
-          const speeds = [0.75, 1.0, 1.25, 1.5];
-          const nextSpeed = speeds[(speeds.indexOf(speechRate) + 1) % speeds.length] || 1.0;
-          setSpeechRate(nextSpeed);
-          speechService.configure(nextSpeed, 1.0);
-          speechService.speak(`Speed ${nextSpeed}x`);
-          return;
-        }
-        return;
-      }
-
-      // Catalog view shortcuts
-      if (e.key >= '1' && e.key <= '4') {
-        const idx = parseInt(e.key, 10) - 1;
-        if (materials[idx]) {
-          e.preventDefault();
-          openReader(materials[idx]);
-        }
-        return;
-      }
-
-      if (e.key === 'r' || e.key === 'R') {
-        e.preventDefault();
-        if (materials.length > 0) {
-          handlePlayAudio(materials[0]);
-        }
-      }
-    }
-
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [activeReadingItem, materials, speakingId, speechRate, prefs.autoReadQuestion, prefs.voiceMode]);
-
+  // Voice command integration
   usePageVoice('StudyMaterials', [
     {
-      triggers: ['read notes', 'read study notes', 'play notes', 'listen to notes', 'listen', 'play audio notes'],
+      triggers: ['read note 1', 'play note 1', 'pehla note', 'first note'],
       answer: () => {
-        if (materials.length > 0) {
-          handlePlayAudio(materials[0]);
-          return '';
+        if (filteredMaterials[0]) {
+          handlePlayAudio(filteredMaterials[0]);
+          return `Playing ${filteredMaterials[0].title}.`;
         }
-        return 'No study materials available to read.';
+        return 'No study materials found.';
       },
     },
     {
-      triggers: ['stop audio', 'stop reading', 'mute reading'],
-      answer: () => 'Audio reading stopped.',
-      action: () => handleStopAllAudio(),
+      triggers: ['read note 2', 'play note 2', 'dusra note', 'second note'],
+      answer: () => {
+        if (filteredMaterials[1]) {
+          handlePlayAudio(filteredMaterials[1]);
+          return `Playing ${filteredMaterials[1].title}.`;
+        }
+        return 'Second study material not found.';
+      },
     },
     {
-      triggers: ['show all notes', 'all subjects', 'all notes', 'reset filter'],
-      answer: () => 'Showing all study materials across all subjects.',
-      action: () => setSelectedSubject('All'),
+      triggers: ['stop audio', 'pause audio', 'ruko', 'chup'],
+      answer: () => {
+        handleStopAudio();
+        return 'Audio stopped.';
+      },
     },
     {
-      triggers: ['science notes', 'filter science', 'general science', 'science'],
-      answer: () => 'Filtering by General Science study materials.',
-      action: () => setSelectedSubject('Science'),
+      triggers: ['filter maths', 'mathematics notes', 'quant notes'],
+      answer: () => 'Filtering by Mathematics and Quantitative Aptitude.',
+      action: () => setSelectedSubject('Mathematics'),
     },
     {
-      triggers: ['polity notes', 'filter polity', 'indian polity', 'polity'],
-      answer: () => 'Filtering by Indian Polity study materials.',
-      action: () => setSelectedSubject('Polity'),
+      triggers: ['filter polity', 'constitution notes', 'general awareness'],
+      answer: () => 'Filtering by General Awareness and Indian Polity.',
+      action: () => setSelectedSubject('General Awareness'),
     },
     {
-      triggers: ['banking notes', 'filter banking', 'economy notes', 'banking'],
-      answer: () => 'Filtering by Banking and Economy study materials.',
-      action: () => setSelectedSubject('Banking'),
-    },
-    {
-      triggers: ['reasoning notes', 'filter reasoning', 'logic notes', 'reasoning'],
-      answer: () => 'Filtering by Reasoning study materials.',
-      action: () => setSelectedSubject('Reasoning'),
-    },
-    {
-      triggers: ['summary', 'read summary', 'overview', 'how many notes'],
-      answer: () => `Study Materials library has ${materials.length} comprehensive audio notes available with key point summaries and voice narration.`,
+      triggers: ['show all notes', 'all notes', 'clear filter'],
+      answer: () => 'Showing all available study materials.',
+      action: () => { setSelectedSubject('All'); setSearchQuery(''); },
     },
   ]);
 
-  // Filter materials
-  const filteredMaterials = useMemo(() => {
-    return materials.filter(item => {
-      const matchesSubject =
-        selectedSubject === 'All' ||
-        item.subject.toLowerCase() === selectedSubject.toLowerCase();
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
 
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !q ||
-        item.title.toLowerCase().includes(q) ||
-        item.summary.toLowerCase().includes(q) ||
-        item.category.toLowerCase().includes(q) ||
-        item.keyPoints.some(k => k.toLowerCase().includes(q)) ||
-        (item.tags && item.tags.some(t => t.toLowerCase().includes(q)));
-
-      return matchesSubject && matchesSearch;
-    });
-  }, [materials, selectedSubject, searchQuery]);
-
-  const subjects = ['All', 'General Awareness', 'Mathematics', 'Reasoning', 'History', 'General Science'];
+      if (e.key === ' ') {
+        e.preventDefault();
+        if (filteredMaterials[0]) handlePlayAudio(filteredMaterials[0]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleStopAudio();
+        setSelectedMaterial(null);
+        return;
+      }
+      if (e.key >= '1' && e.key <= '5') {
+        const idx = parseInt(e.key, 10) - 1;
+        if (SUBJECT_OPTIONS[idx]) {
+          e.preventDefault();
+          setSelectedSubject(SUBJECT_OPTIONS[idx]);
+          audioCueService.select();
+          speechService.speak(`Filtering by ${SUBJECT_OPTIONS[idx]}.`);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [filteredMaterials]);
 
   return (
-    <AppLayout title="Study Materials">
-      <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <AppLayout title="Study Materials & Audio Revision Notes">
+      <div style={{ maxWidth: 1200, margin: '0 auto', paddingBottom: '3rem' }}>
         
-        {/* Top Header Banner */}
+        {/* Header Hero Banner */}
         <div
-          className="card"
+          className="fade-in"
           style={{
-            padding: '1.5rem',
-            background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.08) 0%, rgba(147, 51, 234, 0.08) 100%)',
-            border: '1px solid rgba(37, 99, 235, 0.2)',
-            borderRadius: '1rem',
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '1rem',
+            background: 'linear-gradient(135deg, #1E3A8A 0%, #2563EB 50%, #3B82F6 100%)',
+            borderRadius: '1.25rem',
+            padding: '2rem 2.25rem',
+            color: '#fff',
+            marginBottom: '1.75rem',
+            boxShadow: '0 12px 32px -4px rgba(37, 99, 235, 0.35)',
+            position: 'relative',
+            overflow: 'hidden',
           }}
         >
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
-              <div
-                style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: '0.6rem',
-                  background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  boxShadow: '0 2px 6px rgba(37,99,235,0.3)',
-                }}
-              >
-                <BookOpen size={20} />
-              </div>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text)', margin: 0 }}>
-                Accessible Study Materials & Learning Content
-              </h1>
-            </div>
-            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.92rem', maxWidth: 700 }}>
-              Audio-narrated core revision notes, formulas, and landmark summaries optimized for screen reader users and candidates requiring auditory learning aids.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <span
+          <div style={{ position: 'relative', zIndex: 1, maxWidth: 720 }}>
+            <div
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.4rem',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                color: '#16A34A',
-                background: '#DCFCE7',
-                border: '1px solid #BBF7D0',
-                padding: '0.4rem 0.8rem',
+                background: 'rgba(255, 255, 255, 0.18)',
+                padding: '0.35rem 0.85rem',
                 borderRadius: '999px',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                marginBottom: '0.85rem',
+                backdropFilter: 'blur(6px)',
               }}
             >
-              <CheckCircle2 size={15} />
-              Screen Reader & Voice Verified
-            </span>
-          </div>
-        </div>
-
-        {/* Global Floating Audio Controller if playing */}
-        {speakingId && (
-          <div
-            className="fade-in"
-            style={{
-              background: 'var(--primary)',
-              color: '#fff',
-              padding: '0.85rem 1.25rem',
-              borderRadius: '0.85rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              boxShadow: '0 4px 14px rgba(37,99,235,0.35)',
-              position: 'sticky',
-              top: 70,
-              zIndex: 40,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-              <div style={{ animation: 'spin 2s linear infinite' }}>
-                <Volume2 size={22} />
-              </div>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: '0.9rem' }}>
-                  Now Reading: {materials.find(m => m.id === speakingId)?.title || 'Study Material'}
-                </div>
-                <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
-                  Press Stop button or use screen reader navigation anytime.
-                </div>
-              </div>
+              <Headphones size={14} /> AUDIO-NARRATED ACCESSIBLE REVISION VAULT
             </div>
+            <h1 style={{ fontSize: '1.85rem', fontWeight: 900, marginBottom: '0.65rem', lineHeight: 1.25 }}>
+              Study Materials & Spoken Formula Guides
+            </h1>
+            <p style={{ fontSize: '0.92rem', color: '#DBEAFE', lineHeight: 1.6, marginBottom: '1.25rem' }}>
+              Master high-yield competitive exam concepts with natural text-to-speech narration, verified constitutional provisions, and quantitative formula cheat-sheets.
+            </p>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(255,255,255,0.2)', padding: '0.2rem 0.5rem', borderRadius: '0.4rem' }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>Speed:</span>
-                {[0.8, 1.0, 1.25, 1.5].map(rate => (
-                  <button
-                    key={rate}
-                    onClick={() => {
-                      setSpeechRate(rate);
-                      const currentItem = materials.find(m => m.id === speakingId);
-                      if (currentItem) {
-                        handlePlayAudio(currentItem);
-                      }
-                    }}
-                    style={{
-                      border: 'none',
-                      background: speechRate === rate ? '#fff' : 'transparent',
-                      color: speechRate === rate ? 'var(--primary)' : '#fff',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      padding: '0.15rem 0.4rem',
-                      borderRadius: '0.25rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {rate}x
-                  </button>
-                ))}
-              </div>
-
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
               <button
-                onClick={handleStopAllAudio}
+                onClick={() => {
+                  if (filteredMaterials[0]) handlePlayAudio(filteredMaterials[0]);
+                }}
+                className="btn-primary"
                 style={{
-                  background: '#EF4444',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '0.45rem 0.9rem',
-                  borderRadius: '0.5rem',
-                  fontWeight: 700,
-                  fontSize: '0.82rem',
-                  display: 'flex',
+                  background: '#FFFFFF',
+                  color: '#1E40AF',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '0.4rem',
+                  gap: '0.45rem',
+                  padding: '0.65rem 1.25rem',
+                  borderRadius: '0.65rem',
+                  border: 'none',
+                  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.15)',
                   cursor: 'pointer',
                 }}
+                aria-label="Listen to featured guide aloud. Shortcut Space key."
               >
-                <Square size={14} fill="#fff" />
-                Stop Audio
+                {isPlayingAudio ? <Pause size={16} /> : <Play size={16} />}
+                <span>{isPlayingAudio ? 'Pause Narration' : 'Listen to Featured Note (Space)'}</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/practice')}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.15)',
+                  color: '#fff',
+                  border: '1px solid rgba(255, 255, 255, 0.35)',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.65rem 1.25rem',
+                  borderRadius: '0.65rem',
+                  cursor: 'pointer',
+                  backdropFilter: 'blur(6px)',
+                }}
+              >
+                <span>Practice Weak Chapters</span>
+                <ArrowRight size={15} />
               </button>
             </div>
           </div>
-        )}
+        </div>
 
-        {/* Search & Subject Tabs Controls */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', justifyContent: 'space-between' }}>
-            
+        {/* Search & Subject Filter Bar */}
+        <div
+          className="card fade-in"
+          style={{
+            padding: '1.25rem',
+            borderRadius: '1rem',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1rem',
+          }}
+        >
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
             {/* Search Input */}
-            <div style={{ position: 'relative', flex: 1, minWidth: 260, maxWidth: 500 }}>
-              <Search
-                size={18}
-                style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}
-              />
+            <div style={{ position: 'relative', flex: 1, minWidth: 260 }}>
+              <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input
                 type="text"
-                placeholder="Search notes, topics, formulas, writs..."
+                className="input-field"
+                placeholder="Search notes by formula, topic, or keyword (e.g. Writs, Profit & Loss, Sound)..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0.65rem 1rem 0.65rem 2.4rem',
-                  borderRadius: '0.65rem',
-                  border: '1px solid var(--border)',
-                  background: 'rgba(255, 255, 255, 0.85)',
-                  backdropFilter: 'blur(8px)',
-                  color: 'var(--text)',
-                  fontSize: '0.9rem',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
-                aria-label="Search study materials"
+                style={{ paddingLeft: '2.75rem', width: '100%', fontSize: '0.88rem' }}
+                aria-label="Search study notes by keyword or subject"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  style={{
-                    position: 'absolute',
-                    right: 12,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                  }}
-                  aria-label="Clear search"
+                  style={{ position: 'absolute', right: '0.85rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                  aria-label="Clear search input"
                 >
                   <X size={16} />
                 </button>
               )}
             </div>
 
-            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-              Showing {filteredMaterials.length} accessible {filteredMaterials.length === 1 ? 'guide' : 'guides'}
+            {/* Total Results Counter */}
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+              Showing {filteredMaterials.length} of {materials.length} Guides
             </div>
           </div>
 
           {/* Subject Pills */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-            {subjects.map(subj => {
-              const active = selectedSubject === subj;
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 700, marginRight: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <Filter size={14} /> Subject Filter:
+            </span>
+            {SUBJECT_OPTIONS.map((sub, idx) => {
+              const active = selectedSubject === sub;
               return (
                 <button
-                  key={subj}
-                  onClick={() => setSelectedSubject(subj)}
+                  key={sub}
+                  onClick={() => {
+                    setSelectedSubject(sub);
+                    audioCueService.select();
+                    speechService.speak(`Filter set to ${sub}`);
+                  }}
                   style={{
-                    padding: '0.45rem 0.95rem',
-                    borderRadius: '999px',
-                    fontSize: '0.82rem',
-                    fontWeight: active ? 700 : 500,
+                    background: active ? 'var(--primary)' : 'var(--bg-surface)',
+                    color: active ? '#ffffff' : 'var(--text)',
                     border: active ? '1px solid var(--primary)' : '1px solid var(--border)',
-                    background: active ? 'linear-gradient(135deg, #2563EB, #1D4ED8)' : 'rgba(255, 255, 255, 0.75)',
-                    backdropFilter: 'blur(6px)',
-                    color: active ? '#fff' : 'var(--text)',
+                    padding: '0.4rem 0.85rem',
+                    borderRadius: '999px',
+                    fontSize: '0.8rem',
+                    fontWeight: active ? 700 : 500,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                   }}
+                  aria-pressed={active}
+                  title={`Shortcut key ${idx + 1}`}
                 >
-                  {subj}
+                  {sub} <span style={{ opacity: 0.7, fontSize: '0.72rem' }}>({idx + 1})</span>
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* Materials Cards Grid */}
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--text-muted)' }}>
-            Loading accessible study materials...
-          </div>
-        ) : filteredMaterials.length === 0 ? (
+        {/* Floating Active Player Banner (if playing) */}
+        {isPlayingAudio && (
           <div
-            className="card"
+            className="fade-in"
             style={{
-              padding: '3rem 1.5rem',
-              textAlign: 'center',
+              position: 'sticky',
+              top: '1rem',
+              zIndex: 30,
+              background: '#0F172A',
+              color: '#FFFFFF',
+              borderRadius: '0.85rem',
+              padding: '0.85rem 1.25rem',
+              marginBottom: '1.5rem',
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              gap: '0.75rem',
+              justifyContent: 'space-between',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+              border: '1.5px solid #3B82F6',
+              gap: '1rem',
+              flexWrap: 'wrap',
             }}
           >
-            <BookOpen size={40} style={{ color: 'var(--text-muted)', opacity: 0.5 }} />
-            <h3 style={{ margin: 0, color: 'var(--text)' }}>No study materials found</h3>
-            <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              Try adjusting your search query or switching subject filters.
-            </p>
-            <button
-              onClick={() => { setSearchQuery(''); setSelectedSubject('All'); }}
-              style={{
-                marginTop: '0.5rem',
-                padding: '0.5rem 1rem',
-                borderRadius: '0.5rem',
-                background: 'var(--primary)',
-                color: '#fff',
-                border: 'none',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Reset Filters
-            </button>
-          </div>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(295px, 1fr))', gap: '1rem' }}>
-            {filteredMaterials.map(item => {
-              const isSpeaking = speakingId === item.id;
-              const theme = getSubjectTheme(item.subject, item.category);
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Volume2 className="mic-pulse" size={18} color="#fff" />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.75rem', color: '#93C5FD', fontWeight: 700 }}>
+                  NOW READING ALOUD
+                </div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 800 }}>
+                  {materials.find(m => m.id === activeReadingId)?.title || 'Study Guide'}
+                </div>
+              </div>
+            </div>
 
-              return (
-                <article
-                  key={item.id}
-                  className={`card card-interactive ${theme.fadeClass}`}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    padding: '1.05rem 1.15rem',
-                    borderRadius: '0.85rem',
-                    border: isSpeaking ? '2px solid var(--primary)' : undefined,
-                    boxShadow: isSpeaking ? '0 6px 20px rgba(37,99,235,0.2)' : undefined,
-                    transition: 'all 0.2s ease',
-                  }}
-                >
-                  <div>
-                    {/* Header tags: Matching Tinted Badge & Read Time */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
-                      <span
-                        style={{
-                          fontSize: '0.66rem',
-                          fontWeight: 800,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.04em',
-                          padding: '0.18rem 0.5rem',
-                          borderRadius: '0.35rem',
-                          background: theme.badgeBg,
-                          color: theme.badgeColor,
-                          border: `1px solid ${theme.badgeBorder}`,
-                        }}
-                      >
-                        {item.category}
-                      </span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                        <Clock size={12} strokeWidth={2.2} />
-                        <span>{item.readTimeMinutes} min read</span>
-                      </div>
-                    </div>
-
-                    {/* Title with Outfit Bold Typography */}
-                    <h3
-                      style={{
-                        fontFamily: "'Outfit', sans-serif",
-                        fontSize: '0.98rem',
-                        fontWeight: 800,
-                        color: 'var(--text)',
-                        margin: '0 0 0.35rem 0',
-                        lineHeight: 1.3,
-                        letterSpacing: '-0.015em',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                      }}
-                      title={item.title}
-                    >
-                      {item.title}
-                    </h3>
-
-                    {/* Concise Summary */}
-                    <p
-                      style={{
-                        fontSize: '0.78rem',
-                        color: 'var(--text-muted)',
-                        margin: '0 0 0.65rem 0',
-                        lineHeight: 1.45,
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      {item.summary}
-                    </p>
-
-                    {/* Compact Key Highlights Shelf */}
-                    {item.keyPoints && item.keyPoints.length > 0 && (
-                      <div
-                        style={{
-                          background: theme.highlightBg,
-                          borderRadius: '0.55rem',
-                          padding: '0.45rem 0.65rem',
-                          marginBottom: '0.75rem',
-                          border: `1px solid ${theme.highlightBorder}`,
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: '0.64rem',
-                            fontWeight: 800,
-                            color: theme.accentColor,
-                            marginBottom: '0.25rem',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.04em',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.25rem',
-                          }}
-                        >
-                          <Sparkles size={10} strokeWidth={2.5} />
-                          <span>Key Highlights</span>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                          {item.keyPoints.slice(0, 2).map((point, idx) => (
-                            <div
-                              key={idx}
-                              style={{
-                                display: 'flex',
-                                alignItems: 'flex-start',
-                                gap: '0.35rem',
-                                fontSize: '0.74rem',
-                                color: 'var(--text)',
-                                lineHeight: 1.35,
-                              }}
-                            >
-                              <span style={{ color: theme.accentColor, fontWeight: 900, lineHeight: 1.2 }}>•</span>
-                              <span
-                                style={{
-                                  display: '-webkit-box',
-                                  WebkitLineClamp: 1,
-                                  WebkitBoxOrient: 'vertical',
-                                  overflow: 'hidden',
-                                }}
-                              >
-                                {point}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Actions Bar */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.45rem',
-                      paddingTop: '0.65rem',
-                      borderTop: '1px solid var(--border)',
-                    }}
-                  >
-                    <button
-                      onClick={() => handlePlayAudio(item)}
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.35rem',
-                        padding: '0.42rem 0.75rem',
-                        borderRadius: '0.5rem',
-                        border: isSpeaking ? '1px solid #EF4444' : 'none',
-                        background: isSpeaking ? '#FEF2F2' : theme.buttonBg,
-                        color: isSpeaking ? '#EF4444' : theme.buttonColor,
-                        fontWeight: 700,
-                        fontSize: '0.78rem',
-                        cursor: 'pointer',
-                        boxShadow: isSpeaking ? 'none' : '0 2px 6px rgba(0,0,0,0.1)',
-                        transition: 'all 0.15s ease',
-                      }}
-                      aria-label={isSpeaking ? `Stop reading ${item.title}` : `Listen aloud to ${item.title}`}
-                    >
-                      {isSpeaking ? (
-                        <>
-                          <Square size={13} fill="#EF4444" />
-                          <span>Stop</span>
-                        </>
-                      ) : (
-                        <>
-                          <Volume2 size={14} />
-                          <span>Listen Aloud</span>
-                        </>
-                      )}
-                    </button>
-
-                    <button
-                      onClick={() => openReader(item)}
-                      style={{
-                        padding: '0.42rem 0.75rem',
-                        borderRadius: '0.5rem',
-                        border: '1px solid var(--border)',
-                        background: 'var(--bg-card)',
-                        color: 'var(--text)',
-                        fontWeight: 600,
-                        fontSize: '0.78rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.3rem',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={e => {
-                        e.currentTarget.style.borderColor = theme.accentColor;
-                        e.currentTarget.style.color = theme.accentColor;
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.borderColor = 'var(--border)';
-                        e.currentTarget.style.color = 'var(--text)';
-                      }}
-                      aria-label={`Open full reader for ${item.title}`}
-                    >
-                      <FileText size={13} />
-                      <span>Read</span>
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+              <button
+                onClick={handleStopAudio}
+                className="btn-danger"
+                style={{ fontSize: '0.78rem', padding: '0.35rem 0.85rem', borderRadius: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                aria-label="Stop audio reading. Shortcut Escape."
+              >
+                <X size={14} /> Stop (Esc)
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Accessible Full Screen / Modal Reading Drawer */}
-        {activeReadingItem && (
+        {/* Cards Grid */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+            gap: '1.25rem',
+          }}
+        >
+          {filteredMaterials.map((m, index) => {
+            const isReading = activeReadingId === m.id && isPlayingAudio;
+            const isBookmarked = bookmarkedIds.includes(m.id);
+
+            return (
+              <div
+                key={m.id}
+                className="card card-interactive fade-in"
+                style={{
+                  padding: '1.4rem',
+                  borderRadius: '1rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  border: isReading ? '2px solid var(--primary)' : '1px solid var(--border)',
+                  background: isReading ? 'rgba(37, 99, 235, 0.04)' : 'var(--bg-card)',
+                  gap: '1rem',
+                }}
+              >
+                <div>
+                  {/* Top Header Badge & Bookmark */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                      <span
+                        style={{
+                          background: 'rgba(37, 99, 235, 0.1)',
+                          color: 'var(--primary)',
+                          borderRadius: '999px',
+                          padding: '0.2rem 0.65rem',
+                          fontSize: '0.72rem',
+                          fontWeight: 800,
+                        }}
+                      >
+                        {m.subject}
+                      </span>
+                      <span
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          fontSize: '0.72rem',
+                          color: 'var(--text-muted)',
+                        }}
+                      >
+                        <Clock size={12} /> {m.readTimeMinutes} min read
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => toggleBookmark(m.id, m.title)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: isBookmarked ? '#F59E0B' : 'var(--text-muted)',
+                        padding: '0.2rem',
+                      }}
+                      title={isBookmarked ? 'Saved to bookmarks' : 'Save note'}
+                      aria-label={`${isBookmarked ? 'Remove' : 'Add'} bookmark for ${m.title}`}
+                    >
+                      <Bookmark size={18} fill={isBookmarked ? '#F59E0B' : 'none'} />
+                    </button>
+                  </div>
+
+                  {/* Title */}
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text)', lineHeight: 1.4, marginBottom: '0.5rem' }}>
+                    {m.title}
+                  </h3>
+
+                  {/* Summary */}
+                  <p style={{ fontSize: '0.835rem', color: 'var(--text-muted)', lineHeight: 1.55, marginBottom: '0.9rem' }}>
+                    {m.summary}
+                  </p>
+
+                  {/* Key Points Preview */}
+                  <div
+                    style={{
+                      background: 'var(--bg-surface)',
+                      padding: '0.75rem 0.85rem',
+                      borderRadius: '0.65rem',
+                      border: '1px solid var(--border)',
+                      marginBottom: '0.9rem',
+                    }}
+                  >
+                    <div style={{ fontSize: '0.74rem', fontWeight: 800, color: 'var(--text)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Key Takeaways:
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                      {m.keyPoints.slice(0, 3).map((pt, i) => (
+                        <li key={i} style={{ marginBottom: '0.2rem' }}>{pt}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Tag Chips */}
+                  <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                    {m.tags.slice(0, 4).map(tag => (
+                      <span
+                        key={tag}
+                        style={{
+                          fontSize: '0.68rem',
+                          background: 'var(--bg-surface)',
+                          color: 'var(--text-muted)',
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '0.35rem',
+                          border: '1px solid var(--border)',
+                        }}
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Bottom Actions */}
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
+                  <button
+                    onClick={() => handlePlayAudio(m)}
+                    className="btn-primary"
+                    style={{
+                      flex: 1,
+                      padding: '0.6rem 0.85rem',
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
+                      background: isReading ? 'linear-gradient(135deg, #10B981, #059669)' : undefined,
+                    }}
+                    aria-label={`Listen to ${m.title} read aloud`}
+                  >
+                    {isReading ? <Pause size={15} /> : <Volume2 size={15} />}
+                    <span>{isReading ? 'Pause Audio' : 'Listen Aloud'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setSelectedMaterial(m);
+                      audioCueService.select();
+                      speechService.speak(`Opened full guide: ${m.title}`);
+                    }}
+                    className="btn-secondary"
+                    style={{
+                      padding: '0.6rem 0.85rem',
+                      fontSize: '0.82rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                    }}
+                    aria-label={`Read full text guide for ${m.title}`}
+                  >
+                    <FileText size={15} />
+                    <span>Read Guide</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Empty Search State */}
+        {filteredMaterials.length === 0 && (
           <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={activeReadingItem.title}
+            className="card fade-in"
+            style={{
+              padding: '3rem 2rem',
+              textAlign: 'center',
+              borderRadius: '1rem',
+              marginTop: '1.5rem',
+            }}
+          >
+            <BookOpen size={48} color="var(--primary)" style={{ opacity: 0.5, marginBottom: '1rem' }} />
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, marginBottom: '0.4rem' }}>
+              No study materials match your search
+            </h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+              Try searching with general keywords like "Formula", "Polity", or "Speed", or reset your active filters.
+            </p>
+            <button
+              onClick={() => {
+                setSelectedSubject('All');
+                setSearchQuery('');
+                speechService.speak('Filters reset to show all notes.');
+              }}
+              className="btn-primary"
+              style={{ fontSize: '0.85rem', padding: '0.6rem 1.25rem' }}
+            >
+              Reset Filters & Show All
+            </button>
+          </div>
+        )}
+
+        {/* Full Material Reading Modal */}
+        {selectedMaterial && (
+          <div
             style={{
               position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0,0,0,0.65)',
+              inset: 0,
+              zIndex: 9999,
+              background: 'rgba(0,0,0,0.7)',
+              backdropFilter: 'blur(6px)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              zIndex: 100,
-              padding: '1rem',
-              backdropFilter: 'blur(3px)',
+              padding: '1.5rem',
             }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="material-modal-title"
           >
             <div
               className="card fade-in"
               style={{
                 width: '100%',
-                maxWidth: 800,
+                maxWidth: 780,
                 maxHeight: '90vh',
                 display: 'flex',
                 flexDirection: 'column',
-                borderRadius: '1.2rem',
+                borderRadius: '1.25rem',
                 overflow: 'hidden',
-                background: 'var(--card-bg)',
-                boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
+                background: 'var(--bg-card)',
+                boxShadow: '0 24px 48px rgba(0,0,0,0.3)',
               }}
             >
               {/* Modal Header */}
@@ -828,155 +673,51 @@ export default function StudyMaterials() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  background: 'rgba(37,99,235,0.04)',
+                  background: 'var(--bg-surface)',
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
-                    <span
-                      style={{
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        color: 'var(--primary)',
-                        background: 'rgba(37,99,235,0.1)',
-                        padding: '0.15rem 0.5rem',
-                        borderRadius: '0.25rem',
-                      }}
-                    >
-                      {activeReadingItem.subject}
-                    </span>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      • {activeReadingItem.readTimeMinutes} min audio read
-                    </span>
-                  </div>
-                  <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text)' }}>
-                    {activeReadingItem.title}
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase' }}>
+                    {selectedMaterial.subject} • {selectedMaterial.category}
+                  </span>
+                  <h2 id="material-modal-title" style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text)', marginTop: '0.2rem' }}>
+                    {selectedMaterial.title}
                   </h2>
                 </div>
-
                 <button
-                  onClick={() => setActiveReadingItem(null)}
-                  style={{
-                    border: 'none',
-                    background: 'rgba(0,0,0,0.06)',
-                    width: 34,
-                    height: 34,
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: 'var(--text)',
-                  }}
-                  aria-label="Close reading view"
+                  onClick={() => setSelectedMaterial(null)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.35rem' }}
+                  aria-label="Close reading guide (Escape)"
                 >
-                  <X size={18} />
+                  <X size={20} />
                 </button>
               </div>
 
-              {/* Modal Content Body */}
-              <div
-                style={{
-                  padding: '1.5rem',
-                  overflowY: 'auto',
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '1.25rem',
-                }}
-              >
-                {/* Audio Narration Action Bar */}
-                <div
-                  style={{
-                    background: 'rgba(37,99,235,0.06)',
-                    border: '1px solid rgba(37,99,235,0.2)',
-                    borderRadius: '0.75rem',
-                    padding: '0.85rem 1.1rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                    <Volume2 size={20} color="var(--primary)" />
-                    <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text)' }}>
-                      Audio Narration Assistant
-                    </span>
+              {/* Modal Body */}
+              <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1, lineHeight: 1.7, fontSize: '0.92rem' }}>
+                <div style={{ background: 'var(--bg-surface)', padding: '1rem', borderRadius: '0.75rem', border: '1px solid var(--border)', marginBottom: '1.25rem' }}>
+                  <div style={{ fontWeight: 800, fontSize: '0.82rem', marginBottom: '0.35rem', color: 'var(--text)' }}>
+                    SUMMARY:
                   </div>
-
-                  <button
-                    onClick={() => handlePlayAudio(activeReadingItem)}
-                    style={{
-                      background: speakingId === activeReadingItem.id ? '#EF4444' : 'var(--primary)',
-                      color: '#fff',
-                      border: 'none',
-                      padding: '0.45rem 0.95rem',
-                      borderRadius: '0.5rem',
-                      fontWeight: 700,
-                      fontSize: '0.82rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.4rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {speakingId === activeReadingItem.id ? (
-                      <>
-                        <Square size={14} fill="#fff" />
-                        <span>Stop Voice</span>
-                      </>
-                    ) : (
-                      <>
-                        <Play size={14} fill="#fff" />
-                        <span>Read Lesson Aloud</span>
-                      </>
-                    )}
-                  </button>
+                  <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    {selectedMaterial.summary}
+                  </p>
                 </div>
 
-                {/* Key Takeaways */}
-                <div>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text)', margin: '0 0 0.5rem 0' }}>
-                    Key Exam Highlights
+                <div style={{ whiteSpace: 'pre-wrap', color: 'var(--text)', marginBottom: '1.5rem' }}>
+                  {selectedMaterial.content}
+                </div>
+
+                {/* Key Points */}
+                <div style={{ background: 'rgba(37,99,235,0.05)', border: '1px solid rgba(37,99,235,0.2)', padding: '1.2rem', borderRadius: '0.75rem' }}>
+                  <h4 style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--primary)', marginBottom: '0.5rem' }}>
+                    KEY AUDITORY REVISION POINTS:
                   </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    {activeReadingItem.keyPoints.map((pt, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: '0.5rem',
-                          fontSize: '0.88rem',
-                          color: 'var(--text)',
-                        }}
-                      >
-                        <CheckCircle2 size={16} color="#16A34A" style={{ flexShrink: 0, marginTop: 2 }} />
-                        <span>{pt}</span>
-                      </div>
+                  <ul style={{ margin: 0, paddingLeft: '1.2rem', color: 'var(--text)' }}>
+                    {selectedMaterial.keyPoints.map((pt, i) => (
+                      <li key={i} style={{ marginBottom: '0.35rem' }}>{pt}</li>
                     ))}
-                  </div>
-                </div>
-
-                {/* Main Lesson Text */}
-                <div>
-                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text)', margin: '0 0 0.5rem 0' }}>
-                    Detailed Lesson Notes
-                  </h4>
-                  <div
-                    style={{
-                      fontSize: '0.92rem',
-                      lineHeight: 1.7,
-                      color: 'var(--text)',
-                      whiteSpace: 'pre-line',
-                      background: 'rgba(0,0,0,0.02)',
-                      padding: '1.2rem',
-                      borderRadius: '0.75rem',
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                    {activeReadingItem.content}
-                  </div>
+                  </ul>
                 </div>
               </div>
 
@@ -986,30 +727,35 @@ export default function StudyMaterials() {
                   padding: '1rem 1.5rem',
                   borderTop: '1px solid var(--border)',
                   display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '0.75rem',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: 'var(--bg-surface)',
                 }}
               >
-                <button
-                  onClick={() => setActiveReadingItem(null)}
-                  style={{
-                    padding: '0.55rem 1.2rem',
-                    borderRadius: '0.6rem',
-                    background: 'var(--primary)',
-                    color: '#fff',
-                    border: 'none',
-                    fontWeight: 700,
-                    fontSize: '0.88rem',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Done Reading
-                </button>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  Author: {selectedMaterial.author || 'DrishtiX Research Board'}
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button
+                    onClick={() => handlePlayAudio(selectedMaterial)}
+                    className="btn-primary"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', padding: '0.55rem 1.25rem' }}
+                  >
+                    <Volume2 size={16} /> Listen Aloud
+                  </button>
+                  <button
+                    onClick={() => setSelectedMaterial(null)}
+                    className="btn-secondary"
+                    style={{ fontSize: '0.85rem', padding: '0.55rem 1rem' }}
+                  >
+                    Close
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         )}
-
       </div>
     </AppLayout>
   );

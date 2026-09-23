@@ -426,7 +426,7 @@ export function resolveLocalPageQuestion(pageName: string, question: string): st
 
   // Detect if question is primarily Hindi / Hinglish
   const isHindi = /\b(kya|kaise|kitna|kitne|batao|hai|hain|kaun|kiska|kiske|mera|meri|yaha|yahan|sunao|dikhao|pariksha|sawal|prashna|shuru|karein|chahiye)\b/i.test(normQ) ||
-                  /[\u0900-\u097F]/.test(normQ);
+    /[\u0900-\u097F]/.test(normQ);
 
   // Match page info
   let info: PageInfo = SIDEBAR_PAGES_KNOWLEDGE.Dashboard;

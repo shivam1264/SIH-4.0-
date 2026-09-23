@@ -21,6 +21,21 @@ export type VoiceIntentType =
   | 'CLOSE_NOTIFICATIONS'
   | 'NAVIGATE_BACK'
   | 'LOGOUT'
+  // Authentication & Access
+  | 'OPEN_LOGIN'
+  | 'DEMO_STUDENT_LOGIN'
+  | 'DEMO_ADMIN_LOGIN'
+  | 'OPEN_REGISTER'
+  | 'OPEN_ADMIN'
+  // Practice Drills
+  | 'VERIFY_ANSWER'
+  | 'PRACTICE_HINT'
+  | 'PRACTICE_RETRY'
+  | 'PRACTICE_TOPIC'
+  // Catalog Filtering
+  | 'FILTER_CATEGORY'
+  | 'FILTER_DIFFICULTY'
+  | 'RESET_FILTERS'
   // Accessibility Toggles (Universal Voice Control)
   | 'THEME_LIGHT'
   | 'THEME_DARK'
@@ -101,6 +116,10 @@ export interface VoiceIntent {
   targetPage?: string;
   targetExamId?: string;
   targetExamTitle?: string;
+  targetExamIndex?: number;
+  targetCategory?: string;
+  targetDifficulty?: string;
+  targetTopic?: string;
   targetSection?: string;
   targetElement?: string;
   isNegated?: boolean;
@@ -373,6 +392,10 @@ interface MatchResult {
   targetPage?: string;
   targetExamId?: string;
   targetExamTitle?: string;
+  targetExamIndex?: number;
+  targetCategory?: string;
+  targetDifficulty?: string;
+  targetTopic?: string;
   targetSection?: string;
   targetElement?: string;
   confidence: number;
@@ -441,7 +464,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
   // ── READ / REPEAT QUESTION / REPEAT LAST SPOKEN CONTENT ──
   if (
     /\b(repeat\s+that|repeat\s+this|repeat\s+please|repeat\s+(?:the\s+)?question|question\s+repeat(?:\s+karo)?|sawal\s+repeat(?:\s+karo)?|repeat|read\s+(?:the\s+)?question|question\s+padh(?:\s*ke)?\s*(?:sunao|padho)|padho\s+(?:sawal|question)|sawal\s+padho|sawal\s+padh(?:\s*ke)?\s*sunao|padh\s*ke\s*sunao|dobara\s+(?:padho|bolo|sunao)|phir\s+se\s+(?:padho|bolo|sunao)|read\s+again|again|sunao\s+sawal|sawal\s+sunao)\b/i.test(t) &&
-    !/\b(options?\s+(?:padho|bolo|sunao)|only\s+options?)\b/i.test(t)
+    !/\b(options?\s+(?:padho|bolo|sunao)|only\s+options?|try\s+again|retry|reattempt)\b/i.test(t)
   ) {
     const isRepeatThat = /\b(repeat\s+that|repeat\s+this|repeat\s+please|dobara\s+bolo)\b/i.test(t);
     if (!isExamContext && isRepeatThat) {
@@ -495,7 +518,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
   // ── PREVIOUS QUESTION / GO BACK ──
   if (
     /\b(previous\s+question|pichla\s+question(?:\s+kholo)?|pichla\s+sawal|pichla\s+prashna|move\s+to\s+(?:the\s+)?previous\s+question|go\s+to\s+(?:the\s+)?previous\s+question|go\s+previous|prev\s+question|peeche\s+jao|piche\s+chalo|piche\s+aao|pick\s+the\s+question)\b/i.test(t) ||
-    (isExamContext && /^(previous|prev|pichla|peeche|piche|back|go back)$/i.test(t))
+    (isExamContext && /\b(previous|prev|pichla|peeche|piche|back|go back)\b/i.test(t))
   ) {
     if (!/\b(dashboard|exam|results|profile|settings|page)\b/i.test(t)) {
       return {
@@ -516,15 +539,30 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
     return optionMatch;
   }
 
-  // ── CLEAR / UNSELECT ANSWER ──
+  // ── CLEAR / UNSELECT / CANCEL ANSWER ──
   if (
-    /\b(clear\s+(?:my\s+)?answer|clear\s+selection|unselect|deselect|answer\s+hatao|selection\s+hatao|remove\s+(?:my\s+)?answer|take\s+away\s+(?:my\s+)?answer|take\s+back\s+(?:my\s+)?answer|erase\s+(?:my\s+)?answer|delete\s+(?:my\s+)?answer|hatao|reset\s+answer)\b/i.test(t)
+    /\b(clear\s+(?:my\s+)?answer|clear\s+selection|unselect|deselect|answer\s+hatao|selection\s+hatao|remove\s+(?:my\s+)?answer|take\s+away\s+(?:my\s+)?answer|take\s+back\s+(?:my\s+)?answer|erase\s+(?:my\s+)?answer|delete\s+(?:my\s+)?answer|hatao|reset\s+answer)\b/i.test(t) ||
+    (isExamContext && !isSubmitDlg && /^(?:cancel|cancel answer|cancel selection|radd karo)$/i.test(t))
   ) {
     return {
       type: 'CLEAR_ANSWER',
       action: 'CLEAR',
       label: 'Cleared Answer',
       speechFeedback: 'Answer cleared.',
+      confidence: 0.95,
+    };
+  }
+
+  // ── IN-EXAM MARKS / PROGRESS / SCORE INQUIRY ──
+  if (
+    isExamContext &&
+    /\b(marks|my\s+marks|score|my\s+score|result|results|exam\s+result|kitne\s+marks|mera\s+score|mera\s+result|check\s+result)\b/i.test(t)
+  ) {
+    return {
+      type: 'EXAM_STATUS',
+      action: 'MARKS',
+      label: 'Exam Progress & Marks',
+      speechFeedback: 'Announcing exam progress and marks.',
       confidence: 0.95,
     };
   }
@@ -638,7 +676,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
         label: 'Mathematics Mock Test',
         speechFeedback: 'Mathematics mock test opened.',
         targetExamId: 'banking-quant-01',
-        targetExamTitle: 'Mathematics',
+        targetExamTitle: 'Banking Quantitative Aptitude',
         targetPage: '/exam/banking-quant-01',
         confidence: 0.98,
       };
@@ -650,7 +688,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
         label: 'Reasoning Mock Test',
         speechFeedback: 'Reasoning mock test opened.',
         targetExamId: 'ssc-reasoning-01',
-        targetExamTitle: 'Reasoning',
+        targetExamTitle: 'SSC Reasoning',
         targetPage: '/exam/ssc-reasoning-01',
         confidence: 0.98,
       };
@@ -661,9 +699,9 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
         action: 'OPEN_EXAM_OVERVIEW',
         label: 'Railway Mock Test',
         speechFeedback: 'Railway mock test opened.',
-        targetExamId: 'railway-rrb-01',
+        targetExamId: 'railway-gk-01',
         targetExamTitle: 'Railway RRB',
-        targetPage: '/exam/railway-rrb-01',
+        targetPage: '/exam/railway-gk-01',
         confidence: 0.98,
       };
     }
@@ -673,9 +711,33 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
         action: 'OPEN_EXAM_OVERVIEW',
         label: 'UPSC Mock Test',
         speechFeedback: 'UPSC mock test opened.',
-        targetExamId: 'upsc-prelims-01',
-        targetExamTitle: 'UPSC CSAT',
-        targetPage: '/exam/upsc-prelims-01',
+        targetExamId: 'upsc-gs1-01',
+        targetExamTitle: 'UPSC General Studies',
+        targetPage: '/exam/upsc-gs1-01',
+        confidence: 0.98,
+      };
+    }
+    if (/\b(defence|nda|cds|armed\s+forces)\b/i.test(t)) {
+      return {
+        type: 'OPEN_EXAM_OVERVIEW',
+        action: 'OPEN_EXAM_OVERVIEW',
+        label: 'Defence Mock Test',
+        speechFeedback: 'Defence mock test opened.',
+        targetExamId: 'defence-nda-01',
+        targetExamTitle: 'Defence NDA & CDS',
+        targetPage: '/exam/defence-nda-01',
+        confidence: 0.98,
+      };
+    }
+    if (/\b(state\s+psc|psc|administrative)\b/i.test(t)) {
+      return {
+        type: 'OPEN_EXAM_OVERVIEW',
+        action: 'OPEN_EXAM_OVERVIEW',
+        label: 'State PSC Mock Test',
+        speechFeedback: 'State PSC mock test opened.',
+        targetExamId: 'state-psc-01',
+        targetExamTitle: 'State PSC',
+        targetPage: '/exam/state-psc-01',
         confidence: 0.98,
       };
     }
@@ -709,12 +771,134 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
       type: 'CLARIFY_AMBIGUOUS',
       action: 'NONE',
       label: 'Clarify Exam',
-      speechFeedback: 'Which exam would you like to start? You can choose SSC Reasoning, Banking Quant, Railway, or UPSC.',
+      speechFeedback: 'Which exam would you like to start? You can choose SSC Reasoning, Banking Quant, Railway, UPSC, Defence, or State PSC.',
       confidence: 0.9,
     };
   }
 
-  // ── START THE MOCK TEST (Explicit Start vs Open) ──
+  // ── SPECIFIC MOCK TEST START (By Category, Subject, or Exam Number) ──
+  // A. Numbered Exam Start: "start test 1", "test 2", "open test 3", "first test", "pehla test", etc.
+  const testNumMatch = t.match(/\b(?:start|begin|open|launch|attempt)?\s*(?:mock\s+)?(?:test|exam|pariksha)\s*([1-6])\b/i) ||
+    t.match(/^(?:test|exam|pariksha)\s*([1-6])$/i) ||
+    t.match(/\b(first|second|third|fourth|fifth|sixth)\s+(?:mock\s+)?(?:test|exam|pariksha)\b/i) ||
+    t.match(/\b(?:start|begin|open)?\s*(first|second|third|fourth|fifth|sixth)\s+(?:exam|test)\b/i) ||
+    t.match(/\b(pehla|dusra|doosra|teesra|tisra|chautha|panchva|paanchva|chatha|chhatha)\s+(?:test|exam|pariksha)\b/i);
+
+  if (testNumMatch) {
+    const rawVal = testNumMatch[1].toLowerCase();
+    let idx = 0;
+    if (rawVal === '1' || rawVal === 'first' || rawVal === 'pehla') idx = 0;
+    else if (rawVal === '2' || rawVal === 'second' || rawVal === 'dusra' || rawVal === 'doosra') idx = 1;
+    else if (rawVal === '3' || rawVal === 'third' || rawVal === 'teesra' || rawVal === 'tisra') idx = 2;
+    else if (rawVal === '4' || rawVal === 'fourth' || rawVal === 'chautha') idx = 3;
+    else if (rawVal === '5' || rawVal === 'fifth' || rawVal === 'panchva' || rawVal === 'paanchva') idx = 4;
+    else if (rawVal === '6' || rawVal === 'sixth' || rawVal === 'chatha' || rawVal === 'chhatha') idx = 5;
+
+    const examIds = ['ssc-reasoning-01', 'banking-quant-01', 'upsc-gs1-01', 'railway-gk-01', 'defence-nda-01', 'state-psc-01'];
+    const examTitles = ['SSC Reasoning', 'Banking Quant', 'UPSC General Studies', 'Railway RRB', 'Defence NDA & CDS', 'State PSC'];
+    const chosenId = examIds[idx];
+    const chosenTitle = examTitles[idx];
+
+    return {
+      type: 'START_EXAM',
+      action: 'START_EXAM',
+      label: `Start Test ${idx + 1}`,
+      speechFeedback: `Starting ${chosenTitle} mock test.`,
+      targetExamId: chosenId,
+      targetExamTitle: chosenTitle,
+      targetExamIndex: idx,
+      targetPage: `/exam/${chosenId}`,
+      confidence: 0.98,
+    };
+  }
+
+  // B. Specific Category Start: "start banking", "start upsc", "start railway", "start defence", "start state psc", "start ssc"
+  if (
+    /\b(start|begin|launch|attempt|shuru\s+karo)\b/i.test(t) ||
+    /\b(?:shuru\s+karo)\b/i.test(t) ||
+    /\b(?:mock\s+test|mock\s+exam)\b/i.test(t)
+  ) {
+    if (/\b(banking|bank|quant|quantitative|mathematics|maths?)\b/i.test(t) && !/\b(filter|show|category)\b/i.test(t)) {
+      return {
+        type: 'START_EXAM',
+        action: 'START_EXAM',
+        label: 'Start Banking Quant',
+        speechFeedback: 'Starting Banking Quantitative Aptitude mock test.',
+        targetExamId: 'banking-quant-01',
+        targetExamTitle: 'Banking Quantitative Aptitude',
+        targetExamIndex: 1,
+        targetPage: '/exam/banking-quant-01',
+        confidence: 0.98,
+      };
+    }
+    if (/\b(upsc|civil\s+services|prelims|csat|ias)\b/i.test(t) && !/\b(filter|show|category)\b/i.test(t)) {
+      return {
+        type: 'START_EXAM',
+        action: 'START_EXAM',
+        label: 'Start UPSC Prelims',
+        speechFeedback: 'Starting UPSC General Studies mock test.',
+        targetExamId: 'upsc-gs1-01',
+        targetExamTitle: 'UPSC General Studies',
+        targetExamIndex: 2,
+        targetPage: '/exam/upsc-gs1-01',
+        confidence: 0.98,
+      };
+    }
+    if (/\b(railway|rrb|ntpc|group\s*d)\b/i.test(t) && !/\b(filter|show|category)\b/i.test(t)) {
+      return {
+        type: 'START_EXAM',
+        action: 'START_EXAM',
+        label: 'Start Railway RRB',
+        speechFeedback: 'Starting Railway RRB mock test.',
+        targetExamId: 'railway-gk-01',
+        targetExamTitle: 'Railway RRB',
+        targetExamIndex: 3,
+        targetPage: '/exam/railway-gk-01',
+        confidence: 0.98,
+      };
+    }
+    if (/\b(defence|nda|cds|armed\s+forces)\b/i.test(t) && !/\b(filter|show|category)\b/i.test(t)) {
+      return {
+        type: 'START_EXAM',
+        action: 'START_EXAM',
+        label: 'Start Defence NDA',
+        speechFeedback: 'Starting Defence NDA and CDS mock test.',
+        targetExamId: 'defence-nda-01',
+        targetExamTitle: 'Defence NDA & CDS',
+        targetExamIndex: 4,
+        targetPage: '/exam/defence-nda-01',
+        confidence: 0.98,
+      };
+    }
+    if (/\b(state\s+psc|psc|administrative)\b/i.test(t) && !/\b(filter|show|category)\b/i.test(t)) {
+      return {
+        type: 'START_EXAM',
+        action: 'START_EXAM',
+        label: 'Start State PSC',
+        speechFeedback: 'Starting State PSC mock test.',
+        targetExamId: 'state-psc-01',
+        targetExamTitle: 'State PSC',
+        targetExamIndex: 5,
+        targetPage: '/exam/state-psc-01',
+        confidence: 0.98,
+      };
+    }
+    if (/\b(ssc|cgl|chsl|reasoning|general\s+intelligence)\b/i.test(t) && !/\b(filter|show|category)\b/i.test(t)) {
+      return {
+        type: 'START_EXAM',
+        action: 'START_EXAM',
+        label: 'Start SSC Reasoning',
+        speechFeedback: 'Starting SSC General Intelligence and Reasoning mock test.',
+        targetExamId: 'ssc-reasoning-01',
+        targetExamTitle: 'SSC Reasoning',
+        targetExamIndex: 0,
+        targetPage: '/exam/ssc-reasoning-01',
+        confidence: 0.98,
+      };
+    }
+  }
+
+  // ── START THE MOCK TEST (Generic Start) ──
   if (
     /\b(start\s+(?:the\s+)?(?:mock\s+)?(?:test|exam|examination|pariksha)|begin\s+(?:the\s+)?(?:mock\s+)?(?:test|exam|examination|pariksha)|ready\s+to\s+begin\s+(?:the\s+)?(?:test|exam|examination)|shuru\s+karo\s+(?:exam|pariksha|test)|chalu\s+karo\s+exam|proceed\s+to\s+exam)\b/i.test(t) ||
     (Boolean(context?.route?.startsWith('/exam/')) && context?.examState === 'not-started' && /^(start|begin|shuru|start exam|start test)$/i.test(t))
@@ -732,8 +916,8 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
 
   // 1. Exam History (Must precede Mock Test library so "open exam history" is not caught as "open exam")
   if (
-    /\b(open\s+exam\s+history|exam\s+history|history\s+kholo|past\s+attempts?|attempt\s+history|exam\s+logs?|history\s+par\s+jao)\b/i.test(t) ||
-    /^(exam history|history)$/i.test(t)
+    /\b(open\s+exam\s+history|exam\s+history|history\s+kholo|past\s+attempts?|attempt\s+history|exam\s+logs?|history\s+par\s+jao|purani\s+attempts?(\s+dikhao)?|purane\s+attempts?|show\s+exam\s+history|previous\s+attempts?)\b/i.test(t) ||
+    /^(exam history|history|past attempts)$/i.test(t)
   ) {
     return {
       type: 'OPEN_EXAM_HISTORY',
@@ -748,7 +932,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
   // 2. Mock Test Library (Open ONLY, never start automatically)
   if (
     (/\b(open\s+(?:the\s+)?(?:mock\s+)?(?:tests?|exams?)|go\s+to\s+(?:the\s+)?(?:mock\s+)?(?:tests?|exams?)|show\s+(?:the\s+)?(?:mock\s+)?(?:tests?|exams?)|browse\s+(?:mock\s+)?(?:tests?|exams?)|view\s+(?:mock\s+)?(?:tests?|exams?)|mock\s+test\s+(?:page|library|kholo|par\s+jao)|exam\s+library)\b/i.test(t) ||
-     /\b(?:open\s+but\s+dont\s+start|open\s+without\s+starting)\b/i.test(t)) &&
+      /\b(?:open\s+but\s+dont\s+start|open\s+without\s+starting)\b/i.test(t)) &&
     !/\b(start|begin|shuru|history|past)\b/i.test(t)
   ) {
     return {
@@ -761,10 +945,11 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
     };
   }
 
-  // 2. Dashboard
+  // 2. Dashboard / Get Started
   if (
-    /\b(open\s+(?:the\s+)?dashboard|go\s+to\s+(?:the\s+)?dashboard|dashboard\s+kholo|dashboard\s+par\s+jao|main\s+dashboard|dashboard|go\s+home|main\s+page)\b/i.test(t) ||
-    /^(dashboard|home)$/i.test(t)
+    (/\b(get\s+started|get\s+start|start\s+now|open\s+(?:the\s+)?dashboard|go\s+to\s+(?:the\s+)?dashboard|dashboard\s+kholo|dashboard\s+par\s+jao|main\s+dashboard|dashboard|go\s+home|main\s+page)\b/i.test(t) ||
+      /^(dashboard|home|get started|get start)$/i.test(t)) &&
+    !/\b(admin|performance)\b/i.test(t)
   ) {
     return {
       type: 'OPEN_DASHBOARD',
@@ -808,8 +993,8 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
 
   // 5. Performance Analytics
   if (
-    /\b(open\s+performance|show\s+performance|performance\s+analytics|pradarshan|performance\s+kholo|analytics\s+par\s+jao)\b/i.test(t) ||
-    /^(performance|analytics)$/i.test(t)
+    /\b(open\s+performance(?:\s+dashboard)?|show\s+performance|performance\s+analytics|pradarshan|performance\s+kholo|analytics\s+par\s+jao|report\s*card(\s+dikhao)?|mera\s+report\s*card|diagnostic\s+hub)\b/i.test(t) ||
+    /^(performance|analytics|report card)$/i.test(t)
   ) {
     return {
       type: 'OPEN_PERFORMANCE',
@@ -853,8 +1038,8 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
 
   // 8. Study Materials
   if (
-    /\b(open\s+study\s+materials?|study\s+materials?|study\s+notes|notes\s+kholo|study\s+material|kitabein|notes\s+dikhao|study\s+material\s+par\s+jao)\b/i.test(t) ||
-    /^(study materials?|study notes|notes)$/i.test(t)
+    /\b(open\s+study\s+(?:materials?|vault)|study\s+(?:materials?|vault)(?:\s+kholo)?|study\s+notes|notes\s+kholo|study\s+material|kitabein|notes\s+dikhao|study\s+(?:material|vault)\s+par\s+jao)\b/i.test(t) ||
+    /^(study materials?|study notes|notes|study vault)$/i.test(t)
   ) {
     return {
       type: 'OPEN_STUDY_MATERIALS',
@@ -868,7 +1053,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
 
   // 9. Past Year Papers (PYQs)
   if (
-    /\b(open\s+past\s+year\s+papers?|open\s+pyqs?|previous\s+year\s+papers?|past\s+year\s+papers?|past\s+papers?|pyqs?|purane\s+paper|pyq\s+kholo|pyqs?\s+par\s+jao)\b/i.test(t) ||
+    /\b(open\s+past\s+year\s+papers?|open\s+pyqs?|show\s+previous\s+year\s+(?:questions?|papers?)|previous\s+year\s+(?:questions?|papers?)|past\s+year\s+(?:questions?|papers?)|past\s+papers?(\s+open\s+karo)?|past\s+papers?\s+kholo|pyqs?|purane\s+paper|pyq\s+kholo|pyqs?\s+par\s+jao)\b/i.test(t) ||
     /^(pyqs?|past papers?|previous year papers?)$/i.test(t)
   ) {
     return {
@@ -897,10 +1082,10 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
   }
 
   // 11. Notifications (Read, Open, Close with Full Bilingual & Specific Index Support)
-  // 11A. Read Notifications (explicit reading requests)
+  // 11A. Read Specific Notification Index (e.g. "read first notification", "read notification 2")
   if (
-    /\b(read\s+(?:the\s+|all\s+|my\s+|unread\s+|latest\s+|first\s+|1st\s+|second\s+|2nd\s+|third\s+|3rd\s+)?notifications?(?:\s+(?:number\s+)?\d+)?|read\s+notification\s+box|read\s+(?:the\s+)?notifications?\s+in\s+(?:the\s+)?(?:notification\s+)?box|(?:first|1st|second|2nd|third|3rd|pehla|dusra|teesra)?\s*notifications?\s*(?:number\s*\d+|\d+)?\s*(?:padho|sunao|batao)|box\s+(?:me|ke)\s+notifications?\s+padho)\b/i.test(t) ||
-    /(?:^|\s)(?:पहला|दूसरा|तीसरा)?\s*(?:नोटिफिकेशन|नोटीफिकेशन)\s*(?:नंबर\s*\d+|\d+)?\s*(?:पढ़ो|पढो|सुनाओ|बताओ|बोलकर\s*सुनाओ)(?:\s|$)/u.test(t)
+    /\b(read\s+(?:the\s+)?(?:first|1st|second|2nd|third|3rd|pehla|dusra|teesra)\s+notifications?|read\s+notifications?\s+(?:number\s+)?\d+|(?:first|1st|second|2nd|third|3rd|pehla|dusra|teesra)\s+notifications?\s+(?:padho|sunao|batao)|read\s+(?:the\s+)?notifications?\s+in\s+(?:the\s+)?(?:notification\s+)?box)\b/i.test(t) ||
+    /(?:^|\s)(?:पहला|दूसरा|तीसरा)\s*(?:नोटिफिकेशन|नोटीफिकेशन)\s*(?:पढ़ो|पढो|सुनाओ|बताओ)(?:\s|$)/u.test(t)
   ) {
     let notifIdx: number | undefined = undefined;
     const numDirect = t.match(/\b(?:notification\s+(?:number\s+)?(\d+)|notification\s+(\d+))\b/i) || t.match(/(?:नोटिफिकेशन|नोटीफिकेशन)\s*(\d+)/u);
@@ -916,9 +1101,9 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
     return {
       type: 'READ_NOTIFICATIONS',
       action: 'READ_NOTIFICATIONS',
-      label: 'Read Notifications',
-      speechFeedback: 'Reading notifications.',
-      targetNotificationIndex: notifIdx,
+      label: `Notification ${notifIdx || 1}`,
+      speechFeedback: `Reading notification ${notifIdx || 1}.`,
+      targetNotificationIndex: notifIdx || 1,
       confidence: 0.98,
     };
   }
@@ -937,10 +1122,10 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
     };
   }
 
-  // 11C. Open / View Notifications
+  // 11C. Open / View / Read General Notifications
   if (
-    /\b(open\s+(?:the\s+|my\s+)?notifications?|open\s+notification\s+box|show\s+(?:the\s+|my\s+)?notifications?|view\s+(?:the\s+|my\s+)?notifications?|check\s+(?:the\s+|my\s+)?notifications?|notifications?\s+kholo|notification\s+box)\b/i.test(t) ||
-    /(?:^|\s)(?:नोटिफिकेशन|नोटीफिकेशन)\s*खोलो(?:\s|$)/u.test(t) ||
+    /\b(open\s+(?:the\s+|my\s+)?notifications?|open\s+notification\s+box|show\s+(?:the\s+|my\s+)?notifications?|view\s+(?:the\s+|my\s+)?notifications?|check\s+(?:the\s+|my\s+)?notifications?|notifications?\s+kholo|notification\s+box|read\s+(?:the\s+|all\s+|my\s+|unread\s+|latest\s+)?notifications?|read\s+notification|read\s+notification\s+box|notifications?\s+padho|notifications?\s+sunao)\b/i.test(t) ||
+    /(?:^|\s)(?:नोटिफिकेशन|नोटीफिकेशन)\s*(?:खोलो|दिखाओ|बताओ|पढ़ो|पढो|सुनाओ)(?:\s|$)/u.test(t) ||
     /^(?:notifications?|notification\s+box)$/i.test(t)
   ) {
     return {
@@ -952,6 +1137,7 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
     };
   }
 
+
   // 12. Logout / Sign out
   if (/\b(log\s*out|sign\s*out|logout\s+karo)\b/i.test(t)) {
     return {
@@ -960,6 +1146,238 @@ function matchSingleClause(rawClause: string, context?: VoiceContext): MatchResu
       label: 'Logout',
       speechFeedback: 'Logging out.',
       confidence: 0.95,
+    };
+  }
+
+  // 13. Authentication & Access Navigation
+  if (
+    /\b(login\s+(?:as\s+)?student|student\s+login|demo\s+student|student\s+demo|sign\s+in\s+(?:as\s+)?student|student\s+ban\s+kar\s+login)\b/i.test(t)
+  ) {
+    return {
+      type: 'DEMO_STUDENT_LOGIN',
+      action: 'DEMO_STUDENT_LOGIN',
+      label: 'Student Login',
+      speechFeedback: 'Logging in as candidate Aryan Sharma.',
+      targetPage: '/dashboard',
+      confidence: 0.98,
+    };
+  }
+
+  if (
+    /\b(login\s+(?:as\s+)?admin|admin\s+login|demo\s+admin|admin\s+demo|sign\s+in\s+(?:as\s+)?admin|admin\s+ban\s+kar\s+login)\b/i.test(t)
+  ) {
+    return {
+      type: 'DEMO_ADMIN_LOGIN',
+      action: 'DEMO_ADMIN_LOGIN',
+      label: 'Admin Login',
+      speechFeedback: 'Logging in as Examination Administrator.',
+      targetPage: '/admin?tab=dashboard',
+      confidence: 0.98,
+    };
+  }
+
+  if (
+    /\b(open\s+login|go\s+to\s+login|login\s+page|sign\s+in\s+page|login\s+kholo|sign\s+in\s+kholo)\b/i.test(t) ||
+    /^(login|sign\s*in)$/i.test(t)
+  ) {
+    return {
+      type: 'OPEN_LOGIN',
+      action: 'NAVIGATE_LOGIN',
+      label: 'Sign In',
+      speechFeedback: 'Opening login page.',
+      targetPage: '/login',
+      confidence: 0.96,
+    };
+  }
+
+  if (
+    /\b(open\s+register|open\s+registration|create\s+(?:an?\s+)?account|new\s+account|sign\s+up|register\s+page|khata\s+banao|registration\s+kholo)\b/i.test(t) ||
+    /^(register|sign\s*up)$/i.test(t)
+  ) {
+    return {
+      type: 'OPEN_REGISTER',
+      action: 'NAVIGATE_REGISTER',
+      label: 'Create Account',
+      speechFeedback: 'Opening registration page.',
+      targetPage: '/register',
+      confidence: 0.96,
+    };
+  }
+
+  if (
+    /\b(open\s+admin|admin\s+dashboard|admin\s+panel|management\s+cockpit|admin\s+portal|admin\s+console|admin\s+par\s+jao)\b/i.test(t) ||
+    /^admin$/i.test(t)
+  ) {
+    return {
+      type: 'OPEN_ADMIN',
+      action: 'NAVIGATE_ADMIN',
+      label: 'Admin Management',
+      speechFeedback: 'Opening admin management cockpit.',
+      targetPage: '/admin?tab=dashboard',
+      confidence: 0.96,
+    };
+  }
+
+  // 14. Practice Drill Actions & Hints
+  if (
+    /\b(check\s+(?:my\s+)?answer|verify\s+(?:my\s+)?answer|reveal\s+(?:the\s+)?(?:answer|explanation)|submit\s+answer|uttar\s+batao|sahi\s+hai\s+kya|check\s+result|check\s+solution)\b/i.test(t)
+  ) {
+    return {
+      type: 'VERIFY_ANSWER',
+      action: 'VERIFY_ANSWER',
+      label: 'Check Answer',
+      speechFeedback: 'Checking your answer.',
+      confidence: 0.96,
+    };
+  }
+
+  if (
+    /\b(give\s+me\s+(?:a\s+)?hint|hint|need\s+a\s+hint|clue|ishara|madad\s+karo)\b/i.test(t)
+  ) {
+    return {
+      type: 'PRACTICE_HINT',
+      action: 'PRACTICE_HINT',
+      label: 'Hint',
+      speechFeedback: 'Here is a hint for this question.',
+      confidence: 0.96,
+    };
+  }
+
+  if (
+    /\b(try\s+again|retry|retry\s+question|phir\s+se\s+koshish|dobara\s+koshish)\b/i.test(t)
+  ) {
+    return {
+      type: 'PRACTICE_RETRY',
+      action: 'PRACTICE_RETRY',
+      label: 'Try Again',
+      speechFeedback: 'Retrying question.',
+      confidence: 0.95,
+    };
+  }
+
+  if (
+    /\b(change\s+topic|switch\s+topic|next\s+topic|all\s+topics|topics\s+list|show\s+topics|topic\s+list|saare\s+topics|back\s+to\s+topics|topics\s+dikhao)\b/i.test(t)
+  ) {
+    return {
+      type: 'PRACTICE_TOPIC',
+      action: 'PRACTICE_TOPIC',
+      label: 'Practice Topics',
+      speechFeedback: 'Showing all practice topics.',
+      confidence: 0.96,
+    };
+  }
+
+  // 15. Exam Catalog Category & Difficulty Filters
+  const sscCatMatch = /\b(?:show|filter|category)\s+ssc\b/i.test(t) || /\bssc\s+(?:exams?|tests?|category)\b/i.test(t);
+  if (sscCatMatch) {
+    return {
+      type: 'FILTER_CATEGORY',
+      action: 'FILTER_CATEGORY_SSC',
+      label: 'SSC Exams',
+      speechFeedback: 'Filtering by SSC category.',
+      targetCategory: 'SSC',
+      confidence: 0.96,
+    };
+  }
+  const bankCatMatch = /\b(?:show|filter|category)\s+banking\b/i.test(t) || /\bbanking\s+(?:exams?|tests?|category)\b/i.test(t);
+  if (bankCatMatch) {
+    return {
+      type: 'FILTER_CATEGORY',
+      action: 'FILTER_CATEGORY_BANKING',
+      label: 'Banking Exams',
+      speechFeedback: 'Filtering by Banking category.',
+      targetCategory: 'Banking',
+      confidence: 0.96,
+    };
+  }
+  const railCatMatch = /\b(?:show|filter|category)\s+railway\b/i.test(t) || /\brailway\s+(?:exams?|tests?|category)\b/i.test(t);
+  if (railCatMatch) {
+    return {
+      type: 'FILTER_CATEGORY',
+      action: 'FILTER_CATEGORY_RAILWAY',
+      label: 'Railway Exams',
+      speechFeedback: 'Filtering by Railway category.',
+      targetCategory: 'Railway',
+      confidence: 0.96,
+    };
+  }
+  const upscCatMatch = /\b(?:show|filter|category)\s+upsc\b/i.test(t) || /\bupsc\s+(?:exams?|tests?|category)\b/i.test(t);
+  if (upscCatMatch) {
+    return {
+      type: 'FILTER_CATEGORY',
+      action: 'FILTER_CATEGORY_UPSC',
+      label: 'UPSC Exams',
+      speechFeedback: 'Filtering by UPSC category.',
+      targetCategory: 'UPSC',
+      confidence: 0.96,
+    };
+  }
+  const defCatMatch = /\b(?:show|filter|category)\s+(?:defence|nda|cds)\b/i.test(t) || /\b(?:defence|nda|cds)\s+(?:exams?|tests?|category)\b/i.test(t);
+  if (defCatMatch) {
+    return {
+      type: 'FILTER_CATEGORY',
+      action: 'FILTER_CATEGORY_DEFENCE',
+      label: 'Defence Exams',
+      speechFeedback: 'Filtering by Defence category.',
+      targetCategory: 'Defence',
+      confidence: 0.96,
+    };
+  }
+  const pscCatMatch = /\b(?:show|filter|category)\s+(?:state\s+psc|psc)\b/i.test(t) || /\b(?:state\s+psc|psc)\s+(?:exams?|tests?|category)\b/i.test(t);
+  if (pscCatMatch) {
+    return {
+      type: 'FILTER_CATEGORY',
+      action: 'FILTER_CATEGORY_STATE_PSC',
+      label: 'State PSC Exams',
+      speechFeedback: 'Filtering by State PSC category.',
+      targetCategory: 'State PSC',
+      confidence: 0.96,
+    };
+  }
+
+  const easyDiffMatch = /\b(?:filter|show|difficulty)\s+easy\b/i.test(t) || /\beasy\s+(?:exams?|tests?|difficulty)\b/i.test(t) || /\b(?:saral|aasan)\s+(?:exams?|tests?)\b/i.test(t);
+  if (easyDiffMatch) {
+    return {
+      type: 'FILTER_DIFFICULTY',
+      action: 'FILTER_DIFFICULTY_EASY',
+      label: 'Easy Exams',
+      speechFeedback: 'Filtering by Easy difficulty.',
+      targetDifficulty: 'Easy',
+      confidence: 0.96,
+    };
+  }
+  const medDiffMatch = /\b(?:filter|show|difficulty)\s+medium\b/i.test(t) || /\bmedium\s+(?:exams?|tests?|difficulty)\b/i.test(t) || /\bmadhyam\s+(?:exams?|tests?)\b/i.test(t);
+  if (medDiffMatch) {
+    return {
+      type: 'FILTER_DIFFICULTY',
+      action: 'FILTER_DIFFICULTY_MEDIUM',
+      label: 'Medium Exams',
+      speechFeedback: 'Filtering by Medium difficulty.',
+      targetDifficulty: 'Medium',
+      confidence: 0.96,
+    };
+  }
+  const hardDiffMatch = /\b(?:filter|show|difficulty)\s+hard\b/i.test(t) || /\b(?:hard|tough)\s+(?:exams?|tests?|difficulty)\b/i.test(t) || /\b(?:kathin|mushkil)\s+(?:exams?|tests?)\b/i.test(t);
+  if (hardDiffMatch) {
+    return {
+      type: 'FILTER_DIFFICULTY',
+      action: 'FILTER_DIFFICULTY_HARD',
+      label: 'Hard Exams',
+      speechFeedback: 'Filtering by Hard difficulty.',
+      targetDifficulty: 'Hard',
+      confidence: 0.96,
+    };
+  }
+
+  if (
+    /\b(reset\s+(?:all\s+)?filters?|clear\s+(?:all\s+)?filters?|show\s+all\s+exams|all\s+exams|all\s+categories|saare\s+exam\s+dikhao)\b/i.test(t)
+  ) {
+    return {
+      type: 'RESET_FILTERS',
+      action: 'RESET_FILTERS',
+      label: 'Reset Filters',
+      speechFeedback: 'Showing all available mock examinations.',
+      confidence: 0.96,
     };
   }
 
@@ -1245,9 +1663,9 @@ function extractOptionIntent(text: string): MatchResult | null {
     }
   }
 
-  // 3. Regular selection: "Select option B", "Choose B", "Option B", "Option 2", "Mark B", "Option bee", "Option see"
-  // Handles English and Hindi: pehla (A), dusra (B), teesra (C), chautha (D)
-  const selectRegex = /\b(?:select|choose|pick|tick|mark|tap|click|dabao|lagao|bharo|answer\s+is|ans\s+is)\s*(?:on\s*)?(?:options?\s*(?:number|no\.?)?)?\s*([abcd1-4]|alpha|beta|charlie|delta|first|second|third|fourth|pehla|dusra|teesra|chautha|bee|see|sea|si|dee)\b/i;
+  // 3. Regular selection: "Select option B", "Choose B", "Option B", "Option 2", "Mark B", "Option bee", "Option see", "Lock B"
+  // Handles English and Hindi: pehla (A), dusra (B), teesra (C), chautha (D), ek, do, teen, char, Devanagari numerals and letters
+  const selectRegex = /\b(?:select|choose|pick|tick|mark|tap|click|dabao|lagao|bharo|lock|lock\s+karo|chuno|answer\s+is|ans\s+is|answer|ans)\s*(?:on\s*)?(?:options?\s*(?:number|no\.?)?)?\s*([abcd1-4]|alpha|beta|bravo|charlie|delta|first|second|third|fourth|pehla|pahla|pratham|dusra|doosra|dwitiya|teesra|tisra|tritiya|chautha|chaturth|chaar|char|ek|do|teen|bee|be|see|sea|si|dee|di|[एबीसीडी]|[१२३४])\b/i;
   const selectMatch = text.match(selectRegex);
   if (selectMatch) {
     const opt = normalizeOptionLetter(selectMatch[1]);
@@ -1263,9 +1681,9 @@ function extractOptionIntent(text: string): MatchResult | null {
     }
   }
 
-  // 4. "Option [A/B/C/D]" or "[A/B/C/D] option" or "Option bee / see / dee"
-  const optPhraseMatch = text.match(/\boptions?\s*([abcd1-4]|alpha|beta|charlie|delta|bee|see|sea|si|dee)\b/i) ||
-    text.match(/\b([abcd1-4]|alpha|beta|charlie|delta|bee|see|sea|si|dee)\s+options?\b/i);
+  // 4. "Option [A/B/C/D]" or "[A/B/C/D] option" or "Option bee / see / dee" or Hindi "option do / teen / char"
+  const optPhraseMatch = text.match(/\boptions?\s*([abcd1-4]|alpha|beta|bravo|charlie|delta|first|second|third|fourth|pehla|pahla|pratham|dusra|doosra|dwitiya|teesra|tisra|tritiya|chautha|chaturth|chaar|char|ek|do|teen|bee|be|see|sea|si|dee|di|[एबीसीडी]|[१२३४])\b/i) ||
+    text.match(/\b([abcd1-4]|alpha|beta|bravo|charlie|delta|first|second|third|fourth|pehla|pahla|pratham|dusra|doosra|dwitiya|teesra|tisra|tritiya|chautha|chaturth|chaar|char|ek|do|teen|bee|be|see|sea|si|dee|di|[एबीसीडी]|[१२३४])\s+options?\b/i);
   if (optPhraseMatch) {
     const opt = normalizeOptionLetter(optPhraseMatch[1]);
     if (opt) {
@@ -1280,8 +1698,8 @@ function extractOptionIntent(text: string): MatchResult | null {
     }
   }
 
-  // 5. Bare option name if the entire utterance is just the option: "B", "Option B", "pehla option", "Second", "bee", "see"
-  const bareMatch = text.match(/^(?:option\s*)?([abcd1-4]|alpha|beta|charlie|delta|first|second|third|fourth|pehla|dusra|teesra|chautha|bee|see|sea|si|dee)$/i);
+  // 5. Bare option name if the entire utterance is just the option: "B", "Option B", "pehla option", "Second", "bee", "see", "दो", "सी"
+  const bareMatch = text.match(/^(?:option\s*)?([abcd1-4]|alpha|beta|bravo|charlie|delta|first|second|third|fourth|pehla|pahla|pratham|dusra|doosra|dwitiya|teesra|tisra|tritiya|chautha|chaturth|chaar|char|ek|do|teen|bee|be|see|sea|si|dee|di|[एबीसीडी]|[१२३४])$/i);
   if (bareMatch) {
     const opt = normalizeOptionLetter(bareMatch[1]);
     if (opt) {
@@ -1296,8 +1714,8 @@ function extractOptionIntent(text: string): MatchResult | null {
     }
   }
 
-  // 6. Hindi conversational: "B wala", "doosra wala", "pehla sahi hai", "c hoga"
-  const hindiMatch = text.match(/\b([abcd1-4]|pehla|pahla|dusra|doosra|teesra|tisra|chautha)\s*(?:wala|hoga|hai|sahi\s*hai|ko|pe|par)\b/i);
+  // 6. Hindi conversational: "B wala", "doosra wala", "pehla sahi hai", "c hoga", "b lock karo", "c ko lock karo"
+  const hindiMatch = text.match(/\b([abcd1-4]|alpha|beta|bravo|charlie|delta|pehla|pahla|pratham|dusra|doosra|dwitiya|teesra|tisra|tritiya|chautha|chaturth|chaar|char|ek|do|teen|[एबीसीडी]|[१२३४])\s*(?:wala|wali|hoga|hogi|hai|sahi\s*hai|ko\s*(?:lock\s*karo)?|ko|pe|par|lock\s*karo|chuno)\b/i);
   if (hindiMatch) {
     const opt = normalizeOptionLetter(hindiMatch[1]);
     if (opt) {
@@ -1318,13 +1736,21 @@ function extractOptionIntent(text: string): MatchResult | null {
 function normalizeOptionLetter(raw: string): ('A' | 'B' | 'C' | 'D') | null {
   const s = raw.toLowerCase().trim();
   switch (s) {
-    case 'a': case '1': case 'one': case 'first': case 'alpha': case 'apple': case 'pehla': case 'pahla': case 'ek':
+    case 'a': case '1': case 'one': case 'won': case 'first': case 'alpha': case 'apple':
+    case 'pehla': case 'pahla': case 'pratham': case 'ek': case 'ay': case 'eh':
+    case 'ए': case '१': case 'अ': case 'क':
       return 'A';
-    case 'b': case '2': case 'two': case 'second': case 'beta': case 'bravo': case 'bee': case 'be': case 'dusra': case 'doosra': case 'do':
+    case 'b': case '2': case 'two': case 'to': case 'too': case 'second': case 'beta': case 'bravo': case 'bee': case 'be':
+    case 'dusra': case 'doosra': case 'dwitiya': case 'do':
+    case 'बी': case '२': case 'ब': case 'ख':
       return 'B';
-    case 'c': case '3': case 'three': case 'third': case 'charlie': case 'see': case 'sea': case 'si': case 'teesra': case 'tisra': case 'teen':
+    case 'c': case '3': case 'three': case 'tree': case 'third': case 'charlie': case 'see': case 'sea': case 'si':
+    case 'teesra': case 'tisra': case 'tritiya': case 'teen':
+    case 'सी': case '३': case 'स': case 'ग':
       return 'C';
-    case 'd': case '4': case 'four': case 'fourth': case 'delta': case 'dee': case 'di': case 'chautha': case 'chaar': case 'char':
+    case 'd': case '4': case 'four': case 'for': case 'fore': case 'fourth': case 'delta': case 'dee': case 'di': case 'the':
+    case 'chautha': case 'chaturth': case 'chaar': case 'char':
+    case 'डी': case '४': case 'द': case 'घ':
       return 'D';
     default:
       return null;
@@ -1406,6 +1832,10 @@ export function classifyVoiceIntent(raw: string, context?: VoiceContext): VoiceI
         targetPage: match.targetPage,
         targetExamId: match.targetExamId,
         targetExamTitle: match.targetExamTitle,
+        targetExamIndex: match.targetExamIndex,
+        targetCategory: match.targetCategory,
+        targetDifficulty: match.targetDifficulty,
+        targetTopic: match.targetTopic,
         targetSection: match.targetSection,
         targetElement: match.targetElement,
         confidence: match.confidence,
@@ -1462,6 +1892,10 @@ export function classifyVoiceIntent(raw: string, context?: VoiceContext): VoiceI
       targetPage: fullMatch.targetPage,
       targetExamId: fullMatch.targetExamId,
       targetExamTitle: fullMatch.targetExamTitle,
+      targetExamIndex: fullMatch.targetExamIndex,
+      targetCategory: fullMatch.targetCategory,
+      targetDifficulty: fullMatch.targetDifficulty,
+      targetTopic: fullMatch.targetTopic,
       targetSection: fullMatch.targetSection,
       targetElement: fullMatch.targetElement,
       confidence: fullMatch.confidence,

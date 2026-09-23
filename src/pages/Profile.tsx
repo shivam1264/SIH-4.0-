@@ -24,6 +24,7 @@ import { useAccessibility } from '../context/AccessibilityContext';
 import { usePageVoice } from '../hooks/usePageVoice';
 import { speechService } from '../services/speechService';
 import { MOCK_ATTEMPTS, EXAMS, AI_RECOMMENDATIONS } from '../data/mockData';
+import { ExamAttempt } from '../types';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -70,7 +71,22 @@ export default function Profile() {
     document.title = 'Profile — DrishtiX';
   }, []);
 
-  const attempts = MOCK_ATTEMPTS;
+  const [attempts] = useState<ExamAttempt[]>(() => {
+    try {
+      const saved = localStorage.getItem('sight-exam-attempts');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const ids = new Set(parsed.map((p: ExamAttempt) => p.id));
+          const nonDup = MOCK_ATTEMPTS.filter(m => !ids.has(m.id));
+          return [...parsed, ...nonDup];
+        }
+      }
+    } catch {
+      // fallback
+    }
+    return MOCK_ATTEMPTS;
+  });
   const avg = Math.round(
     attempts.reduce((s, a) => s + a.percentage, 0) / (attempts.length || 1)
   );
@@ -377,11 +393,17 @@ export default function Profile() {
             >
               <div
                 className="card card-interactive fade-in"
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate('/history')}
+                onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && navigate('/history')}
+                aria-label="View examination attempt history ledger"
                 style={{
                   padding: '0.9rem 1.1rem',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.85rem',
+                  cursor: 'pointer',
                 }}
               >
                 <div
@@ -404,18 +426,24 @@ export default function Profile() {
                     {attempts.length}
                   </div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-                    Exams Attempted
+                    Exams Attempted →
                   </div>
                 </div>
               </div>
 
               <div
                 className="card card-interactive fade-in"
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate('/performance')}
+                onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && navigate('/performance')}
+                aria-label="View performance analytics and diagnostic report"
                 style={{
                   padding: '0.9rem 1.1rem',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.85rem',
+                  cursor: 'pointer',
                 }}
               >
                 <div
@@ -438,18 +466,24 @@ export default function Profile() {
                     {avg}%
                   </div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-                    Average Score
+                    Average Score →
                   </div>
                 </div>
               </div>
 
               <div
                 className="card card-interactive fade-in"
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate('/practice')}
+                onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && navigate('/practice')}
+                aria-label="Go to AI Focus Drills and practice module"
                 style={{
                   padding: '0.9rem 1.1rem',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.85rem',
+                  cursor: 'pointer',
                 }}
               >
                 <div
@@ -472,7 +506,7 @@ export default function Profile() {
                     {AI_RECOMMENDATIONS.length}
                   </div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-                    AI Focus Drills
+                    AI Focus Drills →
                   </div>
                 </div>
               </div>

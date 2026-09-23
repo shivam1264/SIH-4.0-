@@ -43,7 +43,8 @@ export interface AccessibilityPrefs {
 // ── Exam ───────────────────────────────────────
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 export type Subject = 'Mathematics' | 'Reasoning' | 'English' | 'General Awareness'
-  | 'General Science' | 'History' | 'Geography' | 'Polity' | 'Economics' | 'Computer';
+  | 'General Science' | 'General Knowledge' | 'Physics' | 'Environment'
+  | 'History' | 'Geography' | 'Polity' | 'Economics' | 'Computer';
 
 export interface QuestionOption {
   id: 'A' | 'B' | 'C' | 'D';

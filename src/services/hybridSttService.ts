@@ -28,9 +28,9 @@ const LOCAL_WHISPER_HEALTH   = 'http://localhost:8765/health';
 
 const SAMPLE_RATE            = 16000;
 const BUFFER_SIZE            = 2048;   // ~128ms per audio frame
-const BASE_SPEECH_RMS        = 0.016;  // Baseline speech energy threshold (rejects room fans & quiet breathing)
+const BASE_SPEECH_RMS        = 0.012;  // High-sensitivity speech threshold
 const SILENCE_FRAMES_TRIGGER = 3;      // ~384ms pause triggers utterance submission
-const MIN_UTTERANCE_MS       = 320;    // Minimum 320ms for speech commands
+const MIN_UTTERANCE_MS       = 180;    // Minimum 180ms to capture single-syllable commands ('B', 'No', 'A')
 const MAX_UTTERANCE_MS       = 5000;   // Safety cap: 5 seconds continuous audio
 
 const KNOWN_HALLUCINATIONS = [
@@ -241,27 +241,27 @@ export class HybridSttService {
 
       const source = this.audioCtx.createMediaStreamSource(this.stream);
 
-      // 1. High-pass filter at 125Hz to eliminate fan noise, table rumble & chassis vibration
+      // 1. High-pass filter at 130Hz to eliminate fan noise, table rumble & chassis vibration
       this.filterNode = this.audioCtx.createBiquadFilter();
       this.filterNode.type = 'highpass';
-      this.filterNode.frequency.value = 125;
+      this.filterNode.frequency.value = 130;
 
-      // 2. Low-pass filter at 3800Hz to eliminate high-frequency hiss, sizzle & clicks
+      // 2. Low-pass filter at 3600Hz to eliminate high-frequency hiss, sizzle & clicks
       this.lowpassNode = this.audioCtx.createBiquadFilter();
       this.lowpassNode.type = 'lowpass';
-      this.lowpassNode.frequency.value = 3800;
+      this.lowpassNode.frequency.value = 3600;
 
       // 3. Dynamics compressor: smooth vocal leveling without pumping
       this.compressorNode = this.audioCtx.createDynamicsCompressor();
-      this.compressorNode.threshold.value = -26;
-      this.compressorNode.knee.value = 8;
-      this.compressorNode.ratio.value = 3;
-      this.compressorNode.attack.value = 0.005;
-      this.compressorNode.release.value = 0.2;
+      this.compressorNode.threshold.value = -24;
+      this.compressorNode.knee.value = 10;
+      this.compressorNode.ratio.value = 4;
+      this.compressorNode.attack.value = 0.003;
+      this.compressorNode.release.value = 0.15;
 
-      // 4. Clean make-up gain (gentle 1.15x boost preserving natural dynamic range)
+      // 4. Clean make-up gain (1.30x boost ensures clear speech transmission)
       this.gainNode = this.audioCtx.createGain();
-      this.gainNode.gain.value = 1.15;
+      this.gainNode.gain.value = 1.30;
 
       this.processor = this.audioCtx.createScriptProcessor(BUFFER_SIZE, 1, 1);
 
@@ -288,18 +288,18 @@ export class HybridSttService {
         const frameDurationMs = (float32.length / SAMPLE_RATE) * 1000;
 
         if (!this.isSpeaking) {
-          this.noiseFloor = this.noiseFloor * 0.95 + rms * 0.05;
+          this.noiseFloor = this.noiseFloor * 0.96 + rms * 0.04;
         }
 
         const dynamicThreshold = speechService.isSpeaking
           ? Math.max(BASE_SPEECH_RMS * 1.35, this.noiseFloor * 2.0)
-          : Math.max(BASE_SPEECH_RMS, this.noiseFloor * 2.2);
+          : Math.max(BASE_SPEECH_RMS, this.noiseFloor * 1.9);
 
         if (rms >= dynamicThreshold) {
           this.consecutiveVoicedFrames++;
 
-          // Require at least 2 consecutive voiced frames (>250ms) to confirm genuine human speech
-          if (this.consecutiveVoicedFrames >= 2) {
+          // 1 frame of strong voice (>1.35x threshold) or 2 consecutive voiced frames confirms speech
+          if ((this.consecutiveVoicedFrames >= 1 && rms >= dynamicThreshold * 1.35) || this.consecutiveVoicedFrames >= 2) {
             // Barge-in: immediately cancel AI screen reader speech if candidate speaks
             if (speechService.isSpeaking) {
               console.log('[HybridSTT] 🛑 Barge-in: Candidate interrupted, stopping AI speech.');

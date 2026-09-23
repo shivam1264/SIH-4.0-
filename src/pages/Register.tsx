@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Sparkles, AlertTriangle, Check, Loader2, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { speechService } from '../services/speechService';
+import { usePageVoice } from '../hooks/usePageVoice';
 
 const EXAM_OPTIONS = ['SSC', 'Banking', 'Railway', 'UPSC', 'State PSC', 'Teaching'];
 
@@ -17,11 +18,6 @@ export default function Register() {
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState('');
 
-  useEffect(() => {
-    document.title = 'Create Account — DrishtiX';
-    speechService.speak('Registration page opened. Welcome to DrishtiX. Please enter your name, email, password, and choose your target exams.', { priority: true });
-  }, []);
-
   const toggleExam = (exam: string) => {
     setSelectedExams(prev => {
       const next = prev.includes(exam) ? prev.filter(e => e !== exam) : [...prev, exam];
@@ -29,6 +25,44 @@ export default function Register() {
       return next;
     });
   };
+
+  usePageVoice('Register', [
+    {
+      triggers: ['login', 'sign in', 'open login', 'already have account'],
+      answer: () => 'Navigating to sign in page.',
+      action: () => navigate('/login'),
+    },
+    {
+      triggers: ['go home', 'back to home', 'home page'],
+      answer: () => 'Going back to home page.',
+      action: () => navigate('/'),
+    },
+    {
+      triggers: ['select ssc', 'choose ssc', 'ssc exam'],
+      answer: () => 'Toggling SSC exam.',
+      action: () => toggleExam('SSC'),
+    },
+    {
+      triggers: ['select banking', 'choose banking', 'banking exam'],
+      answer: () => 'Toggling Banking exam.',
+      action: () => toggleExam('Banking'),
+    },
+    {
+      triggers: ['select railway', 'choose railway', 'railway exam'],
+      answer: () => 'Toggling Railway exam.',
+      action: () => toggleExam('Railway'),
+    },
+    {
+      triggers: ['select upsc', 'choose upsc', 'upsc exam'],
+      answer: () => 'Toggling UPSC exam.',
+      action: () => toggleExam('UPSC'),
+    },
+  ]);
+
+  useEffect(() => {
+    document.title = 'Create Account — DrishtiX';
+    speechService.speak('Registration page opened. Welcome to DrishtiX. Please enter your name, email, password, and choose your target exams.', { priority: true });
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,11 +77,11 @@ export default function Register() {
     const result = await register(name.trim(), email, pass);
     setLoading(false);
     if (result.ok) {
-      speechService.speak(`Welcome ${name.trim()}! Your target exams are ${selectedExams.join(' and ')}. Opening accessibility setup now.`, {
+      speechService.speak(`Welcome ${name.trim()}! Your target exams are ${selectedExams.join(' and ')}. Opening Student Dashboard.`, {
         priority: true,
-        onEnd: () => navigate('/onboarding'),
+        onEnd: () => navigate('/dashboard'),
       });
-      setTimeout(() => navigate('/onboarding'), 2200);
+      setTimeout(() => navigate('/dashboard'), 1500);
     } else {
       setError(result.error ?? 'Registration failed.');
       speechService.speak(result.error ?? 'Registration failed.');

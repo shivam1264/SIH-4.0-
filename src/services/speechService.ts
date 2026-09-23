@@ -27,6 +27,7 @@ class SpeechService {
   private _stopListeners = new Set<() => void>();
   public lastSpeechEndTime = 0;
   public lastSpokenText: string = '';
+  public currentUtteranceText: string = '';
 
   // Interruption buffering support for page explanation
   private _isPageExplaining = false;
@@ -356,15 +357,12 @@ class SpeechService {
       const onEnd = this._sentenceOnEndCallback;
       this._sentenceOnEndCallback = null;
       this._isSpeaking = false;
+      this.currentUtteranceText = '';
+      this._isPageExplaining = false;
+      this._queuedInterruptedTask = null;
       this.lastSpeechEndTime = Date.now();
 
       onEnd?.();
-
-      if (this._queuedInterruptedTask) {
-        setTimeout(() => this.executeQueuedTask(), 80);
-      } else {
-        this._isPageExplaining = false;
-      }
       return;
     }
 
@@ -379,6 +377,7 @@ class SpeechService {
   private speakSingleUtterance(cleaned: string, onEnd?: () => void) {
     if (!this.synth) return;
 
+    this.currentUtteranceText = cleaned;
     const utt = new SpeechSynthesisUtterance(cleaned);
     utt.rate = this.rate;
     utt.pitch = this.pitch;
@@ -407,23 +406,21 @@ class SpeechService {
         this._fallbackTimer = null;
       }
       this._isSpeaking = false;
+      this.currentUtteranceText = '';
       this.lastSpeechEndTime = Date.now();
       try { delete (window as any).__activeUtterance; } catch {}
 
       onEnd?.();
 
-      // If single utterance ended and a task was queued during page explanation
       if (!this._sentenceQueue.length) {
-        if (this._queuedInterruptedTask) {
-          setTimeout(() => this.executeQueuedTask(), 80);
-        } else {
-          this._isPageExplaining = false;
-        }
+        this._isPageExplaining = false;
+        this._queuedInterruptedTask = null;
       }
     };
 
     utt.onstart = () => {
       this._isSpeaking = true;
+      this.currentUtteranceText = cleaned;
       this._fallbackTimer = setTimeout(finish, maxDurationMs);
     };
 
@@ -437,6 +434,7 @@ class SpeechService {
   stop(clearQueue = true) {
     this._sentenceQueue = [];
     this._sentenceOnEndCallback = null;
+    this.currentUtteranceText = '';
     if (this._fallbackTimer) {
       clearTimeout(this._fallbackTimer);
       this._fallbackTimer = null;
